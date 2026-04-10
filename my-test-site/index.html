@@ -1,0 +1,886 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Co-Everyday | A Participatory Visual System</title>
+    <style>
+        :root {
+            --primary-color: #333;
+            --bg-color: #f5f5f5;
+            --card-bg: #ffffff;
+            --accent-color: #007AFF;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--primary-color);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 600px;
+            width: 100%;
+            background: var(--card-bg);
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.05);
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        h1 {
+            margin: 0;
+            font-size: 28px;
+            letter-spacing: 1px;
+        }
+
+        .subtitle {
+            font-size: 14px;
+            color: #888;
+            margin-top: 5px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        .input-group {
+            margin-bottom: 25px;
+        }
+
+        label {
+            display: block;
+            font-weight: bold;
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+
+        .upload-area {
+            border: 2px dashed #ddd;
+            padding: 40px 20px;
+            text-align: center;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .upload-area:hover {
+            border-color: var(--accent-color);
+            background: #f0f7ff;
+        }
+
+        #imagePreview {
+            max-width: 100%;
+            max-height: 300px;
+            display: none;
+            margin-top: 10px;
+            border-radius: 4px;
+        }
+
+        .category-group {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+        }
+
+        .cat-btn {
+            padding: 12px;
+            border: 1px solid #ddd;
+            background: white;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+
+        .cat-btn.active {
+            background: var(--primary-color);
+            color: white;
+            border-color: var(--primary-color);
+        }
+
+        textarea {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            box-sizing: border-box;
+            font-size: 14px;
+            resize: vertical;
+            min-height: 80px;
+        }
+
+        #generateBtn {
+            width: 100%;
+            padding: 15px;
+            background: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        #generateBtn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        #resultArea {
+            margin-top: 40px;
+            display: none;
+            text-align: center;
+        }
+
+        .poster-container {
+            position: relative;
+            display: inline-block;
+            line-height: 0;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+            max-width: 100%;
+            background: #000;
+        }
+
+        #finalCanvas {
+            max-width: 100%;
+            height: auto;
+        }
+
+        .template-overlay {
+            display: none;
+        }
+
+        .loading {
+            display: none;
+            margin: 20px 0;
+            color: var(--accent-color);
+            font-weight: bold;
+        }
+
+        footer {
+            margin-top: 50px;
+            font-size: 12px;
+            color: #aaa;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Co-Everyday</h1>
+            <div class="subtitle">A Participatory Visual System</div>
+        </header>
+
+        <div id="inputPage">
+            <div class="input-group">
+                <label>1. 上传照片</label>
+                <div class="upload-area" onclick="document.getElementById('fileInput').click()">
+                    <span id="uploadPlaceholder">点击或拖拽图片到此处</span>
+                    <img id="imagePreview" src="" alt="预览" />
+                    <input type="file" id="fileInput" hidden accept="image/*" />
+                </div>
+            </div>
+
+            <div class="input-group">
+                <label>2. 选择分类</label>
+                <div class="category-group">
+                    <button class="cat-btn active" data-type="space">空间</button>
+                    <button class="cat-btn" data-type="object">物件</button>
+                    <button class="cat-btn" data-type="moment">时刻</button>
+                    <button class="cat-btn" data-type="person">人物</button>
+                    <button class="cat-btn" data-type="light">光影</button>
+                </div>
+            </div>
+
+            <div class="input-group">
+                <label>3. 拍摄感想</label>
+                <textarea id="userText" placeholder="记录一下拍下这张照片时的感受"></textarea>
+            </div>
+
+            <button id="generateBtn" disabled>生成海报</button>
+            <div id="loadingMsg" class="loading">正在处理图像，请稍候...</div>
+        </div>
+
+        <div id="resultArea">
+            <label>生成结果</label>
+            <div class="poster-container" id="posterWrapper">
+                <canvas id="finalCanvas"></canvas>
+                <div id="templateOverlay" class="template-overlay"></div>
+            </div>
+            <p style="font-size: 12px; color: #888; margin-top: 15px;">长按图片可保存</p>
+            <button onclick="location.reload()" style="margin-top: 10px; background: none; border: 1px solid #ccc; padding: 8px 15px; border-radius: 4px; cursor: pointer;">
+                重新制作
+            </button>
+        </div>
+    </div>
+
+    <footer>&copy; 2026 Co-Everyday Project.</footer>
+
+    <script>
+        const TEMPLATES = {
+            vertical: './images/竖版.png',
+            horizontal: './images/横版.png',
+            horizontal2: './images/横版2.png'
+        };
+
+        const FX = {
+            space: {
+                splitDepth: 3,
+                minBlockSize: 180,
+                colorBlockRatio: 0.16,
+                offsetStrength: 110,
+                accentBarCount: 2
+            },
+            object: {
+                tolerance: 34,
+                gridSize: 10
+            },
+            moment: {
+                luminanceMin: 70,
+                luminanceMax: 245,
+                stripWidth: 2,
+                stripHeightMin: 10,
+                stripHeightMax: 26,
+                stretchLengthMin: 220,
+                stretchLengthMax: 520,
+                sampleStep: 3,
+                sampleCount: 85
+            },
+            person: {
+                tempScale: 0.42,
+                jitterPasses: 10,
+                dragPasses: 6,
+                finalOverlayAlpha: 0.10
+            }
+        };
+
+        let selectedCategory = 'space';
+        let uploadedImage = null;
+
+        const fileInput = document.getElementById('fileInput');
+        const imagePreview = document.getElementById('imagePreview');
+        const uploadPlaceholder = document.getElementById('uploadPlaceholder');
+        const generateBtn = document.getElementById('generateBtn');
+        const catBtns = document.querySelectorAll('.cat-btn');
+        const loadingMsg = document.getElementById('loadingMsg');
+
+        fileInput.addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                uploadedImage = new Image();
+                uploadedImage.onload = () => {
+                    imagePreview.src = event.target.result;
+                    imagePreview.style.display = 'block';
+                    uploadPlaceholder.style.display = 'none';
+                    generateBtn.disabled = false;
+                };
+                uploadedImage.src = event.target.result;
+            };
+            reader.readAsDataURL(file);
+        });
+
+        catBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                catBtns.forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                selectedCategory = btn.dataset.type;
+            });
+        });
+
+        function extractColors(img) {
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d', { willReadFrequently: true });
+            canvas.width = 64;
+            canvas.height = 64;
+            ctx.drawImage(img, 0, 0, 64, 64);
+
+            const data = ctx.getImageData(0, 0, 64, 64).data;
+            const colors = [];
+            for (let i = 0; i < data.length; i += 16) {
+                colors.push({ r: data[i], g: data[i + 1], b: data[i + 2] });
+            }
+
+            colors.sort((a, b) => (a.r + a.g + a.b) - (b.r + b.g + b.b));
+
+            const dominant = colors[Math.floor(colors.length * 0.75)];
+            const secondary = colors[Math.floor(colors.length * 0.25)];
+            const neutral = colors[Math.floor(colors.length * 0.5)];
+
+            return {
+                dominant: `rgb(${dominant.r},${dominant.g},${dominant.b})`,
+                secondary: `rgb(${secondary.r},${secondary.g},${secondary.b})`,
+                neutral: `rgb(${neutral.r},${neutral.g},${neutral.b})`
+            };
+        }
+
+        function makeAnalysisCanvas(sourceCanvas, maxSide = 420) {
+            const ratio = sourceCanvas.width / sourceCanvas.height;
+            let w, h;
+
+            if (sourceCanvas.width >= sourceCanvas.height) {
+                w = maxSide;
+                h = Math.round(maxSide / ratio);
+            } else {
+                h = maxSide;
+                w = Math.round(maxSide * ratio);
+            }
+
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d', { willReadFrequently: true });
+            canvas.width = w;
+            canvas.height = h;
+            ctx.drawImage(sourceCanvas, 0, 0, w, h);
+
+            return { canvas, ctx };
+        }
+
+        function parseRGB(str) {
+            const m = str.match(/\d+/g);
+            return {
+                r: Number(m[0]),
+                g: Number(m[1]),
+                b: Number(m[2])
+            };
+        }
+
+        function wrapText(ctx, text, x, y, maxWidth, lineHeight) {
+            const chars = text.split('');
+            let line = '';
+            let cursorY = y;
+
+            for (let i = 0; i < chars.length; i++) {
+                const testLine = line + chars[i];
+                const metrics = ctx.measureText(testLine);
+                if (metrics.width > maxWidth && line !== '') {
+                    ctx.fillText(line, x, cursorY);
+                    line = chars[i];
+                    cursorY += lineHeight;
+                } else {
+                    line = testLine;
+                }
+            }
+
+            if (line) ctx.fillText(line, x, cursorY);
+        }
+
+        function drawDynamicText(ctx, layoutType, baseW, baseH, userText, indexNumber) {
+            ctx.save();
+            ctx.fillStyle = "#ffffff";
+            ctx.textBaseline = "top";
+
+            if (layoutType === 'vertical') {
+                ctx.font = '500 18px "Helvetica Neue", Arial, sans-serif';
+                wrapText(ctx, userText || "No text", 520, 610, 210, 22);
+
+                ctx.font = "bold 28px sans-serif";
+                ctx.fillText(`#Fragment ${String(indexNumber).padStart(3, "0")}`, 11, 1160);
+
+            } else if (layoutType === 'horizontal') {
+                ctx.font = '500 18px "Helvetica Neue", Arial, sans-serif';
+                wrapText(ctx, userText || "No text", 280, 610, 210, 22);
+
+                ctx.font = "bold 30px sans-serif";
+                ctx.fillText(`#Fragment ${String(indexNumber).padStart(3, "0")}`, 2010, 950);
+
+            } else if (layoutType === 'horizontal2') {
+                ctx.font = '500 18px "Helvetica Neue", Arial, sans-serif';
+                wrapText(ctx, userText || "No text", 25, 220, 380, 22);
+
+                ctx.font = "bold 30px sans-serif";
+                ctx.fillText(`#Fragment ${String(indexNumber).padStart(3, "0")}`, 1435, 950);
+            }
+
+            ctx.restore();
+        }
+
+        function processImage(ctx, workingCanvas, rect, type, palette) {
+            const { x, y, w, h } = rect;
+
+            ctx.save();
+            ctx.beginPath();
+            ctx.rect(x, y, w, h);
+            ctx.clip();
+
+            const imgRatio = workingCanvas.width / workingCanvas.height;
+            const rectRatio = w / h;
+            let drawW, drawH, drawX, drawY;
+
+            if (imgRatio > rectRatio) {
+                drawH = h;
+                drawW = h * imgRatio;
+                drawX = x + (w - drawW) / 2;
+                drawY = y;
+            } else {
+                drawW = w;
+                drawH = w / imgRatio;
+                drawX = x;
+                drawY = y + (h - drawH) / 2;
+            }
+
+            if (type === 'space') {
+                const p = FX.space;
+
+                function subdivide(r, depth) {
+                    if (depth <= 0 || r.w < p.minBlockSize || r.h < p.minBlockSize) return [r];
+                    let res = [];
+
+                    if (r.w > r.h * 1.25 || (Math.random() > 0.5 && r.w > 100)) {
+                        let split = 0.42 + Math.random() * 0.16;
+                        let w1 = r.w * split, w2 = r.w - w1;
+                        res = res.concat(subdivide({ x: r.x, y: r.y, w: w1, h: r.h }, depth - 1));
+                        res = res.concat(subdivide({ x: r.x + w1, y: r.y, w: w2, h: r.h }, depth - 1));
+                    } else {
+                        let split = 0.42 + Math.random() * 0.16;
+                        let h1 = r.h * split, h2 = r.h - h1;
+                        res = res.concat(subdivide({ x: r.x, y: r.y, w: r.w, h: h1 }, depth - 1));
+                        res = res.concat(subdivide({ x: r.x, y: r.y + h1, w: r.w, h: h2 }, depth - 1));
+                    }
+                    return res;
+                }
+
+                const blocks = subdivide({ x: drawX, y: drawY, w: drawW, h: drawH }, p.splitDepth);
+                const scaleX = workingCanvas.width / drawW;
+                const scaleY = workingCanvas.height / drawH;
+
+                blocks.sort(() => Math.random() - 0.5);
+
+                blocks.forEach(b => {
+                    const isColorBlock = Math.random() < p.colorBlockRatio;
+
+                    if (isColorBlock) {
+                        let rand = Math.random();
+                        if (rand < 0.55) ctx.fillStyle = palette.dominant;
+                        else if (rand < 0.9) ctx.fillStyle = palette.secondary;
+                        else ctx.fillStyle = palette.neutral;
+
+                        ctx.fillRect(b.x, b.y, b.w + 1, b.h + 1);
+                    } else {
+                        let srcX = (b.x - drawX) * scaleX;
+                        let srcY = (b.y - drawY) * scaleY;
+                        let srcW = b.w * scaleX;
+                        let srcH = b.h * scaleY;
+
+                        let offsetX = (Math.random() - 0.5) * p.offsetStrength * scaleX;
+                        let offsetY = (Math.random() - 0.5) * p.offsetStrength * 0.65 * scaleY;
+
+                        let finalSrcX = Math.max(0, Math.min(workingCanvas.width - srcW, srcX + offsetX));
+                        let finalSrcY = Math.max(0, Math.min(workingCanvas.height - srcH, srcY + offsetY));
+
+                        ctx.drawImage(
+                            workingCanvas,
+                            finalSrcX, finalSrcY, srcW, srcH,
+                            b.x, b.y, b.w + 1, b.h + 1
+                        );
+                    }
+                });
+
+                for (let i = 0; i < p.accentBarCount; i++) {
+                    if (Math.random() > 0.5) {
+                        let sh = 8 + Math.random() * 14;
+                        let sy = drawY + Math.random() * (drawH - sh);
+                        ctx.fillStyle = Math.random() > 0.5 ? palette.dominant : palette.secondary;
+                        ctx.fillRect(drawX, sy, drawW * (0.25 + Math.random() * 0.35), sh);
+                    } else {
+                        let sw = 8 + Math.random() * 14;
+                        let sx = drawX + Math.random() * (drawW - sw);
+                        ctx.fillStyle = Math.random() > 0.5 ? palette.dominant : palette.secondary;
+                        ctx.fillRect(sx, drawY, sw, drawH * (0.25 + Math.random() * 0.35));
+                    }
+                }
+
+            } else if (type === 'object') {
+                const p = FX.object;
+
+                ctx.drawImage(workingCanvas, drawX, drawY, drawW, drawH);
+
+                const analysis = makeAnalysisCanvas(workingCanvas, 360);
+                const tempCanvas = analysis.canvas;
+                const tempCtx = analysis.ctx;
+
+                const imgData = tempCtx.getImageData(0, 0, tempCanvas.width, tempCanvas.height);
+                const data = imgData.data;
+
+                const target = parseRGB(palette.secondary);
+                const gs = p.gridSize;
+
+                const mapX = drawW / tempCanvas.width;
+                const mapY = drawH / tempCanvas.height;
+
+                for (let y0 = 0; y0 < tempCanvas.height; y0 += gs) {
+                    for (let x0 = 0; x0 < tempCanvas.width; x0 += gs) {
+                        let count = 0;
+                        let total = 0;
+
+                        for (let yy = y0; yy < Math.min(y0 + gs, tempCanvas.height); yy += 3) {
+                            for (let xx = x0; xx < Math.min(x0 + gs, tempCanvas.width); xx += 3) {
+                                const idx = (yy * tempCanvas.width + xx) * 4;
+                                const r = data[idx];
+                                const g = data[idx + 1];
+                                const b = data[idx + 2];
+
+                                const dist =
+                                    Math.abs(r - target.r) +
+                                    Math.abs(g - target.g) +
+                                    Math.abs(b - target.b);
+
+                                total++;
+                                if (dist < p.tolerance * 2.2) count++;
+                            }
+                        }
+
+                        const ratio = count / total;
+
+                        if (ratio > 0.38) {
+                            ctx.fillStyle = palette.secondary;
+                            ctx.fillRect(
+                                drawX + x0 * mapX,
+                                drawY + y0 * mapY,
+                                gs * mapX,
+                                gs * mapY
+                            );
+                        }
+                    }
+                }
+
+            } else if (type === 'moment') {
+                const p = FX.moment;
+
+                // 先铺原图
+                ctx.drawImage(workingCanvas, drawX, drawY, drawW, drawH);
+
+                const analysis = makeAnalysisCanvas(workingCanvas, 320);
+                const tempCanvas = analysis.canvas;
+                const tempCtx = analysis.ctx;
+                const mapX = drawW / tempCanvas.width;
+                const mapY = drawH / tempCanvas.height;
+
+                const imgData = tempCtx.getImageData(0, 0, tempCanvas.width, tempCanvas.height);
+                const data = imgData.data;
+                const candidates = [];
+
+                // 更密集地扫描亮度
+                for (let y0 = 0; y0 < tempCanvas.height; y0 += p.sampleStep) {
+                    for (let x0 = 0; x0 < tempCanvas.width; x0 += p.sampleStep) {
+                        const idx = (y0 * tempCanvas.width + x0) * 4;
+                        const r = data[idx];
+                        const g = data[idx + 1];
+                        const b = data[idx + 2];
+                        const lum = 0.299 * r + 0.587 * g + 0.114 * b;
+
+                        if (lum >= p.luminanceMin && lum <= p.luminanceMax) {
+                            candidates.push({ x: x0, y: y0, lum });
+                        }
+                    }
+                }
+
+                // 不要只取最亮的，打散一点更自然
+                candidates.sort(() => Math.random() - 0.5);
+                const chosen = candidates.slice(0, p.sampleCount);
+
+                chosen.forEach(pt => {
+                    const stripW = p.stripWidth;
+                    const stripH = p.stripHeightMin + Math.random() * (p.stripHeightMax - p.stripHeightMin);
+
+                    const sx = Math.max(0, Math.min(tempCanvas.width - stripW, pt.x));
+                    const sy = Math.max(0, Math.min(tempCanvas.height - stripH, pt.y));
+
+                    const dx = drawX + sx * mapX;
+                    const dy = drawY + sy * mapY;
+
+                    const stretchLen = (p.stretchLengthMin + Math.random() * (p.stretchLengthMax - p.stretchLengthMin)) * mapX;
+
+                    // 完全不透明，去掉那种半透明糊感
+                    ctx.globalAlpha = 1.0;
+                    ctx.drawImage(
+                        tempCanvas,
+                        sx, sy, stripW, stripH,
+                        dx,
+                        dy,
+                        stretchLen,
+                        stripH * mapY
+                    );
+                });
+
+                // 再额外叠一层“更细、更长”的条带，增强线性感
+                const fineCount = Math.floor(p.sampleCount * 0.45);
+
+                for (let i = 0; i < fineCount; i++) {
+                    const pt = candidates[Math.floor(Math.random() * candidates.length)];
+                    if (!pt) continue;
+
+                    const stripW = 1;
+                    const stripH = 6 + Math.random() * 14;
+
+                    const sx = Math.max(0, Math.min(tempCanvas.width - stripW, pt.x));
+                    const sy = Math.max(0, Math.min(tempCanvas.height - stripH, pt.y));
+
+                    const dx = drawX + sx * mapX;
+                    const dy = drawY + sy * mapY;
+
+                    const stretchLen = (280 + Math.random() * 420) * mapX;
+
+                    ctx.globalAlpha = 0.96;
+                    ctx.drawImage(
+                        tempCanvas,
+                        sx, sy, stripW, stripH,
+                        dx,
+                        dy,
+                        stretchLen,
+                        stripH * mapY
+                    );
+                }
+
+                // 不再叠回原图透明层，否则又会变糊
+                ctx.globalAlpha = 1.0;
+
+            
+
+            } else if (type === 'person') {
+                const p = FX.person;
+
+                const tempCanvas = document.createElement('canvas');
+                const tempCtx = tempCanvas.getContext('2d');
+
+                tempCanvas.width = Math.max(80, Math.floor(drawW * p.tempScale));
+                tempCanvas.height = Math.max(80, Math.floor(drawH * p.tempScale));
+
+                tempCtx.drawImage(workingCanvas, 0, 0, tempCanvas.width, tempCanvas.height);
+
+                tempCtx.globalAlpha = 0.11;
+                for (let i = 0; i < p.jitterPasses; i++) {
+                    const jitterX = (Math.random() - 0.5) * 16;
+                    const jitterY = (Math.random() - 0.5) * 20;
+                    tempCtx.drawImage(tempCanvas, jitterX, jitterY, tempCanvas.width, tempCanvas.height);
+                }
+
+                tempCtx.globalAlpha = 0.08;
+                for (let i = 0; i < p.dragPasses; i++) {
+                    const dragX = (Math.random() - 0.5) * 6;
+                    const dragY = i * 3;
+                    tempCtx.drawImage(tempCanvas, dragX, dragY, tempCanvas.width, tempCanvas.height);
+                }
+
+                tempCtx.globalAlpha = 1.0;
+
+                ctx.drawImage(tempCanvas, drawX, drawY, drawW, drawH);
+
+                ctx.globalAlpha = p.finalOverlayAlpha;
+                ctx.drawImage(workingCanvas, drawX, drawY, drawW, drawH);
+                ctx.globalAlpha = 1.0;
+
+            } else if (type === 'light') {
+                ctx.drawImage(workingCanvas, drawX, drawY, drawW, drawH);
+
+                ctx.globalAlpha = 0.08;
+                for (let i = 0; i < 20; i++) {
+                    const offsetX = (Math.random() - 0.5) * 30;
+                    const offsetY = (Math.random() - 0.5) * 30;
+                    ctx.drawImage(workingCanvas, drawX + offsetX, drawY + offsetY, drawW, drawH);
+                }
+                ctx.globalAlpha = 1.0;
+
+                ctx.globalAlpha = 0.12;
+                ctx.fillStyle = palette.dominant;
+                ctx.fillRect(x, y, w, h);
+                ctx.globalAlpha = 1.0;
+
+                const cols = 3;
+                const rows = 4;
+                const cellW = w / cols;
+                const cellH = h / rows;
+
+                for (let row = 0; row < rows; row++) {
+                    for (let col = 0; col < cols; col++) {
+                        if (Math.random() > 0.45) continue;
+
+                        const cx = x + col * cellW + cellW / 2;
+                        const cy = y + row * cellH + cellH / 2;
+                        const radius = Math.min(cellW, cellH) * (0.36 + Math.random() * 0.10);
+
+                        ctx.save();
+                        ctx.beginPath();
+                        ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+                        ctx.clip();
+
+                        const shiftX = (Math.random() - 0.5) * 70;
+                        const shiftY = (Math.random() - 0.5) * 70;
+                        ctx.drawImage(workingCanvas, drawX + shiftX, drawY + shiftY, drawW, drawH);
+
+                        ctx.restore();
+
+                        ctx.strokeStyle = "rgba(255,255,255,0.18)";
+                        ctx.lineWidth = 1.2;
+                        ctx.beginPath();
+                        ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+                        ctx.stroke();
+                    }
+                }
+
+                ctx.globalAlpha = 0.14;
+                for (let i = 0; i < 3; i++) {
+                    const bandY = y + Math.random() * h;
+                    const bandH = 22 + Math.random() * 28;
+                    ctx.fillStyle = "rgba(255,255,255,0.30)";
+                    ctx.fillRect(x, bandY, w, bandH);
+                }
+                ctx.globalAlpha = 1.0;
+            }
+
+            ctx.restore();
+        }
+
+        generateBtn.addEventListener('click', function() {
+            if (!uploadedImage) return;
+
+            loadingMsg.style.display = 'block';
+            generateBtn.disabled = true;
+
+            try {
+                const workingCanvas = document.createElement('canvas');
+                const wCtx = workingCanvas.getContext('2d');
+
+                let workW = uploadedImage.width;
+                let workH = uploadedImage.height;
+                const maxWorkDim = 800;
+
+                if (workW > maxWorkDim || workH > maxWorkDim) {
+                    const ratio = Math.min(maxWorkDim / workW, maxWorkDim / workH);
+                    workW = Math.round(workW * ratio);
+                    workH = Math.round(workH * ratio);
+                }
+
+                workingCanvas.width = workW;
+                workingCanvas.height = workH;
+                wCtx.drawImage(uploadedImage, 0, 0, workW, workH);
+
+                const palette = extractColors(workingCanvas);
+                const userText = document.getElementById('userText').value.trim();
+                const indexNumber = Date.now() % 1000;
+
+                const canvas = document.getElementById('finalCanvas');
+                const ctx = canvas.getContext('2d');
+
+                const imageRatio = workW / workH;
+                let layoutType;
+
+                if (imageRatio <= 1) {
+                    layoutType = 'vertical';
+                } else if (imageRatio >= 1.55) {
+                    layoutType = 'horizontal';
+                } else {
+                    layoutType = 'horizontal2';
+                }
+
+                let baseW, baseH;
+
+                if (layoutType === 'vertical') {
+                    baseW = 750;
+                    baseH = 1200;
+                } else if (layoutType === 'horizontal') {
+                    baseW = 2419;
+                    baseH = 1000;
+                } else {
+                    baseW = 1679;
+                    baseH = 1000;
+                }
+
+                canvas.width = baseW;
+                canvas.height = baseH;
+
+                let blueRect, blackRect, redRect;
+                let imageRegion;
+
+                if (layoutType === 'vertical') {
+                    const totalH = 207.92 + 490.716 + 133.226;
+                    const blueH = 207.92 / totalH;
+                    const blackH = 490.716 / totalH;
+                    const redH = 133.226 / totalH;
+
+                    blueRect = { x: 0, y: 0, w: baseW, h: baseH * blueH };
+                    blackRect = { x: 0, y: baseH * blueH, w: baseW, h: baseH * blackH };
+                    redRect = { x: 0, y: baseH * (blueH + blackH), w: baseW, h: baseH * redH };
+
+                } else if (layoutType === 'horizontal') {
+                    const totalW = 108.164 + 688.65 + 168.808;
+                    const blueW = 108.164 / totalW;
+                    const blackW = 688.65 / totalW;
+                    const redW = 168.808 / totalW;
+
+                    blueRect = { x: 0, y: 0, w: baseW * blueW, h: baseH };
+                    blackRect = { x: baseW * blueW, y: 0, w: baseW * blackW, h: baseH };
+                    redRect = { x: baseW * (blueW + blackW), y: 0, w: baseW * redW, h: baseH };
+
+                } else {
+                    const totalW = 169.483 + 394.116 + 108.399;
+                    const blueW = 169.483 / totalW;
+                    const blackW = 394.116 / totalW;
+                    const redW = 108.399 / totalW;
+
+                    blueRect = { x: 0, y: 0, w: baseW * blueW, h: baseH };
+                    blackRect = { x: baseW * blueW, y: 0, w: baseW * blackW, h: baseH };
+                    redRect = { x: baseW * (blueW + blackW), y: 0, w: baseW * redW, h: baseH };
+                }
+
+                imageRegion = {
+                    x: blackRect.x,
+                    y: blackRect.y,
+                    w: blackRect.w,
+                    h: blackRect.h
+                };
+
+                ctx.fillStyle = palette.dominant;
+                ctx.fillRect(blueRect.x, blueRect.y, blueRect.w, blueRect.h);
+
+                ctx.fillStyle = '#1a1a1a';
+                ctx.fillRect(blackRect.x, blackRect.y, blackRect.w, blackRect.h);
+
+                ctx.fillStyle = palette.secondary;
+                ctx.fillRect(redRect.x, redRect.y, redRect.w, redRect.h);
+
+                processImage(ctx, workingCanvas, imageRegion, selectedCategory, palette);
+                drawDynamicText(ctx, layoutType, baseW, baseH, userText, indexNumber);
+
+                const templateUrl = TEMPLATES[layoutType];
+                const templateImg = new Image();
+
+                templateImg.onload = function() {
+                    ctx.drawImage(templateImg, 0, 0, baseW, baseH);
+
+                    document.getElementById('inputPage').style.display = 'none';
+                    document.getElementById('resultArea').style.display = 'block';
+                    loadingMsg.style.display = 'none';
+                    window.scrollTo(0, 0);
+                };
+
+                templateImg.onerror = function() {
+                    alert('模板图片没有加载成功，请检查 images 文件夹路径和文件名');
+                    loadingMsg.style.display = 'none';
+                    generateBtn.disabled = false;
+                };
+
+                templateImg.src = templateUrl;
+
+            } catch (err) {
+                console.error(err);
+                alert('生成失败：' + err.message);
+                loadingMsg.style.display = 'none';
+                generateBtn.disabled = false;
+            }
+        });
+    </script>
+</body>
+</html>
