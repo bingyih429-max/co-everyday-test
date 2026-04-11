@@ -409,8 +409,8 @@
                 .upload(fileName, blob);
 
             if (uploadError) {
-                console.error(uploadError);
-                alert("图片上传失败");
+                console.error("上传报错详情：", uploadError);
+                alert("图片上传失败：" + (uploadError.message || JSON.stringify(uploadError)));
                 return;
             }
 
@@ -945,7 +945,7 @@
             if(e.target && e.target.id === "submitBtn"){
 
                 const canvas = document.getElementById("finalCanvas");
-                const fragmentNumber = Date.now() % 1000;
+                const fragmentNumber = String(Date.now() % 1000).padStart(3, "0");
 
                 uploadToSupabase(canvas, fragmentNumber);
 
