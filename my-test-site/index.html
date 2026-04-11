@@ -152,9 +152,11 @@
             background: #000;
         }
 
-        #finalCanvas {
+        #finalCanvas,
+        #finalImage {
             max-width: 100%;
             height: auto;
+            display: block;
         }
 
         .template-overlay {
@@ -173,6 +175,63 @@
             font-size: 12px;
             color: #aaa;
         }
+
+        .poster-container {
+            position: relative;
+            display: inline-block;
+            line-height: 0;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+            max-width: 100%;
+            background: #000;
+            overflow: hidden;
+        }
+
+        #finalImage {
+            width: 100%;
+            height: auto;
+            -webkit-user-drag: none;
+            user-select: none;
+            -webkit-touch-callout: default;
+            cursor: zoom-in;
+        }
+
+        #resultArea {
+            margin-top: 40px;
+            display: none;
+            text-align: center;
+            user-select: none;
+        }
+
+        #resultArea p,
+        #resultArea button,
+        #resultArea label,
+        #posterWrapper {
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        .image-modal {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.9);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+
+        .image-modal.active {
+            display: flex;
+        }
+
+        .image-modal img {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+        }
+
     </style>
 </head>
 <body>
@@ -215,10 +274,11 @@
         <div id="resultArea">
             <label>生成结果</label>
             <div class="poster-container" id="posterWrapper">
-                <canvas id="finalCanvas"></canvas>
+                <canvas id="finalCanvas" style="display:none;"></canvas>
+                <img id="finalImage" alt="生成结果" />
                 <div id="templateOverlay" class="template-overlay"></div>
             </div>
-            <p style="font-size: 12px; color: #888; margin-top: 15px;">长按图片可保存</p>
+            <p style="font-size: 12px; color: #888; margin-top: 15px;">长按图片可保存，点击图片可查看大图</p>
 
             <button id="submitBtn" style="
             margin-top:10px;
@@ -231,12 +291,29 @@
             投稿到公共图版
             </button>
 
+            <a id="saveImageBtn" download="co-everyday-fragment.png" style="
+            display:inline-block;
+            margin-top:10px;
+            padding:10px 20px;
+            border:1px solid #ccc;
+            background:#fff;
+            color:#000;
+            border-radius:6px;
+            text-decoration:none;
+            cursor:pointer;">
+            保存图片
+            </a>
+
             <button onclick="location.reload()" style="margin-top: 10px; background: none; border: 1px solid #ccc; padding: 8px 15px; border-radius: 4px; cursor: pointer;">
                 重新制作
             </button>
         </div>
     </div>
 
+    <div id="imageModal" class="image-modal">
+        <img id="modalImage" alt="预览大图" />
+    </div>
+    
     <footer>&copy; 2026 Co-Everyday Project.</footer>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -292,6 +369,11 @@
         const generateBtn = document.getElementById('generateBtn');
         const catBtns = document.querySelectorAll('.cat-btn');
         const loadingMsg = document.getElementById('loadingMsg');
+        const finalCanvas = document.getElementById('finalCanvas');
+        const finalImage = document.getElementById('finalImage');
+        const imageModal = document.getElementById('imageModal');
+        const modalImage = document.getElementById('modalImage');
+        const saveImageBtn = document.getElementById('saveImageBtn');
 
         fileInput.addEventListener('change', function(e) {
             const file = e.target.files[0];
@@ -918,6 +1000,14 @@
                 templateImg.onload = function() {
                     ctx.drawImage(templateImg, 0, 0, baseW, baseH);
 
+                    const finalDataUrl = canvas.toDataURL("image/png");
+                    finalImage.src = finalDataUrl;
+                    modalImage.src = finalDataUrl;
+                    saveImageBtn.href = finalDataUrl;
+
+                    canvas.style.display = 'none';
+                    finalImage.style.display = 'block';
+
                     document.getElementById('inputPage').style.display = 'none';
                     document.getElementById('resultArea').style.display = 'block';
                     loadingMsg.style.display = 'none';
@@ -951,6 +1041,15 @@
 
             }
 
+        });
+        
+        finalImage.addEventListener("click", function() {
+            if (!finalImage.src) return;
+            imageModal.classList.add("active");
+        });
+
+        imageModal.addEventListener("click", function() {
+            imageModal.classList.remove("active");
         });
 
     </script>
