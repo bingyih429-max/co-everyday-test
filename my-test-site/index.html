@@ -219,6 +219,18 @@
                 <div id="templateOverlay" class="template-overlay"></div>
             </div>
             <p style="font-size: 12px; color: #888; margin-top: 15px;">长按图片可保存</p>
+
+            <button id="submitBtn" style="
+            margin-top:10px;
+            padding:10px 20px;
+            border:none;
+            background:#000;
+            color:white;
+            border-radius:6px;
+            cursor:pointer;">
+            投稿到公共图版
+            </button>
+
             <button onclick="location.reload()" style="margin-top: 10px; background: none; border: 1px solid #ccc; padding: 8px 15px; border-radius: 4px; cursor: pointer;">
                 重新制作
             </button>
@@ -227,7 +239,13 @@
 
     <footer>&copy; 2026 Co-Everyday Project.</footer>
 
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script>
+        const SUPABASE_URL = "https://paidklixbfridphomkwj.supabase.co";
+        const SUPABASE_KEY = "sb_publishable_H8FqLKJCbrHrhAVBViFeWw_hannKThG";
+
+        const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
         const TEMPLATES = {
             vertical: './images/竖版.png',
             horizontal: './images/横版.png',
@@ -376,6 +394,46 @@
 
             if (line) ctx.fillText(line, x, cursorY);
         }
+
+        async function uploadToSupabase(canvas, fragmentNumber) {
+
+            const blob = await new Promise(resolve => {
+                canvas.toBlob(resolve, "image/png");
+            });
+
+            const fileName = `fragment-${fragmentNumber}-${Date.now()}.png`;
+
+            const { error: uploadError } = await supabaseClient
+                .storage
+                .from("generated-images")
+                .upload(fileName, blob);
+
+            if (uploadError) {
+                console.error(uploadError);
+                alert("图片上传失败");
+                return;
+            }
+
+            const imageUrl = `${SUPABASE_URL}/storage/v1/object/public/generated-images/${fileName}`;
+
+            const { error: insertError } = await supabaseClient
+                .from("submissions")
+                .insert([
+                    {
+                        serial_number: fragmentNumber,
+                        image_url: imageUrl
+                    }
+                ]);
+
+            if (insertError) {
+                console.error(insertError);
+                alert("数据库写入失败");
+                return;
+            }
+
+            alert("投稿成功！");
+        }
+
 
         function drawDynamicText(ctx, layoutType, baseW, baseH, userText, indexNumber) {
             ctx.save();
@@ -881,6 +939,20 @@
                 generateBtn.disabled = false;
             }
         });
+
+        document.addEventListener("click", function(e){
+
+            if(e.target && e.target.id === "submitBtn"){
+
+                const canvas = document.getElementById("finalCanvas");
+                const fragmentNumber = Date.now() % 1000;
+
+                uploadToSupabase(canvas, fragmentNumber);
+
+            }
+
+        });
+
     </script>
 </body>
 </html>
