@@ -232,6 +232,40 @@
             object-fit: contain;
         }
 
+        .action-row {
+            margin-top: 14px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            justify-content: center;
+        }
+
+        .action-btn {
+            appearance: none;
+            -webkit-appearance: none;
+            border: 1px solid #ccc;
+            background: #fff;
+            color: #111;
+            border-radius: 8px;
+            padding: 12px 22px;
+            min-width: 150px;
+            height: 52px;
+            box-sizing: border-box;
+            font-size: 16px;
+            font-weight: 600;
+            line-height: 1;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            text-decoration: none;
+        }
+
+        .action-btn.primary {
+            background: #000;
+            color: #fff;
+            border-color: #000;
+        }
     </style>
 </head>
 <body>
@@ -263,8 +297,14 @@
             </div>
 
             <div class="input-group">
-                <label>3. 拍摄感想</label>
-                <textarea id="userText" placeholder="记录一下拍下这张照片时的感受"></textarea>
+                <label>3. 拍摄地点</label>
+                <input id="locationInput" type="text" placeholder="例如：杭州西湖" 
+                style="width:100%;padding:12px;border:1px solid #ddd;border-radius:6px;font-size:14px;">
+            </div>
+
+            <div class="input-group">
+                <label>4. 拍摄感想</label>
+               <textarea id="userText" placeholder="记录一下拍摄这张照片时的感受"></textarea>
             </div>
 
             <button id="generateBtn" disabled>生成海报</button>
@@ -280,33 +320,11 @@
             </div>
             <p style="font-size: 12px; color: #888; margin-top: 15px;">长按图片可保存，点击图片可查看大图</p>
 
-            <button id="submitBtn" style="
-            margin-top:10px;
-            padding:10px 20px;
-            border:none;
-            background:#000;
-            color:white;
-            border-radius:6px;
-            cursor:pointer;">
-            投稿到公共图版
-            </button>
-
-            <a id="saveImageBtn" download="co-everyday-fragment.png" style="
-            display:inline-block;
-            margin-top:10px;
-            padding:10px 20px;
-            border:1px solid #ccc;
-            background:#fff;
-            color:#000;
-            border-radius:6px;
-            text-decoration:none;
-            cursor:pointer;">
-            保存图片
-            </a>
-
-            <button onclick="location.reload()" style="margin-top: 10px; background: none; border: 1px solid #ccc; padding: 8px 15px; border-radius: 4px; cursor: pointer;">
-                重新制作
-            </button>
+            <div class="action-row">
+                <button id="submitBtn" class="action-btn primary">投稿到公共图版</button>
+                <button id="saveImageBtn" class="action-btn">保存图片</button>
+                <button id="reloadBtn" class="action-btn">重新制作</button>
+            </div>
         </div>
     </div>
 
@@ -315,6 +333,7 @@
     </div>
     
     <footer>&copy; 2026 Co-Everyday Project.</footer>
+    
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script>
@@ -362,6 +381,7 @@
 
         let selectedCategory = 'space';
         let uploadedImage = null;
+        let currentFragmentNumber = null;
 
         const fileInput = document.getElementById('fileInput');
         const imagePreview = document.getElementById('imagePreview');
@@ -374,6 +394,7 @@
         const imageModal = document.getElementById('imageModal');
         const modalImage = document.getElementById('modalImage');
         const saveImageBtn = document.getElementById('saveImageBtn');
+        const reloadBtn = document.getElementById('reloadBtn');
 
         fileInput.addEventListener('change', function(e) {
             const file = e.target.files[0];
@@ -458,6 +479,7 @@
         }
 
         function wrapText(ctx, text, x, y, maxWidth, lineHeight) {
+            
             const chars = text.split('');
             let line = '';
             let cursorY = y;
@@ -476,6 +498,18 @@
 
             if (line) ctx.fillText(line, x, cursorY);
         }
+        
+        async function reserveFragmentNumber() {
+                const { data, error } = await supabaseClient.rpc('reserve_fragment_number');
+
+                if (error) {
+                    console.error("编号获取失败", error);
+                    alert("编号获取失败");
+                    throw error;
+                }
+
+                return data;
+            }
 
         async function uploadToSupabase(canvas, fragmentNumber) {
 
@@ -498,12 +532,18 @@
 
             const imageUrl = `${SUPABASE_URL}/storage/v1/object/public/generated-images/${fileName}`;
 
+            const location = document.getElementById('locationInput').value.trim();
+            const userText = document.getElementById('userText').value.trim();
+
             const { error: insertError } = await supabaseClient
                 .from("submissions")
                 .insert([
                     {
                         serial_number: fragmentNumber,
-                        image_url: imageUrl
+                        image_url: imageUrl,
+                        location: location,
+                        daily_tag: selectedCategory,
+                        user_text: userText
                     }
                 ]);
 
@@ -883,7 +923,7 @@
             ctx.restore();
         }
 
-        generateBtn.addEventListener('click', function() {
+        generateBtn.addEventListener('click', async function() {
             if (!uploadedImage) return;
 
             loadingMsg.style.display = 'block';
@@ -909,7 +949,9 @@
 
                 const palette = extractColors(workingCanvas);
                 const userText = document.getElementById('userText').value.trim();
-                const indexNumber = Date.now() % 1000;
+
+                currentFragmentNumber = await reserveFragmentNumber();
+                const indexNumber = currentFragmentNumber;
 
                 const canvas = document.getElementById('finalCanvas');
                 const ctx = canvas.getContext('2d');
@@ -1003,7 +1045,12 @@
                     const finalDataUrl = canvas.toDataURL("image/png");
                     finalImage.src = finalDataUrl;
                     modalImage.src = finalDataUrl;
-                    saveImageBtn.href = finalDataUrl;
+                    saveImageBtn.onclick = function(){
+                        const link = document.createElement("a");
+                        link.href = finalDataUrl;
+                        link.download = `Fragment-${currentFragmentNumber}.png`;
+                        link.click();
+                    };
 
                     canvas.style.display = 'none';
                     finalImage.style.display = 'block';
@@ -1033,9 +1080,13 @@
         document.addEventListener("click", function(e){
 
             if(e.target && e.target.id === "submitBtn"){
+                if(!currentFragmentNumber){
+                    alert("请先生成海报");
+                    return;
+                }
 
                 const canvas = document.getElementById("finalCanvas");
-                const fragmentNumber = String(Date.now() % 1000).padStart(3, "0");
+                const fragmentNumber = currentFragmentNumber;
 
                 uploadToSupabase(canvas, fragmentNumber);
 
@@ -1051,7 +1102,9 @@
         imageModal.addEventListener("click", function() {
             imageModal.classList.remove("active");
         });
-
+reloadBtn.addEventListener("click", function() {
+    location.reload();
+});
     </script>
 </body>
 </html>

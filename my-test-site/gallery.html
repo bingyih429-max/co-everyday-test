@@ -5,69 +5,270 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Co-Everyday | Public Wall</title>
   <style>
+    :root {
+      --bg: #f5f5f5;
+      --card: #ffffff;
+      --text: #111111;
+      --subtle: #666666;
+      --border: #dddddd;
+      --shadow: 0 4px 20px rgba(0,0,0,0.06);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
     body {
       margin: 0;
       padding: 24px;
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-      background: #f5f5f5;
-      color: #111;
+      background: var(--bg);
+      color: var(--text);
+    }
+
+    .page {
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+
+    header {
+      margin-bottom: 24px;
     }
 
     h1 {
-      margin: 0 0 8px 0;
-      font-size: 28px;
+      margin: 0;
+      font-size: 30px;
+      letter-spacing: 0.5px;
     }
 
     .subtitle {
+      margin-top: 6px;
       font-size: 13px;
       color: #777;
-      margin-bottom: 24px;
-      letter-spacing: 1px;
       text-transform: uppercase;
+      letter-spacing: 1.5px;
+    }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-top: 18px;
+    }
+
+    .status {
+      font-size: 13px;
+      color: var(--subtle);
+    }
+
+    .toolbar {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .toolbar button {
+      appearance: none;
+      -webkit-appearance: none;
+      border: 1px solid var(--border);
+      background: #fff;
+      color: #111;
+      border-radius: 8px;
+      padding: 10px 16px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
     }
 
     #gallery {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
       gap: 16px;
+      margin-top: 20px;
     }
 
     .card {
-      background: white;
-      border-radius: 10px;
+      background: var(--card);
+      border-radius: 12px;
       overflow: hidden;
-      box-shadow: 0 4px 20px rgba(0,0,0,0.06);
+      box-shadow: var(--shadow);
+      display: flex;
+      flex-direction: column;
     }
 
-    .card img {
+    .thumb {
       width: 100%;
-      display: block;
       aspect-ratio: 3 / 4;
       object-fit: cover;
+      display: block;
       background: #ddd;
+      cursor: zoom-in;
     }
 
     .meta {
-      padding: 10px 12px 14px;
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
     }
 
-    .meta .id {
-      font-weight: bold;
+    .meta h3 {
+      margin: 0;
+      font-size: 16px;
+      line-height: 1.3;
+    }
+
+    .meta p {
+      margin: 0;
+      font-size: 13px;
+      line-height: 1.5;
+      color: #555;
+      word-break: break-word;
+    }
+
+    .meta strong {
+      color: #222;
+    }
+
+    .delete-btn {
+      margin-top: 8px;
+      appearance: none;
+      -webkit-appearance: none;
+      border: 1px solid var(--border);
+      background: #fff;
+      color: #111;
+      border-radius: 8px;
+      padding: 10px 12px;
       font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
     }
 
-    .meta .time {
-      font-size: 12px;
+    .empty {
+      grid-column: 1 / -1;
+      text-align: center;
+      padding: 60px 20px;
       color: #888;
-      margin-top: 4px;
+      background: #fff;
+      border-radius: 12px;
+      box-shadow: var(--shadow);
+    }
+
+    .modal {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.88);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 9999;
+      padding: 24px;
+    }
+
+    .modal.active {
+      display: flex;
+    }
+
+    .modal-panel {
+      width: min(1100px, 100%);
+      max-height: 100%;
+      overflow: auto;
+      background: #fff;
+      border-radius: 14px;
+      display: grid;
+      grid-template-columns: 1.1fr 0.9fr;
+      overflow: hidden;
+    }
+
+    .modal-panel img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      background: #111;
+      display: block;
+      min-height: 300px;
+    }
+
+    .modal-info {
+      padding: 20px;
+    }
+
+    .modal-info h2 {
+      margin: 0 0 14px 0;
+      font-size: 24px;
+    }
+
+    .modal-info p {
+      margin: 8px 0;
+      font-size: 14px;
+      line-height: 1.7;
+      color: #444;
+      word-break: break-word;
+    }
+
+    .modal-actions {
+      margin-top: 18px;
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .modal-actions button {
+      appearance: none;
+      -webkit-appearance: none;
+      border: 1px solid var(--border);
+      background: #fff;
+      color: #111;
+      border-radius: 8px;
+      padding: 10px 16px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    @media (max-width: 860px) {
+      .modal-panel {
+        grid-template-columns: 1fr;
+      }
     }
   </style>
 </head>
 <body>
-  <h1>Co-Everyday</h1>
-  <div class="subtitle">Public Fragment Wall</div>
+  <div class="page">
+    <header>
+      <h1>Co-Everyday</h1>
+      <div class="subtitle">Public Fragment Wall</div>
 
-  <div id="gallery"></div>
+      <div class="topbar">
+        <div class="status" id="statusText">正在读取公共图版…</div>
+        <div class="toolbar">
+          <button id="refreshBtn">手动刷新</button>
+        </div>
+      </div>
+    </header>
+
+    <main id="gallery"></main>
+  </div>
+
+  <div id="modal" class="modal">
+    <div class="modal-panel">
+      <img id="modalImage" src="" alt="大图预览" />
+      <div class="modal-info">
+        <h2 id="modalTitle">#Fragment</h2>
+        <p><strong>上传时间：</strong><span id="modalTime">-</span></p>
+        <p><strong>地点：</strong><span id="modalLocation">-</span></p>
+        <p><strong>日常标签：</strong><span id="modalTag">-</span></p>
+        <p><strong>拍摄感想：</strong><span id="modalText">-</span></p>
+
+        <div class="modal-actions">
+          <button id="deleteCurrentBtn">删除这张</button>
+          <button id="closeModalBtn">关闭</button>
+        </div>
+      </div>
+    </div>
+  </div>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script>
@@ -76,7 +277,54 @@
 
     const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
+    const gallery = document.getElementById("gallery");
+    const statusText = document.getElementById("statusText");
+    const refreshBtn = document.getElementById("refreshBtn");
+
+    const modal = document.getElementById("modal");
+    const modalImage = document.getElementById("modalImage");
+    const modalTitle = document.getElementById("modalTitle");
+    const modalTime = document.getElementById("modalTime");
+    const modalLocation = document.getElementById("modalLocation");
+    const modalTag = document.getElementById("modalTag");
+    const modalText = document.getElementById("modalText");
+    const closeModalBtn = document.getElementById("closeModalBtn");
+    const deleteCurrentBtn = document.getElementById("deleteCurrentBtn");
+
+    const tagMap = {
+      space: "空间",
+      object: "物件",
+      moment: "时刻",
+      person: "人物",
+      light: "光影"
+    };
+
+    let currentItems = [];
+    let currentModalId = null;
+
+    function escapeHtml(str = "") {
+      return String(str)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+    }
+
+    function formatTime(iso) {
+      if (!iso) return "未记录";
+      const d = new Date(iso);
+      if (Number.isNaN(d.getTime())) return "未记录";
+      return d.toLocaleString();
+    }
+
+    function setStatus(text) {
+      statusText.textContent = text;
+    }
+
     async function loadGallery() {
+      setStatus("正在读取公共图版…");
+
       const { data, error } = await supabaseClient
         .from("submissions")
         .select("*")
@@ -84,30 +332,153 @@
 
       if (error) {
         console.error("读取投稿失败：", error);
-        alert("读取投稿失败");
+        setStatus("读取失败，请稍后重试");
         return;
       }
 
-      const gallery = document.getElementById("gallery");
+      currentItems = data || [];
 
-      gallery.innerHTML = data.map(item => {
-        const time = item.created_at
-          ? new Date(item.created_at).toLocaleString()
-          : "";
+      if (currentItems.length === 0) {
+        gallery.innerHTML = `<div class="empty">目前还没有投稿内容</div>`;
+        setStatus("当前没有投稿");
+        return;
+      }
 
-        return `
-          <div class="card">
-            <img src="${item.image_url}" alt="Fragment ${item.serial_number}" />
-            <div class="meta">
-              <div class="id">#Fragment ${String(item.serial_number).padStart(3, "0")}</div>
-              <div class="time">${time}</div>
-            </div>
+      gallery.innerHTML = currentItems.map(item => `
+        <article class="card">
+          <img
+            class="thumb"
+            src="${item.image_url}"
+            alt="#Fragment ${escapeHtml(item.serial_number)}"
+            data-id="${item.id}"
+          />
+          <div class="meta">
+            <h3>#Fragment ${escapeHtml(item.serial_number)}</h3>
+            <p><strong>上传时间：</strong>${escapeHtml(formatTime(item.created_at))}</p>
+            <p><strong>地点：</strong>${escapeHtml(item.location || "未填写")}</p>
+            <p><strong>日常标签：</strong>${escapeHtml(tagMap[item.daily_tag] || item.daily_tag || "未填写")}</p>
+            <p><strong>拍摄感想：</strong>${escapeHtml(item.user_text || "未填写")}</p>
+            <button class="delete-btn" data-delete-id="${item.id}">删除</button>
           </div>
-        `;
-      }).join("");
+        </article>
+      `).join("");
+
+      setStatus(`共 ${currentItems.length} 张图片，实时刷新已开启`);
     }
 
+    function openModalById(id) {
+      const item = currentItems.find(x => String(x.id) === String(id));
+      if (!item) return;
+
+      currentModalId = item.id;
+      modalImage.src = item.image_url;
+      modalTitle.textContent = `#Fragment ${item.serial_number}`;
+      modalTime.textContent = formatTime(item.created_at);
+      modalLocation.textContent = item.location || "未填写";
+      modalTag.textContent = tagMap[item.daily_tag] || item.daily_tag || "未填写";
+      modalText.textContent = item.user_text || "未填写";
+
+      modal.classList.add("active");
+    }
+
+    function closeModal() {
+      modal.classList.remove("active");
+      currentModalId = null;
+    }
+
+    async function deleteItemById(id) {
+      const item = currentItems.find(x => String(x.id) === String(id));
+      if (!item) return;
+
+      const ok = confirm(`确认删除 #Fragment ${item.serial_number} 吗？`);
+      if (!ok) return;
+
+      try {
+        let filePath = "";
+        const marker = "/generated-images/";
+        const idx = item.image_url.indexOf(marker);
+
+        if (idx !== -1) {
+          filePath = decodeURIComponent(item.image_url.slice(idx + marker.length));
+        }
+
+        if (filePath) {
+          const { error: storageError } = await supabaseClient
+            .storage
+            .from("generated-images")
+            .remove([filePath]);
+
+          if (storageError) {
+            console.error("删除 storage 文件失败：", storageError);
+          }
+        }
+
+        const { error: dbError } = await supabaseClient
+          .from("submissions")
+          .delete()
+          .eq("id", id);
+
+        if (dbError) {
+          console.error("删除数据库记录失败：", dbError);
+          alert("删除失败");
+          return;
+        }
+
+        if (String(currentModalId) === String(id)) {
+          closeModal();
+        }
+
+        await loadGallery();
+      } catch (err) {
+        console.error(err);
+        alert("删除失败");
+      }
+    }
+
+    gallery.addEventListener("click", function(e) {
+      const thumb = e.target.closest(".thumb");
+      if (thumb) {
+        openModalById(thumb.dataset.id);
+        return;
+      }
+
+      const deleteBtn = e.target.closest("[data-delete-id]");
+      if (deleteBtn) {
+        deleteItemById(deleteBtn.dataset.deleteId);
+      }
+    });
+
+    refreshBtn.addEventListener("click", function() {
+      loadGallery();
+    });
+
+    closeModalBtn.addEventListener("click", function() {
+      closeModal();
+    });
+
+    deleteCurrentBtn.addEventListener("click", function() {
+      if (!currentModalId) return;
+      deleteItemById(currentModalId);
+    });
+
+    modal.addEventListener("click", function(e) {
+      if (e.target === modal) {
+        closeModal();
+      }
+    });
+
     loadGallery();
+
+    supabaseClient
+      .channel("public-submissions-realtime")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "submissions" },
+        () => {
+          loadGallery();
+        }
+      )
+      .subscribe();
   </script>
 </body>
 </html>
