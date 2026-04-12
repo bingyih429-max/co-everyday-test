@@ -5,6 +5,34 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Co-Everyday | A Participatory Visual System</title>
     <style>
+        @font-face {
+    font-family: "ABC Favorit Expanded";
+    src: url("./fonts/ABCFavoritExpanded-Light-Trial.otf") format("opentype");
+    font-weight: 300;
+    font-style: normal;
+}
+
+@font-face {
+    font-family: "ABC Favorit Expanded";
+    src: url("./fonts/ABCFavoritExpanded-Regular-Trial.otf") format("opentype");
+    font-weight: 400;
+    font-style: normal;
+}
+
+@font-face {
+    font-family: "ABC Favorit Expanded";
+    src: url("./fonts/ABCFavoritExpanded-Medium-Trial.otf") format("opentype");
+    font-weight: 500;
+    font-style: normal;
+}
+
+@font-face {
+    font-family: "ABC Favorit Expanded";
+    src: url("./fonts/ABCFavoritExpanded-Book-Trial.otf") format("opentype");
+    font-weight: 600;
+    font-style: normal;
+}
+
         #locationInput {
     width: 100%;
     padding: 12px;
@@ -414,6 +442,7 @@
     
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/exifr/dist/lite.umd.js"></script>
     <script type="module">
         import {
           FilesetResolver,
@@ -499,6 +528,13 @@ typeSystem: {
         let selectedCategory = 'space';
         let uploadedImage = null;
         let currentFragmentNumber = null;
+        let currentPhotoDateParts = {
+    year: "2026",
+    month: "00",
+    day: "00",
+    hour: "00",
+    minute: "00"
+};
 
         let imageSegmenter = null;
         let imageSegmenterReady = null;
@@ -554,30 +590,31 @@ const typeSliderC = document.getElementById('typeSliderC');
 const typeSliderALabel = document.getElementById('typeSliderALabel');
 const typeSliderBLabel = document.getElementById('typeSliderBLabel');
 const typeSliderCLabel = document.getElementById('typeSliderCLabel');
-/* ========= 在这里加 ========= */
-const TYPE_FONT_STACK = '"Source Han Sans SC","Source Han Sans CN","Noto Sans SC","Noto Sans CJK SC","PingFang SC","Microsoft YaHei",sans-serif';
-/* =========================== */
-const MORISAWA_FONT = '"Helvetica Neue", "PingFang SC", "Noto Sans SC", sans-serif';
+const TYPE_FONT_STACK = '"ABC Favorit Expanded", "Source Han Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif';
+const MORISAWA_FONT = '"ABC Favorit Expanded", sans-serif';
 
 
+        fileInput.addEventListener('change', async function(e) {
+    const file = e.target.files[0];
+    if (!file) return;
 
-        fileInput.addEventListener('change', function(e) {
-            const file = e.target.files[0];
-            if (!file) return;
+    // 先读取照片时间
+    currentPhotoDateParts = await readPhotoDateParts(file);
+    console.log("照片时间：", currentPhotoDateParts);
 
-            const reader = new FileReader();
-            reader.onload = function(event) {
-                uploadedImage = new Image();
-                uploadedImage.onload = () => {
-                    imagePreview.src = event.target.result;
-                    imagePreview.style.display = 'block';
-                    uploadPlaceholder.style.display = 'none';
-                    generateBtn.disabled = false;
-                };
-                uploadedImage.src = event.target.result;
-            };
-            reader.readAsDataURL(file);
-        });
+    const reader = new FileReader();
+    reader.onload = function(event) {
+        uploadedImage = new Image();
+        uploadedImage.onload = () => {
+            imagePreview.src = event.target.result;
+            imagePreview.style.display = 'block';
+            uploadPlaceholder.style.display = 'none';
+            generateBtn.disabled = false;
+        };
+        uploadedImage.src = event.target.result;
+    };
+    reader.readAsDataURL(file);
+});
 
         catBtns.forEach(btn => {
             btn.addEventListener('click', () => {
@@ -586,6 +623,80 @@ const MORISAWA_FONT = '"Helvetica Neue", "PingFang SC", "Noto Sans SC", sans-ser
                 selectedCategory = btn.dataset.type;
             });
         });
+
+        function pad2(n) {
+    return String(n).padStart(2, "0");
+}
+
+function getDatePartsFromDate(dateObj) {
+    return {
+        year: String(dateObj.getFullYear()),
+        month: pad2(dateObj.getMonth() + 1),
+        day: pad2(dateObj.getDate()),
+        hour: pad2(dateObj.getHours()),
+        minute: pad2(dateObj.getMinutes())
+    };
+}
+
+
+
+async function ensureCustomFontsLoaded() {
+    try {
+        await document.fonts.load('400 20px "ABC Favorit Expanded"');
+        await document.fonts.ready;
+        console.log("ABC Favorit Expanded 已加载");
+    } catch (err) {
+        console.warn("字体加载失败：", err);
+    }
+}
+
+async function readPhotoDateParts(file) {
+    try {
+        const exifData = await exifr.parse(file, [
+            "DateTimeOriginal",
+            "CreateDate",
+            "ModifyDate"
+        ]);
+
+        const exifDate =
+            exifData?.DateTimeOriginal ||
+            exifData?.CreateDate ||
+            exifData?.ModifyDate;
+
+        if (exifDate instanceof Date && !isNaN(exifDate)) {
+            return getDatePartsFromDate(exifDate);
+        }
+    } catch (err) {
+        console.warn("EXIF 读取失败：", err);
+    }
+
+    // 兜底：没有照片日期时用当前时间
+    return getDatePartsFromDate(new Date());
+}
+
+function formatEnglishDateFromParts(parts) {
+    const year = Number(parts.year || new Date().getFullYear());
+    const month = Number(parts.month);
+    const day = Number(parts.day);
+
+    const monthNames = [
+        "January", "February", "March", "April", "May", "June",
+        "July", "August", "September", "October", "November", "December"
+    ];
+
+    return `${monthNames[month - 1] || "January"} ${day}, ${year}`;
+}
+
+function formatEnglishTimeFromParts(parts) {
+    let hour24 = Number(parts.hour);
+    const minute = String(parts.minute).padStart(2, "0");
+
+    const suffix = hour24 >= 12 ? "p.m." : "a.m.";
+    let hour12 = hour24 % 12;
+    if (hour12 === 0) hour12 = 12;
+
+    return `${String(hour12).padStart(2, "0")}:${minute} ${suffix}`;
+}
 
         function extractColors(img) {
             const canvas = document.createElement('canvas');
@@ -1328,6 +1439,7 @@ async function drawStringTypeLayer(ctx, rect, palette, text) {
 }
 
 async function rerenderPosterWithTypeLayer(userText) {
+    await ensureCustomFontsLoaded();
     if (!currentBaseCanvas || !currentImageRegion || !currentPaletteData) return;
 
     const canvas = document.getElementById('finalCanvas');
@@ -1338,13 +1450,23 @@ async function rerenderPosterWithTypeLayer(userText) {
 
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    // 1. 先画底图（不含模板）
+    // 1. 先画底图（不含模板、也不含旧动态文字，理想情况下）
     ctx.drawImage(currentBaseCanvas, 0, 0);
 
-    // 2. 再画文字生成层
+    // 2. 重新画 fragment / 日期 / 正文
+    drawDynamicText(
+        ctx,
+        currentLayoutType,
+        canvas.width,
+        canvas.height,
+        userText,
+        currentFragmentNumber
+    );
+
+    // 3. 再画文字生成层
     await drawGeneratedTypeLayer(ctx, currentImageRegion, currentPaletteData, userText);
 
-    // 3. 最后把模板始终盖到最上面
+    // 4. 最后盖模板
     if (currentTemplateCanvas) {
         ctx.drawImage(currentTemplateCanvas, 0, 0);
     }
@@ -2164,36 +2286,165 @@ function darkenCanvasAlphaOnly(targetCtx, width, height, alpha = 0.12) {
             alert("投稿成功！");
         }
 
+        function drawMaskedBigNumber(
+    ctx,
+    text,
+    centerX,
+    centerY,
+    fontSpec,
+    maskWidth,
+    offsetX = 0,
+    color = "#ffffff"
+) {
+    ctx.save();
+
+    // 裁切区域（只裁左右，不裁上下）
+    ctx.beginPath();
+    ctx.rect(
+        centerX - maskWidth / 2 + offsetX,
+        0,
+        maskWidth,
+        ctx.canvas.height
+    );
+    ctx.clip();
+
+    // 画字
+    ctx.fillStyle = color;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.font = fontSpec;
+    ctx.fillText(text, centerX, centerY);
+
+    ctx.restore();
+}
+
+        function drawDateNumbers(ctx, layoutType) {
+    const topNum = currentPhotoDateParts.hour;
+    const rightNum = currentPhotoDateParts.minute;
+    const leftNum = currentPhotoDateParts.month;
+    const bottomNum = currentPhotoDateParts.day;
+
+    ctx.save();
+
+    if (layoutType === 'vertical') {
+        const fontSpec = '400 170px "ABC Favorit Expanded", sans-serif';
+
+        // 上（轻微裁两边）
+        drawMaskedBigNumber(ctx, topNum, 350, 690, fontSpec, 170, 0);
+
+        // 左（多裁右边 → 向右偏移裁切框）
+        drawMaskedBigNumber(ctx, leftNum, 150, 825, fontSpec, 170, 25);
+
+        // 右（多裁左边 → 向左偏移裁切框）
+        drawMaskedBigNumber(ctx, rightNum, 530, 850, fontSpec, 170, 0);
+
+        // 下（轻裁）
+        drawMaskedBigNumber(ctx, bottomNum, 370, 980, fontSpec, 170, 10);
+
+    } else if (layoutType === 'horizontal') {
+        const fontSpec = '400 220px "ABC Favorit Expanded", sans-serif';
+
+        // 上
+        drawMaskedBigNumber(ctx, topNum, 1500, 550, fontSpec, 220, 20);
+
+        // 左（裁右边）
+        drawMaskedBigNumber(ctx, leftNum, 1260, 740, fontSpec, 220, 40);
+
+        // 右（裁左边）
+        drawMaskedBigNumber(ctx, rightNum, 1740, 780, fontSpec, 220, 10);
+
+        // 下
+        drawMaskedBigNumber(ctx, bottomNum, 1520, 950, fontSpec, 220, 20);
+
+    } else if (layoutType === 'horizontal2') {
+        const fontSpec = '400 220px "ABC Favorit Expanded", sans-serif';
+
+        // 上
+        drawMaskedBigNumber(ctx, topNum, 500, 550, fontSpec, 220, 50);
+
+        // 左（裁右边）
+        drawMaskedBigNumber(ctx, leftNum, 255, 740, fontSpec, 220, 40);
+
+        // 右（裁左边）
+        drawMaskedBigNumber(ctx, rightNum, 710, 780, fontSpec, 220, 20);
+
+        // 下
+        drawMaskedBigNumber(ctx, bottomNum, 480, 950, fontSpec, 220, 20);
+    }
+
+    ctx.restore();
+}
+
 
         function drawDynamicText(ctx, layoutType, baseW, baseH, userText, indexNumber) {
-            ctx.save();
-            ctx.fillStyle = "#ffffff";
-            ctx.textBaseline = "top";
+    ctx.save();
+    ctx.fillStyle = "#ffffff";
+    ctx.textBaseline = "top";
 
-            if (layoutType === 'vertical') {
-                ctx.font = '500 18px "Helvetica Neue", Arial, sans-serif';
-                wrapText(ctx, userText || "No text", 520, 610, 210, 22);
+    const locationText = document.getElementById('locationInput').value.trim() || "Unknown";
+    const englishDate = formatEnglishDateFromParts(currentPhotoDateParts);
+    const englishTime = formatEnglishTimeFromParts(currentPhotoDateParts);
+    const fragmentNo = String(indexNumber).padStart(3, "0");
 
-                ctx.font = "bold 28px sans-serif";
-                ctx.fillText(`#Fragment ${String(indexNumber).padStart(3, "0")}`, 11, 1160);
+    if (layoutType === 'vertical') {
+        // 正文
+        ctx.font = '400 20px "ABC Favorit Expanded", sans-serif';
+        wrapText(ctx, userText || "No text", 520, 610, 210, 22);
 
-            } else if (layoutType === 'horizontal') {
-                ctx.font = '500 18px "Helvetica Neue", Arial, sans-serif';
-                wrapText(ctx, userText || "No text", 280, 610, 210, 22);
+        // 信息块
+        ctx.font = '400 18px "ABC Favorit Expanded", sans-serif';
+        ctx.fillText(`Date: ${englishDate}`, 18, 1028);
+        ctx.fillText(`Time: ${englishTime}`, 18, 1048);
+        ctx.fillText(`Loc.: ${locationText}`, 18, 1068);
 
-                ctx.font = "bold 30px sans-serif";
-                ctx.fillText(`#Fragment ${String(indexNumber).padStart(3, "0")}`, 2010, 950);
+        // Fragment 两行
+        ctx.font = '400 20px "ABC Favorit Expanded", sans-serif';
+        ctx.fillText(`#Fragment`, 18, 1138);
 
-            } else if (layoutType === 'horizontal2') {
-                ctx.font = '500 18px "Helvetica Neue", Arial, sans-serif';
-                wrapText(ctx, userText || "No text", 25, 220, 380, 22);
+        ctx.font = '600 30px "ABC Favorit Expanded", sans-serif';
+        ctx.fillText(fragmentNo, 18, 1164);
 
-                ctx.font = "bold 30px sans-serif";
-                ctx.fillText(`#Fragment ${String(indexNumber).padStart(3, "0")}`, 1435, 950);
-            }
+    } else if (layoutType === 'horizontal') {
+        // 正文
+        ctx.font = '400 24px "ABC Favorit Expanded", sans-serif';
+        wrapText(ctx, userText || "No text", 280, 610, 210, 22);
 
-            ctx.restore();
-        }
+        // 信息块
+        ctx.font = '400 22px "ABC Favorit Expanded", sans-serif';
+        ctx.fillText(`Date: ${englishDate}`, 2015, 800);
+        ctx.fillText(`Time: ${englishTime}`, 2015, 830);
+        ctx.fillText(`Loc.: ${locationText}`, 2015, 860);
+
+        // Fragment 两行
+        ctx.font = '400 24px "ABC Favorit Expanded", sans-serif';
+        ctx.fillText(`#Fragment`, 2015, 910);
+
+        ctx.font = '600 36px "ABC Favorit Expanded", sans-serif';
+        ctx.fillText(fragmentNo, 2015, 950);
+
+    } else if (layoutType === 'horizontal2') {
+        // 正文
+        ctx.font = '400 24px "ABC Favorit Expanded", sans-serif';
+        wrapText(ctx, userText || "No text", 25, 220, 380, 22);
+
+        // 信息块
+        ctx.font = '400 22px "ABC Favorit Expanded", sans-serif';
+        ctx.fillText(`Date: ${englishDate}`, 1430, 800);
+        ctx.fillText(`Time: ${englishTime}`, 1430, 825);
+        ctx.fillText(`Loc.: ${locationText}`, 1430, 850);
+
+        // Fragment 两行
+        ctx.font = '400 24px "ABC Favorit Expanded", sans-serif';
+        ctx.fillText(`#Fragment`, 1430, 910);
+
+        ctx.font = '600 36px "ABC Favorit Expanded", sans-serif';
+        ctx.fillText(fragmentNo, 1430, 950);
+    }
+
+    drawDateNumbers(ctx, layoutType);
+
+    ctx.restore();
+}
 
         function getImageFitRectInRegion(sourceCanvas, rect) {
     const { x, y, w, h } = rect;
@@ -3109,6 +3360,7 @@ ctx.drawImage(groupCanvas, drawX, drawY, drawW, drawH);
 
             ctx.restore();
         }
+        
 
         generateBtn.addEventListener('click', async function() {
             if (!uploadedImage) return;
@@ -3221,16 +3473,30 @@ ctx.drawImage(groupCanvas, drawX, drawY, drawW, drawH);
                 ctx.fillRect(redRect.x, redRect.y, redRect.w, redRect.h);
 
                 await processImage(ctx, workingCanvas, imageRegion, selectedCategory, palette);
-                drawDynamicText(ctx, layoutType, baseW, baseH, userText, indexNumber);
 
-                const templateUrl = TEMPLATES[layoutType];
-                const templateImg = new Image();
+// 先保存“纯底图”，不要把动态文字烤进去
+currentBaseCanvas = cloneCanvas(canvas);
 
-                templateImg.onload = async function() {
-    // 不要先把模板画到主 canvas 上
+await ensureCustomFontsLoaded();
+drawDynamicText(ctx, layoutType, baseW, baseH, userText, indexNumber);
 
-    // 先保存“无模板”的基础底图
-    currentBaseCanvas = cloneCanvas(canvas);
+const templateUrl = TEMPLATES[layoutType];
+const templateImg = new Image();
+
+templateImg.onload = async function() {
+    // 保存模板图层
+    currentTemplateCanvas = document.createElement('canvas');
+    currentTemplateCanvas.width = canvas.width;
+    currentTemplateCanvas.height = canvas.height;
+    const tctx = currentTemplateCanvas.getContext('2d');
+    tctx.drawImage(templateImg, 0, 0, canvas.width, canvas.height);
+
+    // 主画布盖模板
+    ctx.drawImage(templateImg, 0, 0, canvas.width, canvas.height);
+
+    const finalDataUrl = canvas.toDataURL("image/png");
+    finalImage.src = finalDataUrl;
+    modalImage.src = finalDataUrl;
 
     // 再单独做模板层
     currentTemplateCanvas = document.createElement('canvas');
