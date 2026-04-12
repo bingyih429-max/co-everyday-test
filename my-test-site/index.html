@@ -5,6 +5,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Co-Everyday | A Participatory Visual System</title>
     <style>
+        #locationInput {
+    width: 100%;
+    padding: 12px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    box-sizing: border-box;
+    font-size: 14px;
+}
         :root {
             --primary-color: #333;
             --bg-color: #f5f5f5;
@@ -266,6 +274,51 @@
             color: #fff;
             border-color: #000;
         }
+
+        .type-controls {
+    margin: 20px auto 0;
+    padding: 18px 16px;
+    max-width: 100%;
+    border: 1px solid #ddd;
+    border-radius: 10px;
+    background: #fff;
+    text-align: left;
+    box-sizing: border-box;
+}
+
+.type-controls-title {
+    font-size: 14px;
+    font-weight: 700;
+    margin-bottom: 14px;
+    color: #111;
+}
+
+.type-control-row {
+    margin-bottom: 12px;
+}
+
+.type-control-row label {
+    display: block;
+    font-size: 13px;
+    margin-bottom: 6px;
+    color: #333;
+}
+
+.type-control-row input[type="text"],
+.type-control-row select {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 10px 12px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    font-size: 14px;
+    background: #fff;
+}
+
+.type-control-row input[type="range"] {
+    width: 100%;
+}
+
     </style>
 </head>
 <body>
@@ -298,8 +351,7 @@
 
             <div class="input-group">
                 <label>3. 拍摄地点</label>
-                <input id="locationInput" type="text" placeholder="例如：杭州西湖" 
-                style="width:100%;padding:12px;border:1px solid #ddd;border-radius:6px;font-size:14px;">
+                <input id="locationInput" type="text" placeholder="例如：杭州西湖">
             </div>
 
             <div class="input-group">
@@ -312,20 +364,46 @@
         </div>
 
         <div id="resultArea">
-            <label>生成结果</label>
-            <div class="poster-container" id="posterWrapper">
-                <canvas id="finalCanvas" style="display:none;"></canvas>
-                <img id="finalImage" alt="生成结果" />
-                <div id="templateOverlay" class="template-overlay"></div>
-            </div>
-            <p style="font-size: 12px; color: #888; margin-top: 15px;">长按图片可保存，点击图片可查看大图</p>
+    <label>生成结果</label>
+    <div class="poster-container" id="posterWrapper">
+        <canvas id="finalCanvas" style="display:none;"></canvas>
+        <img id="finalImage" alt="生成结果" />
+        <div id="templateOverlay" class="template-overlay"></div>
+    </div>
 
-            <div class="action-row">
-                <button id="submitBtn" class="action-btn primary">投稿到公共图版</button>
-                <button id="saveImageBtn" class="action-btn">保存图片</button>
-                <button id="reloadBtn" class="action-btn">重新制作</button>
-            </div>
+    <p style="font-size: 12px; color: #888; margin-top: 15px;">长按图片可保存，点击图片可查看大图</p>
+
+    <!-- 新增：文字生成控制区 -->
+    <div id="typeControls" class="type-controls" style="display:none;">
+        <div class="type-controls-title">文字生成调整</div>
+
+        <div class="type-control-row">
+        <label for="typeTextInput">生成文字</label>
+        <input id="typeTextInput" type="text" placeholder="输入想叠加在图像上的文字">
+    </div>
+
+        <div class="type-control-row">
+            <label for="typeSliderA" id="typeSliderALabel">参数 A</label>
+            <input id="typeSliderA" type="range" min="0" max="100" value="50">
         </div>
+
+        <div class="type-control-row">
+            <label for="typeSliderB" id="typeSliderBLabel">参数 B</label>
+            <input id="typeSliderB" type="range" min="0" max="100" value="50">
+        </div>
+
+        <div class="type-control-row">
+            <label for="typeSliderC" id="typeSliderCLabel">参数 C</label>
+            <input id="typeSliderC" type="range" min="0" max="100" value="50">
+        </div>
+    </div>
+
+    <div class="action-row">
+        <button id="submitBtn" class="action-btn primary">投稿到公共图版</button>
+        <button id="saveImageBtn" class="action-btn">保存图片</button>
+        <button id="reloadBtn" class="action-btn">重新制作</button>
+    </div>
+</div>
     </div>
 
     <div id="imageModal" class="image-modal">
@@ -403,6 +481,18 @@
     motionBlurScaleDecay: 0.012, // 越往后越微缩，避免太死板
     motionBlurBlurPx: 1.6,     // 轻微柔化
     trailDarkness: 0.06        // 模糊层压暗一点，更像颗粒拖影
+},
+
+typeSystem: {
+    enabled: true,
+    defaultText: "",
+    autoModeMap: {
+        space: "morisawa",
+        object: "construct",
+        moment: "pow",
+        person: "string",
+        light: "danger"
+    }
 }
         };
 
@@ -412,6 +502,18 @@
 
         let imageSegmenter = null;
         let imageSegmenterReady = null;
+
+        let currentBasePosterState = null;
+let currentPaletteData = null;
+let currentLayoutType = null;
+let currentImageRegion = null;
+let currentWorkingCanvas = null;
+let currentBaseCanvas = null;
+let currentTemplateCanvas = null;
+
+// 新增缓存
+let currentPersonCompositePath = null;
+let rerenderTimer = null;
 
         async function initImageSegmenter() {
             const vision = await FilesetResolver.forVisionTasks(
@@ -443,6 +545,21 @@ imageSegmenterReady = initImageSegmenter();
         const saveImageBtn = document.getElementById('saveImageBtn');
         const reloadBtn = document.getElementById('reloadBtn');
         const DEBUG_PERSON_MASK = false;
+
+        const typeControls = document.getElementById('typeControls');
+const typeTextInput = document.getElementById('typeTextInput');
+const typeSliderA = document.getElementById('typeSliderA');
+const typeSliderB = document.getElementById('typeSliderB');
+const typeSliderC = document.getElementById('typeSliderC');
+const typeSliderALabel = document.getElementById('typeSliderALabel');
+const typeSliderBLabel = document.getElementById('typeSliderBLabel');
+const typeSliderCLabel = document.getElementById('typeSliderCLabel');
+/* ========= 在这里加 ========= */
+const TYPE_FONT_STACK = '"Source Han Sans SC","Source Han Sans CN","Noto Sans SC","Noto Sans CJK SC","PingFang SC","Microsoft YaHei",sans-serif';
+/* =========================== */
+const MORISAWA_FONT = '"Helvetica Neue", "PingFang SC", "Noto Sans SC", sans-serif';
+
+
 
         fileInput.addEventListener('change', function(e) {
             const file = e.target.files[0];
@@ -495,6 +612,848 @@ imageSegmenterReady = initImageSegmenter();
                 neutral: `rgb(${neutral.r},${neutral.g},${neutral.b})`
             };
         }
+
+        function extractExtendedPalette(img) {
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    canvas.width = 80;
+    canvas.height = 80;
+    ctx.drawImage(img, 0, 0, 80, 80);
+
+    const data = ctx.getImageData(0, 0, 80, 80).data;
+    const samples = [];
+
+    for (let i = 0; i < data.length; i += 16) {
+        const r = data[i];
+        const g = data[i + 1];
+        const b = data[i + 2];
+        const a = data[i + 3];
+        if (a < 20) continue;
+        samples.push({ r, g, b });
+    }
+
+    samples.sort((c1, c2) => {
+        const s1 = c1.r + c1.g + c1.b;
+        const s2 = c2.r + c2.g + c2.b;
+        return s1 - s2;
+    });
+
+    function pickAt(t) {
+        const c = samples[Math.max(0, Math.min(samples.length - 1, Math.floor(samples.length * t)))];
+        return `rgb(${c.r},${c.g},${c.b})`;
+    }
+
+    return {
+        dominant: pickAt(0.78),
+        secondary: pickAt(0.28),
+        neutral: pickAt(0.52),
+        palette5: [
+            pickAt(0.12),
+            pickAt(0.28),
+            pickAt(0.45),
+            pickAt(0.62),
+            pickAt(0.82)
+        ],
+        black: "#000000",
+        white: "#ffffff"
+    };
+}
+
+function rgbStringToObj(str) {
+    const m = str.match(/\d+/g);
+    if (!m) return { r: 255, g: 255, b: 255 };
+    return {
+        r: Number(m[0]),
+        g: Number(m[1]),
+        b: Number(m[2])
+    };
+}
+
+function pickExtremePaletteColor(palette, prefer = "dark") {
+    const candidates = [...(palette.palette5 || []), palette.dominant, palette.secondary, palette.neutral]
+        .filter(Boolean)
+        .map(c => {
+            const rgb = rgbStringToObj(c);
+            const lum = 0.299 * rgb.r + 0.587 * rgb.g + 0.114 * rgb.b;
+            return { color: c, lum };
+        });
+
+    if (!candidates.length) {
+        return prefer === "dark" ? "#111111" : "#f5f5f5";
+    }
+
+    candidates.sort((a, b) => a.lum - b.lum);
+
+    return prefer === "dark"
+        ? candidates[0].color
+        : candidates[candidates.length - 1].color;
+}
+
+function pickMostSaturatedPaletteColor(palette) {
+    const candidates = [...(palette.palette5 || []), palette.dominant, palette.secondary, palette.neutral]
+        .filter(Boolean)
+        .map(c => {
+            const rgb = rgbStringToObj(c);
+            const max = Math.max(rgb.r, rgb.g, rgb.b);
+            const min = Math.min(rgb.r, rgb.g, rgb.b);
+            const sat = max === 0 ? 0 : (max - min) / max;
+            return { color: c, sat, lum: 0.299 * rgb.r + 0.587 * rgb.g + 0.114 * rgb.b };
+        });
+
+    if (!candidates.length) return "#3b6cff";
+
+    candidates.sort((a, b) => {
+        if (b.sat !== a.sat) return b.sat - a.sat;
+        return Math.abs(128 - a.lum) - Math.abs(128 - b.lum);
+    });
+
+    return candidates[0].color;
+}
+
+function mixRgb(c1, c2, t) {
+    return {
+        r: Math.round(c1.r * (1 - t) + c2.r * t),
+        g: Math.round(c1.g * (1 - t) + c2.g * t),
+        b: Math.round(c1.b * (1 - t) + c2.b * t)
+    };
+}
+
+function rgbObjToCss(rgb) {
+    return `rgb(${rgb.r},${rgb.g},${rgb.b})`;
+}
+
+function sampleCanvasRegionLuminance(canvas, rect) {
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    const x = Math.max(0, Math.floor(rect.x));
+    const y = Math.max(0, Math.floor(rect.y));
+    const w = Math.max(1, Math.floor(rect.w));
+    const h = Math.max(1, Math.floor(rect.h));
+
+    const img = ctx.getImageData(x, y, w, h).data;
+    let sum = 0;
+    let count = 0;
+
+    for (let i = 0; i < img.length; i += 16) {
+        const r = img[i];
+        const g = img[i + 1];
+        const b = img[i + 2];
+        sum += 0.299 * r + 0.587 * g + 0.114 * b;
+        count++;
+    }
+
+    return count ? sum / count : 128;
+}
+
+function getAdaptiveDangerInkColor(palette, baseCanvas, imageRect, textBlockHeightRatio = 0.42) {
+    const satColor = pickMostSaturatedPaletteColor(palette);
+    const satRgb = rgbStringToObj(satColor);
+
+    // 采样 danger 文字会落的左下区域
+    const sampleRect = {
+        x: imageRect.x + imageRect.w * 0.03,
+        y: imageRect.y + imageRect.h * (1 - textBlockHeightRatio) - imageRect.h * 0.03,
+        w: imageRect.w * 0.48,
+        h: imageRect.h * textBlockHeightRatio
+    };
+
+    const lum = sampleCanvasRegionLuminance(baseCanvas, sampleRect);
+
+    // 偏暗区域 -> 用偏亮版本
+    // 偏亮区域 -> 用偏深版本
+    let rgb;
+    if (lum < 115) {
+        rgb = mixRgb(satRgb, { r: 255, g: 255, b: 255 }, 0.68);
+    } else if (lum > 155) {
+        rgb = mixRgb(satRgb, { r: 0, g: 0, b: 0 }, 0.72);
+    } else {
+        rgb = mixRgb(satRgb, lum < 135 ? { r: 255, g: 255, b: 255 } : { r: 0, g: 0, b: 0 }, 0.52);
+    }
+
+    return {
+        color: rgbObjToCss(rgb),
+        rgb,
+        luminance: lum,
+        sampleRect
+    };
+}
+
+function dilateAlphaMask(alpha, w, h, radius = 2) {
+    const out = new Uint8ClampedArray(alpha.length);
+    for (let y = 0; y < h; y++) {
+        for (let x = 0; x < w; x++) {
+            let maxA = 0;
+            for (let oy = -radius; oy <= radius; oy++) {
+                for (let ox = -radius; ox <= radius; ox++) {
+                    const nx = x + ox;
+                    const ny = y + oy;
+                    if (nx < 0 || ny < 0 || nx >= w || ny >= h) continue;
+                    const a = alpha[ny * w + nx];
+                    if (a > maxA) maxA = a;
+                }
+            }
+            out[y * w + x] = maxA;
+        }
+    }
+    return out;
+}
+
+function erodeAlphaMask(alpha, w, h, radius = 2) {
+    const out = new Uint8ClampedArray(alpha.length);
+    for (let y = 0; y < h; y++) {
+        for (let x = 0; x < w; x++) {
+            let minA = 255;
+            for (let oy = -radius; oy <= radius; oy++) {
+                for (let ox = -radius; ox <= radius; ox++) {
+                    const nx = x + ox;
+                    const ny = y + oy;
+                    if (nx < 0 || ny < 0 || nx >= w || ny >= h) {
+                        minA = 0;
+                        continue;
+                    }
+                    const a = alpha[ny * w + nx];
+                    if (a < minA) minA = a;
+                }
+            }
+            out[y * w + x] = minA;
+        }
+    }
+    return out;
+}
+
+function thresholdAlphaMask(alpha, threshold) {
+    const out = new Uint8ClampedArray(alpha.length);
+    for (let i = 0; i < alpha.length; i++) {
+        out[i] = alpha[i] >= threshold ? 255 : 0;
+    }
+    return out;
+}
+
+function buildRingFromMasks(outerMask, innerMask, w, h, rgb) {
+    const canvas = document.createElement('canvas');
+    canvas.width = w;
+    canvas.height = h;
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    const img = ctx.createImageData(w, h);
+
+    for (let i = 0; i < w * h; i++) {
+        const a = Math.max(0, outerMask[i] - innerMask[i]);
+        const p = i * 4;
+        img.data[p] = rgb.r;
+        img.data[p + 1] = rgb.g;
+        img.data[p + 2] = rgb.b;
+        img.data[p + 3] = a;
+    }
+
+    ctx.putImageData(img, 0, 0);
+    return canvas;
+}
+
+function layoutOutlinedTextBlock(text, maxWidth, maxHeight, fontStack) {
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+
+    const cleanText = (text || "").trim();
+    if (!cleanText) {
+        return { fontSize: 40, lines: [] };
+    }
+
+    for (let fontSize = 120; fontSize >= 20; fontSize -= 2) {
+        ctx.font = `700 ${fontSize}px ${fontStack}`;
+
+        const chars = cleanText.split("");
+        const lines = [];
+        let line = "";
+
+        for (let i = 0; i < chars.length; i++) {
+            const testLine = line + chars[i];
+            const w = ctx.measureText(testLine).width;
+
+            if (w > maxWidth && line !== "") {
+                lines.push(line);
+                line = chars[i];
+            } else {
+                line = testLine;
+            }
+        }
+        if (line) lines.push(line);
+
+        const lineHeight = fontSize * 0.94;
+        const totalHeight = lines.length * lineHeight;
+
+        if (totalHeight <= maxHeight) {
+            return { fontSize, lines };
+        }
+    }
+
+    return { fontSize: 20, lines: [cleanText] };
+}
+
+function getResolvedTypeMode() {
+    return FX.typeSystem.autoModeMap[selectedCategory] || "string";
+}
+
+async function preparePersonCompositePathCache() {
+    if (!currentWorkingCanvas || !currentImageRegion) return null;
+
+    currentPersonCompositePath = await buildAutoCompositePersonContourPathPoints(
+        currentWorkingCanvas,
+        currentImageRegion
+    );
+
+    return currentPersonCompositePath;
+}
+
+function updateTypeControlLabels() {
+    const mode = getResolvedTypeMode();
+
+    if (mode === "danger") {
+        typeSliderALabel.textContent = "尺寸";
+    typeSliderBLabel.textContent = "油墨强度";
+    typeSliderCLabel.textContent = "颗粒密度";
+    } else if (mode === "string") {
+        typeSliderALabel.textContent = "图层模式";
+typeSliderBLabel.textContent = "文字大小";
+typeSliderCLabel.textContent = "偏移距离";
+    } else if (mode === "construct") {
+        typeSliderALabel.textContent = "密度";
+        typeSliderBLabel.textContent = "间距";
+        typeSliderCLabel.textContent = "碎片度";
+    } else if (mode === "morisawa") {
+        typeSliderALabel.textContent = "层数";
+        typeSliderBLabel.textContent = "透视";
+        typeSliderCLabel.textContent = "衰减";
+    } else if (mode === "pow") {
+        typeSliderALabel.textContent = "强度";
+        typeSliderBLabel.textContent = "细节";
+        typeSliderCLabel.textContent = "比例";
+    }
+}
+
+function offsetPathPoints(pts, offsetAmount = 0) {
+    return pts.map((pt, i) => {
+        const dir = getPathDirection(pts, i);
+        const nx = -dir.y;
+        const ny = dir.x;
+        return {
+            x: pt.x + nx * offsetAmount,
+            y: pt.y + ny * offsetAmount
+        };
+    });
+}
+
+function cloneCanvas(sourceCanvas) {
+    const canvas = document.createElement('canvas');
+    canvas.width = sourceCanvas.width;
+    canvas.height = sourceCanvas.height;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(sourceCanvas, 0, 0);
+    return canvas;
+}
+
+async function drawGeneratedTypeLayer(ctx, rect, palette, userText) {
+    const text = (typeTextInput.value || userText || "").trim();
+    if (!text) return;
+
+    const mode = getResolvedTypeMode();
+
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(rect.x, rect.y, rect.w, rect.h);
+    ctx.clip();
+
+    if (mode === "string") {
+    await drawStringTypeLayer(ctx, rect, palette, text);
+} else if (mode === "danger") {
+    drawDangerTypeLayer(ctx, rect, palette, text);
+} else if (mode === "morisawa") {
+    drawMorisawaTypeLayer(ctx, rect, palette, text);
+} else if (mode === "pow") {
+    drawShineTypeLayer(ctx, rect, palette, text);
+} else {
+        // 其他模式先保留一个轻量占位
+        ctx.globalAlpha = 0.14;
+        ctx.fillStyle = palette.white || "#ffffff";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.font = `500 72px ${TYPE_FONT_STACK}`;
+        ctx.fillText(text.slice(0, 8), rect.x + rect.w / 2, rect.y + rect.h / 2);
+    }
+
+    ctx.restore();
+}
+
+function drawDangerTypeLayer(ctx, rect, palette, text) {
+    const size = Number(typeSliderA.value);        // 尺寸
+    const complexity = Number(typeSliderB.value);  // 油墨强度
+    const columns = Number(typeSliderC.value);     // 颗粒密度
+
+    const ink = getAdaptiveDangerInkColor(
+    palette,
+    currentBaseCanvas,
+    rect,
+    0.42
+);
+const rgb = ink.rgb;
+const strokeColor = ink.color;
+
+    const usableWidth = rect.w * 1.02;
+    const usableHeight = rect.h * 0.42;
+
+    // 先自动排版
+    const autoLayout = layoutOutlinedTextBlock(text, usableWidth, usableHeight, TYPE_FONT_STACK);
+    const sizeScale = 0.72 + (size / 100) * 0.92;
+    const fontSize = Math.max(18, autoLayout.fontSize * sizeScale);
+
+    const finalLayout = layoutOutlinedTextBlock(text, usableWidth, usableHeight, TYPE_FONT_STACK);
+    const lines = finalLayout.lines.length ? finalLayout.lines : ["TEXT"];
+
+    // ========= 1. 用“实心字”画底稿，而不是描边字 =========
+    const textCanvas = document.createElement('canvas');
+    textCanvas.width = rect.w;
+    textCanvas.height = rect.h;
+    const tctx = textCanvas.getContext('2d', { willReadFrequently: true });
+
+    tctx.clearRect(0, 0, textCanvas.width, textCanvas.height);
+    tctx.textAlign = "left";
+    tctx.textBaseline = "top";
+    tctx.font = `700 ${fontSize}px ${TYPE_FONT_STACK}`;
+    tctx.fillStyle = "#ffffff";
+
+    const lineHeight = fontSize * 0.92;
+    const totalHeight = lines.length * lineHeight;
+
+    // 左对齐、下对齐
+    const bleedX = rect.w * 0.03; // 控制出血量
+    const anchorX = rect.w * -0.03;
+    const bleed = rect.h * 0.06;
+    const startY = rect.h - totalHeight - rect.h * 0.05 + bleed;
+
+    for (let i = 0; i < lines.length; i++) {
+        tctx.fillText(lines[i], anchorX, startY + i * lineHeight);
+    }
+
+    // ========= 2. 对“实心字”做更大的模糊 =========
+    const blurCanvas = document.createElement('canvas');
+    blurCanvas.width = rect.w;
+    blurCanvas.height = rect.h;
+    const bctx = blurCanvas.getContext('2d', { willReadFrequently: true });
+
+    const blurPx = 1.6 + (size / 100) * 2.2;
+    bctx.clearRect(0, 0, blurCanvas.width, blurCanvas.height);
+    bctx.filter = `blur(${blurPx}px)`;
+    bctx.drawImage(textCanvas, 0, 0);
+    bctx.filter = "none";
+
+    const blurData = bctx.getImageData(0, 0, blurCanvas.width, blurCanvas.height).data;
+    const w = blurCanvas.width;
+    const h = blurCanvas.height;
+
+    const alpha = new Uint8ClampedArray(w * h);
+    for (let i = 0; i < w * h; i++) {
+        alpha[i] = blurData[i * 4 + 3];
+    }
+
+    // ========= 3. 从模糊字里提“外轮廓”和“内轮廓” =========
+    const solidMask = thresholdAlphaMask(alpha, 96);
+const innerSolid = erodeAlphaMask(solidMask, w, h, 1);
+const outerSolid = dilateAlphaMask(solidMask, w, h, 1);
+
+const outerLineCanvas = buildRingFromMasks(outerSolid, solidMask, w, h, rgb);
+const innerLineCanvas = buildRingFromMasks(solidMask, innerSolid, w, h, rgb);
+
+    // ========= 4. 只画轮廓线，不画模糊文字本体 =========
+    ctx.save();
+    ctx.globalAlpha = 0.98;
+    ctx.drawImage(outerLineCanvas, rect.x, rect.y);
+
+    ctx.globalAlpha = 0.78;
+    ctx.drawImage(innerLineCanvas, rect.x, rect.y);
+    ctx.restore();
+
+    // ========= 5. 油墨溢出颗粒：围绕轮廓线撒点 =========
+    const outerLineData = outerLineCanvas.getContext('2d', { willReadFrequently: true })
+        .getImageData(0, 0, w, h).data;
+    const innerLineData = innerLineCanvas.getContext('2d', { willReadFrequently: true })
+        .getImageData(0, 0, w, h).data;
+
+    const grainCanvas = document.createElement('canvas');
+    grainCanvas.width = w;
+    grainCanvas.height = h;
+    const gctx = grainCanvas.getContext('2d', { willReadFrequently: true });
+
+    const density = 0.065 + (columns / 100) * 0.15;
+    const spread = 1.8 + (complexity / 100) * 4.6;
+
+    for (let y = 0; y < h; y += 1) {
+        for (let x = 0; x < w; x += 1) {
+            const p = (y * w + x) * 4;
+            const ringAlpha = Math.max(
+                outerLineData[p + 3],
+                innerLineData[p + 3]
+            );
+
+            if (ringAlpha > 8 && Math.random() < density) {
+                const jitterX = (Math.random() - 0.5) * spread * 2.6;
+                const jitterY = (Math.random() - 0.5) * spread * 2.6;
+
+                const sRand = Math.random();
+                const s = sRand < 0.72 ? 1 : (sRand < 0.93 ? 1.5 : 2.2);
+                const a = 0.18 + Math.random() * 0.55;
+
+                gctx.fillStyle = `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${a})`;
+                gctx.fillRect(x + jitterX, y + jitterY, s, s);
+            }
+        }
+    }
+
+    // 再给轮廓补一点非常轻的染边
+    gctx.globalAlpha = 0.08 + (complexity / 100) * 0.14;
+    gctx.drawImage(outerLineCanvas, 0, 0);
+    gctx.globalAlpha = 0.05 + (complexity / 100) * 0.10;
+    gctx.drawImage(innerLineCanvas, 0, 0);
+
+    ctx.save();
+    ctx.globalAlpha = 1;
+    ctx.drawImage(grainCanvas, rect.x, rect.y);
+    ctx.restore();
+}
+
+function getAdaptiveMorisawaTextColor(palette, baseCanvas, rect) {
+    const satColor = pickMostSaturatedPaletteColor(palette);
+    const satRgb = rgbStringToObj(satColor);
+
+    const sampleRect = {
+        x: rect.x + rect.w * 0.18,
+        y: rect.y + rect.h * 0.18,
+        w: rect.w * 0.64,
+        h: rect.h * 0.64
+    };
+
+    const lum = sampleCanvasRegionLuminance(baseCanvas, sampleRect);
+
+    let rgb;
+    if (lum < 105) {
+        // 背景暗：提亮
+        rgb = mixRgb(satRgb, { r: 255, g: 255, b: 255 }, 0.72);
+    } else if (lum > 165) {
+        // 背景亮：压深
+        rgb = mixRgb(satRgb, { r: 0, g: 0, b: 0 }, 0.68);
+    } else {
+        // 中间亮度：轻微往亮或往暗推
+        rgb = mixRgb(
+            satRgb,
+            lum < 135 ? { r: 255, g: 255, b: 255 } : { r: 0, g: 0, b: 0 },
+            0.38
+        );
+    }
+
+    return {
+        color: rgbObjToCss(rgb),
+        rgb,
+        luminance: lum
+    };
+}
+
+function drawFilledMorisawaWord(ctx, text, x, y, fontSize, scaleX, color, alpha = 1) {
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.scale(scaleX, 1);
+    ctx.globalAlpha = alpha;
+    ctx.fillStyle = color;
+    ctx.font = `300 ${fontSize}px ${TYPE_FONT_STACK}`;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(text, 0, 0);
+    ctx.restore();
+}
+
+function drawMorisawaTypeLayer(ctx, rect, palette, text) {
+    const layerCount = 3 + Math.floor((Number(typeSliderA.value) / 100) * 3);
+    const perspective = Number(typeSliderB.value) / 100;
+    const decayControl = Number(typeSliderC.value) / 100;
+
+    const colorData = getAdaptiveMorisawaTextColor(palette, currentBaseCanvas, rect);
+    const textColor = colorData.color;
+
+    const cleanText = (text || "").trim() || "SPACE";
+
+    const baseFont = rect.h * 0.19;
+    const minFont = rect.h * 0.052;
+    const decay = 0.88 - decayControl * 0.10;
+
+    const centerX = rect.x + rect.w * 0.5;
+    const topY = rect.y + rect.h * 0.16;
+    const bottomY = rect.y + rect.h * 0.82;
+
+    ctx.save();
+
+    for (let i = 0; i < layerCount; i++) {
+        const t = i / Math.max(1, layerCount - 1);
+
+        const fontSize = Math.max(minFont, baseFont * Math.pow(decay, i));
+        const y = topY + (bottomY - topY) * t;
+
+        // 上大下小，但不要压得太夸张
+        const scaleX = 1.02 + perspective * 0.55 - t * 0.10;
+
+        // 很轻微的横向漂移，避免太死
+        const driftX = (t - 0.5) * rect.w * 0.05 * perspective;
+
+        drawFilledMorisawaWord(
+            ctx,
+            cleanText,
+            centerX + driftX,
+            y,
+            fontSize,
+            scaleX,
+            textColor,
+            0.88 - t * 0.12
+        );
+    }
+
+    ctx.restore();
+}
+
+async function drawStringTypeLayer(ctx, rect, palette, text) {
+    const sliderA = Number(typeSliderA.value); // Layer Mode
+    const sliderB = Number(typeSliderB.value); // Size
+    const sliderC = Number(typeSliderC.value); // Offset
+
+    let layerMode = "all";
+    if (sliderA < 25) layerMode = "text";
+    else if (sliderA < 50) layerMode = "gradient";
+    else if (sliderA < 75) layerMode = "stripes";
+    else layerMode = "all";
+
+    // 自动选左 / 右轮廓后的缓存路径
+    let basePath = currentPersonCompositePath;
+    if (!basePath || basePath.length < 2) {
+        basePath = await preparePersonCompositePathCache();
+    }
+    if (!basePath || basePath.length < 2) return;
+
+    const fontSize = 22 + (sliderB / 100) * 34;
+    const ribbonWidth = 30 + (sliderB / 100) * 52;
+    const contourOffsetBoost = (sliderC / 100) * 32;
+
+    // 整体离边缘再外扩一点
+    const path = offsetPathPoints(basePath, contourOffsetBoost);
+
+    let pathText = text.trim();
+    if (pathText.length < 10) {
+        pathText = (pathText + " ").repeat(5).trim();
+    } else if (pathText.length > 24) {
+        pathText = pathText.slice(0, 24);
+    }
+
+    const pink = (palette.palette5 && palette.palette5[1]) || "#f0b6b6";
+    const white = palette.white || "#ffffff";
+    const black = palette.black || "#000000";
+
+    if (layerMode === "text") {
+        drawRibbonStrokePath(ctx, path, {
+            width: ribbonWidth,
+            fill: black,
+            outline: white,
+            outlineWidth: 2,
+            alpha: 1
+        });
+
+        drawTextAlongPolyline(ctx, pathText, path, {
+            fontSize,
+            color: white,
+            letterSpacing: fontSize * 0.08,
+            startOffset: 0,
+            textAlign: "start"
+        });
+        return;
+    }
+
+    if (layerMode === "gradient") {
+        drawRibbonGradientTube(ctx, path, {
+            ribbonWidth: ribbonWidth,
+            alpha: 1
+        });
+        return;
+    }
+
+    if (layerMode === "stripes") {
+        drawRibbonStripes(ctx, path, {
+            ribbonWidth: ribbonWidth,
+            baseColor: white,
+            stripeColor: pink,
+            stripeCount: 5,
+            stripeWidth: Math.max(2, ribbonWidth * 0.05),
+            alpha: 1
+        });
+        return;
+    }
+
+    // all：三条并排轨迹
+    const trackGap = ribbonWidth * 1.05;
+
+    const pathTop = offsetPathPoints(path, trackGap);
+    const pathMid = path;
+    const pathBottom = offsetPathPoints(path, -trackGap);
+
+    drawRibbonStripes(ctx, pathTop, {
+        ribbonWidth: ribbonWidth * 0.96,
+        baseColor: white,
+        stripeColor: pink,
+        stripeCount: 5,
+        stripeWidth: Math.max(2, ribbonWidth * 0.045),
+        alpha: 0.95
+    });
+
+    drawRibbonGradientTube(ctx, pathMid, {
+        ribbonWidth: ribbonWidth * 0.92,
+        alpha: 0.96
+    });
+
+    drawRibbonStrokePath(ctx, pathBottom, {
+        width: ribbonWidth * 0.88,
+        fill: black,
+        outline: white,
+        outlineWidth: 1.5,
+        alpha: 1
+    });
+
+    drawTextAlongPolyline(ctx, pathText, pathBottom, {
+        fontSize,
+        color: white,
+        letterSpacing: fontSize * 0.08,
+        startOffset: 0,
+        textAlign: "start"
+    });
+}
+
+async function rerenderPosterWithTypeLayer(userText) {
+    if (!currentBaseCanvas || !currentImageRegion || !currentPaletteData) return;
+
+    const canvas = document.getElementById('finalCanvas');
+    const ctx = canvas.getContext('2d');
+
+    canvas.width = currentBaseCanvas.width;
+    canvas.height = currentBaseCanvas.height;
+
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // 1. 先画底图（不含模板）
+    ctx.drawImage(currentBaseCanvas, 0, 0);
+
+    // 2. 再画文字生成层
+    await drawGeneratedTypeLayer(ctx, currentImageRegion, currentPaletteData, userText);
+
+    // 3. 最后把模板始终盖到最上面
+    if (currentTemplateCanvas) {
+        ctx.drawImage(currentTemplateCanvas, 0, 0);
+    }
+
+    const finalDataUrl = canvas.toDataURL("image/png");
+    finalImage.src = finalDataUrl;
+    modalImage.src = finalDataUrl;
+}
+
+async function buildPersonCompositeGroupCanvas(sourceCanvas) {
+    const aw = sourceCanvas.width;
+    const ah = sourceCanvas.height;
+
+    const p = FX.person;
+
+    const { personCanvas } = await segmentPersonCutout(sourceCanvas);
+
+    const refinedPersonCanvas = createSmoothInsetCutout(personCanvas, 4, 5, 1.6);
+
+    const solidPersonCanvas = document.createElement('canvas');
+    const solidPersonCtx = solidPersonCanvas.getContext('2d', { willReadFrequently: true });
+    solidPersonCanvas.width = aw;
+    solidPersonCanvas.height = ah;
+    solidPersonCtx.drawImage(refinedPersonCanvas, 0, 0);
+    tintCanvasDark(solidPersonCtx, aw, ah, 0.10);
+
+    const groupCanvas = document.createElement('canvas');
+    const groupCtx = groupCanvas.getContext('2d', { willReadFrequently: true });
+    groupCanvas.width = aw;
+    groupCanvas.height = ah;
+
+    const anchorX = aw * 0.52;
+    const anchorY = ah * 0.96;
+
+    const pathType = pickPathType();
+    const pts = buildCopyPathPoints(pathType, anchorX, anchorY, p.stepBase, p.copiesPerTrail);
+
+    // 后景复制层
+    for (let i = pts.length - 1; i >= Math.ceil(pts.length * 0.55); i--) {
+        const pt = pts[i];
+        drawAnchoredPerson(groupCtx, solidPersonCanvas, pt.x, pt.y, 1);
+    }
+
+    // 主体
+    drawAnchoredPerson(groupCtx, refinedPersonCanvas, anchorX, anchorY, 1);
+
+    // 前景复制层
+    for (let i = Math.ceil(pts.length * 0.55) - 1; i >= 0; i--) {
+        const pt = pts[i];
+        drawAnchoredPerson(groupCtx, solidPersonCanvas, pt.x, pt.y, 1);
+    }
+
+    return {
+        groupCanvas,
+        refinedPersonCanvas,
+        solidPersonCanvas,
+        anchorX,
+        anchorY,
+        pts
+    };
+}
+
+function splitTextForStack(text) {
+    const clean = (text || "").trim();
+    if (!clean) return ["SPACE"];
+
+    if (clean.includes(" ")) {
+        return clean.split(/\s+/).filter(Boolean).slice(0, 4);
+    }
+
+    if (clean.length > 8) {
+        const mid = Math.ceil(clean.length / 2);
+        return [clean.slice(0, mid), clean.slice(mid)];
+    }
+
+    return [clean];
+}
+
+
+
+function drawThinStrokeWord(ctx, text, x, y, fontSize, scaleX = 1, alpha = 1) {
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.scale(scaleX, 1);
+    ctx.globalAlpha = alpha;
+    ctx.font = `300 ${fontSize}px ${MORISAWA_FONT}`;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.lineJoin = "round";
+    ctx.miterLimit = 2;
+    ctx.lineWidth = Math.max(0.8, fontSize * 0.014);
+    ctx.strokeText(text, 0, 0);
+    ctx.restore();
+}
+
+[typeTextInput, typeSliderA, typeSliderB, typeSliderC]
+    .filter(Boolean)
+    .forEach(el => {
+        el.addEventListener('input', function() {
+            updateTypeControlLabels();
+
+            if (rerenderTimer) clearTimeout(rerenderTimer);
+
+            rerenderTimer = setTimeout(async () => {
+                const userText = document.getElementById('userText').value.trim();
+                await rerenderPosterWithTypeLayer(userText);
+            }, 80);
+        });
+    });
 
         function makeAnalysisCanvas(sourceCanvas, maxSide = 420) {
             const ratio = sourceCanvas.width / sourceCanvas.height;
@@ -1236,6 +2195,499 @@ function darkenCanvasAlphaOnly(targetCtx, width, height, alpha = 0.12) {
             ctx.restore();
         }
 
+        function getImageFitRectInRegion(sourceCanvas, rect) {
+    const { x, y, w, h } = rect;
+
+    const imgRatio = sourceCanvas.width / sourceCanvas.height;
+    const rectRatio = w / h;
+    let drawW, drawH, drawX, drawY;
+
+    if (imgRatio > rectRatio) {
+        drawH = h;
+        drawW = h * imgRatio;
+        drawX = x + (w - drawW) / 2;
+        drawY = y;
+    } else {
+        drawW = w;
+        drawH = w / imgRatio;
+        drawX = x;
+        drawY = y + (h - drawH) / 2;
+    }
+
+    return { drawX, drawY, drawW, drawH };
+}
+
+async function buildCompositePersonContourPathPoints(sourceCanvas, rect, side = "left") {
+    const { groupCanvas } = await buildPersonCompositeGroupCanvas(sourceCanvas);
+
+    const w = groupCanvas.width;
+    const h = groupCanvas.height;
+    const gCtx = groupCanvas.getContext('2d', { willReadFrequently: true });
+    const imgData = gCtx.getImageData(0, 0, w, h).data;
+
+    const { drawX, drawY, drawW, drawH } = getImageFitRectInRegion(sourceCanvas, rect);
+
+    // ===== 关键：算出“真正显示在 rect 里的 source 范围” =====
+    const visibleSrcX = Math.max(0, Math.round(((rect.x - drawX) / drawW) * w));
+    const visibleSrcY = Math.max(0, Math.round(((rect.y - drawY) / drawH) * h));
+    const visibleSrcW = Math.min(w - visibleSrcX, Math.round((rect.w / drawW) * w));
+    const visibleSrcH = Math.min(h - visibleSrcY, Math.round((rect.h / drawH) * h));
+
+    const srcXMin = visibleSrcX;
+    const srcXMax = visibleSrcX + visibleSrcW - 1;
+    const srcYMin = visibleSrcY;
+    const srcYMax = visibleSrcY + visibleSrcH - 1;
+
+    const pts = [];
+    const yStep = Math.max(2, Math.floor(h / 150));
+
+    for (let y = srcYMin; y <= srcYMax; y += yStep) {
+        let foundX = -1;
+
+        if (side === "left") {
+            for (let x = srcXMin; x <= srcXMax; x++) {
+                const alpha = imgData[(y * w + x) * 4 + 3];
+                if (alpha > 20) {
+                    foundX = x;
+                    break;
+                }
+            }
+        } else {
+            for (let x = srcXMax; x >= srcXMin; x--) {
+                const alpha = imgData[(y * w + x) * 4 + 3];
+                if (alpha > 20) {
+                    foundX = x;
+                    break;
+                }
+            }
+        }
+
+        if (foundX !== -1) {
+            // 映射回最终海报坐标
+            const px = drawX + (foundX / w) * drawW;
+            const py = drawY + (y / h) * drawH;
+
+            // 再确保点真的落在 rect 内部
+            if (
+                px >= rect.x + 4 &&
+                px <= rect.x + rect.w - 4 &&
+                py >= rect.y + 4 &&
+                py <= rect.y + rect.h - 4
+            ) {
+                pts.push({ x: px, y: py });
+            }
+        }
+    }
+
+    if (pts.length < 2) return pts;
+
+    // 平滑
+    const smoothPts = pts.map((pt, i) => {
+        let sumX = 0;
+        let sumY = 0;
+        let count = 0;
+
+        for (let k = -4; k <= 4; k++) {
+            const idx = i + k;
+            if (idx >= 0 && idx < pts.length) {
+                sumX += pts[idx].x;
+                sumY += pts[idx].y;
+                count++;
+            }
+        }
+
+        return {
+            x: sumX / count,
+            y: sumY / count
+        };
+    });
+
+    // 向外偏移一点，避免压在主体边缘上
+    const offset = Math.max(16, Math.min(30, rect.w * 0.025));
+
+    const offsetPts = smoothPts.map((pt, i) => {
+        const dir = getPathDirection(smoothPts, i);
+        const nx = side === "left" ? -dir.y : dir.y;
+        const ny = side === "left" ? dir.x : -dir.x;
+
+        return {
+            x: pt.x + nx * offset,
+            y: pt.y + ny * offset
+        };
+    });
+
+    return offsetPts;
+}
+
+async function buildPersonSideContourPathPoints(sourceCanvas, rect, side = "left") {
+    const { personCanvas } = await segmentPersonCutout(sourceCanvas);
+
+    const w = personCanvas.width;
+    const h = personCanvas.height;
+    const pCtx = personCanvas.getContext('2d', { willReadFrequently: true });
+    const imgData = pCtx.getImageData(0, 0, w, h).data;
+
+    const { drawX, drawY, drawW, drawH } = getImageFitRectInRegion(sourceCanvas, rect);
+
+    const pts = [];
+    const yStart = Math.floor(h * 0.10);
+    const yEnd = Math.floor(h * 0.90);
+    const yStep = Math.max(2, Math.floor(h / 140));
+
+    for (let y = yStart; y <= yEnd; y += yStep) {
+        let foundX = -1;
+
+        if (side === "left") {
+            for (let x = 0; x < w; x++) {
+                const alpha = imgData[(y * w + x) * 4 + 3];
+                if (alpha > 20) {
+                    foundX = x;
+                    break;
+                }
+            }
+        } else {
+            for (let x = w - 1; x >= 0; x--) {
+                const alpha = imgData[(y * w + x) * 4 + 3];
+                if (alpha > 20) {
+                    foundX = x;
+                    break;
+                }
+            }
+        }
+
+        if (foundX !== -1) {
+            const px = drawX + (foundX / w) * drawW;
+            const py = drawY + (y / h) * drawH;
+            pts.push({ x: px, y: py });
+        }
+    }
+
+    // 平滑
+    const smoothPts = pts.map((pt, i) => {
+        let sumX = 0;
+        let sumY = 0;
+        let count = 0;
+
+        for (let k = -3; k <= 3; k++) {
+            const idx = i + k;
+            if (idx >= 0 && idx < pts.length) {
+                sumX += pts[idx].x;
+                sumY += pts[idx].y;
+                count++;
+            }
+        }
+
+        return {
+            x: sumX / count,
+            y: sumY / count
+        };
+    });
+
+    // 向外偏移一点，避免压在人物边缘上
+    const offset = Math.max(14, Math.min(28, drawW * 0.025));
+
+    const offsetPts = smoothPts.map((pt, i) => {
+        const dir = getPathDirection(smoothPts, i);
+
+        // 左轮廓往左外扩；右轮廓往右外扩
+        const nx = side === "left" ? -dir.y : dir.y;
+        const ny = side === "left" ? dir.x : -dir.x;
+
+        return {
+            x: pt.x + nx * offset,
+            y: pt.y + ny * offset
+        };
+    });
+
+    return offsetPts;
+}
+
+function getPolylineLength(pts) {
+    if (!pts || pts.length < 2) return 0;
+    let total = 0;
+    for (let i = 0; i < pts.length - 1; i++) {
+        total += Math.hypot(pts[i + 1].x - pts[i].x, pts[i + 1].y - pts[i].y);
+    }
+    return total;
+}
+
+async function buildAutoCompositePersonContourPathPoints(sourceCanvas, rect) {
+    const leftPath = await buildCompositePersonContourPathPoints(sourceCanvas, rect, "left");
+    const rightPath = await buildCompositePersonContourPathPoints(sourceCanvas, rect, "right");
+
+    const leftLen = getPolylineLength(leftPath);
+    const rightLen = getPolylineLength(rightPath);
+
+    // 优先选更长、更完整的那一侧
+    if (rightLen > leftLen * 1.08) {
+        return rightPath;
+    }
+
+    return leftPath;
+}
+
+function drawTextAlongPolyline(ctx, text, pts, options = {}) {
+    if (!text || !pts || pts.length < 2) return;
+
+    const {
+        fontSize = 40,
+        color = "#000000",
+        letterSpacing = 2,
+        startOffset = 0,
+        textAlign = "start"
+    } = options;
+
+    ctx.save();
+    ctx.fillStyle = color;
+    ctx.textBaseline = "middle";
+    ctx.textAlign = "center";
+    ctx.font = `500 ${fontSize}px ${TYPE_FONT_STACK}`;
+
+    // 计算折线路径总长
+    const segs = [];
+    let totalLen = 0;
+
+    for (let i = 0; i < pts.length - 1; i++) {
+        const dx = pts[i + 1].x - pts[i].x;
+        const dy = pts[i + 1].y - pts[i].y;
+        const len = Math.hypot(dx, dy);
+        segs.push({ i, len });
+        totalLen += len;
+    }
+
+    if (totalLen < 10) {
+        ctx.restore();
+        return;
+    }
+
+    const chars = text.split("");
+
+    const charWidths = chars.map(ch => ctx.measureText(ch).width + letterSpacing);
+    const textLen = charWidths.reduce((a, b) => a + b, 0);
+
+    let cursor = startOffset;
+
+    if (textAlign === "center") {
+        cursor = Math.max(0, (totalLen - textLen) / 2);
+    } else if (textAlign === "end") {
+        cursor = Math.max(0, totalLen - textLen - startOffset);
+    }
+
+    function getPointAtLength(targetLen) {
+        let acc = 0;
+
+        for (const seg of segs) {
+            if (acc + seg.len >= targetLen) {
+                const t = (targetLen - acc) / seg.len;
+                const p0 = pts[seg.i];
+                const p1 = pts[seg.i + 1];
+                return {
+                    x: p0.x + (p1.x - p0.x) * t,
+                    y: p0.y + (p1.y - p0.y) * t,
+                    angle: Math.atan2(p1.y - p0.y, p1.x - p0.x)
+                };
+            }
+            acc += seg.len;
+        }
+
+        const last = pts[pts.length - 1];
+        const prev = pts[pts.length - 2];
+        return {
+            x: last.x,
+            y: last.y,
+            angle: Math.atan2(last.y - prev.y, last.x - prev.x)
+        };
+    }
+
+    for (let c = 0; c < chars.length; c++) {
+        const ch = chars[c];
+        const w = charWidths[c];
+
+        const midLen = cursor + w * 0.5;
+        if (midLen > totalLen) break;
+
+        const pos = getPointAtLength(midLen);
+
+        ctx.save();
+        ctx.translate(pos.x, pos.y);
+        ctx.rotate(pos.angle);
+        ctx.fillText(ch, 0, 0);
+        ctx.restore();
+
+        cursor += w;
+    }
+
+    ctx.restore();
+}
+
+function drawRibbonStrokePath(ctx, pts, options = {}) {
+    if (!pts || pts.length < 2) return;
+
+    const {
+        width = 60,
+        fill = "#ffffff",
+        outline = null,
+        outlineWidth = 0,
+        alpha = 1
+    } = options;
+
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.lineCap = "butt";     // 端点变成方形
+//ctx.lineJoin = "miter";   // 转角变锐角
+ctx.miterLimit = 2;
+    ctx.lineJoin = "round";
+
+    if (outline && outlineWidth > 0) {
+        ctx.strokeStyle = outline;
+        ctx.lineWidth = width + outlineWidth * 2;
+        ctx.beginPath();
+        ctx.moveTo(pts[0].x, pts[0].y);
+        for (let i = 1; i < pts.length; i++) {
+            ctx.lineTo(pts[i].x, pts[i].y);
+        }
+        ctx.stroke();
+    }
+
+    ctx.strokeStyle = fill;
+    ctx.lineWidth = width;
+    ctx.beginPath();
+    ctx.moveTo(pts[0].x, pts[0].y);
+    for (let i = 1; i < pts.length; i++) {
+        ctx.lineTo(pts[i].x, pts[i].y);
+    }
+    ctx.stroke();
+
+    ctx.restore();
+}
+
+function drawRibbonStripes(ctx, pts, options = {}) {
+    if (!pts || pts.length < 2) return;
+
+    const {
+        ribbonWidth = 64,
+        baseColor = "#ffffff",
+        stripeColor = "#f2b3b3",
+        stripeCount = 5,
+        stripeWidth = 3,
+        alpha = 1
+    } = options;
+
+    // 先画白色宽带底子
+    drawRibbonStrokePath(ctx, pts, {
+        width: ribbonWidth,
+        fill: baseColor,
+        outline: null,
+        outlineWidth: 0,
+        alpha
+    });
+
+    // 再画内部平行条纹
+    const innerSpan = ribbonWidth * 0.72;
+    const gap = stripeCount > 1 ? innerSpan / (stripeCount - 1) : 0;
+    const start = -innerSpan / 2;
+
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.lineCap = "butt";
+//ctx.lineJoin = "miter";
+ctx.miterLimit = 2;
+    ctx.lineJoin = "round";
+    ctx.strokeStyle = stripeColor;
+    ctx.lineWidth = stripeWidth;
+
+    for (let s = 0; s < stripeCount; s++) {
+        const offset = start + s * gap;
+
+        const stripePath = pts.map((pt, i) => {
+            const dir = getPathDirection(pts, i);
+            const nx = -dir.y;
+            const ny = dir.x;
+            return {
+                x: pt.x + nx * offset,
+                y: pt.y + ny * offset
+            };
+        });
+
+        ctx.beginPath();
+        ctx.moveTo(stripePath[0].x, stripePath[0].y);
+        for (let i = 1; i < stripePath.length; i++) {
+            ctx.lineTo(stripePath[i].x, stripePath[i].y);
+        }
+        ctx.stroke();
+    }
+
+    ctx.restore();
+}
+
+function drawRibbonGradientTube(ctx, pts, options = {}) {
+    if (!pts || pts.length < 2) return;
+
+    const {
+        ribbonWidth = 72,
+        alpha = 1
+    } = options;
+
+    ctx.save();
+    ctx.globalAlpha = alpha;
+
+    // 最外白描边
+    drawRibbonStrokePath(ctx, pts, {
+        width: ribbonWidth + 6,
+        fill: "#ffffff",
+        outline: null,
+        outlineWidth: 0,
+        alpha: 1
+    });
+
+    // 主体浅灰
+    drawRibbonStrokePath(ctx, pts, {
+        width: ribbonWidth,
+        fill: "#cfcfcf",
+        outline: null,
+        outlineWidth: 0,
+        alpha: 1
+    });
+
+    // 中层灰
+    drawRibbonStrokePath(ctx, pts, {
+        width: ribbonWidth * 0.82,
+        fill: "#9c9c9c",
+        outline: null,
+        outlineWidth: 0,
+        alpha: 1
+    });
+
+    // 深色中心
+    drawRibbonStrokePath(ctx, pts, {
+        width: ribbonWidth * 0.60,
+        fill: "#2f2f2f",
+        outline: null,
+        outlineWidth: 0,
+        alpha: 1
+    });
+
+    // 高光层
+    drawRibbonStrokePath(ctx, pts, {
+        width: ribbonWidth * 0.34,
+        fill: "#a9a9a9",
+        outline: null,
+        outlineWidth: 0,
+        alpha: 1
+    });
+
+    // 中央细高光
+    drawRibbonStrokePath(ctx, pts, {
+        width: ribbonWidth * 0.12,
+        fill: "#e7e7e7",
+        outline: null,
+        outlineWidth: 0,
+        alpha: 1
+    });
+
+    ctx.restore();
+}
+
         async function processImage(ctx, workingCanvas, rect, type, palette) {
             const { x, y, w, h } = rect;
 
@@ -1568,134 +3020,32 @@ const borderStroke = `rgba(${borderColor.r},${borderColor.g},${borderColor.b},0.
     srcCtx.drawImage(workingCanvas, 0, 0);
 
     const aw = srcCanvas.width;
-    const ah = srcCanvas.height;
+const ah = srcCanvas.height;
 
-    const { personCanvas, debugCanvas, coverage } = await segmentPersonCutout(srcCanvas);
+const { personCanvas, debugCanvas, coverage } = await segmentPersonCutout(srcCanvas);
 
-    // 回到之前那个“稍微有点虚，但边缘没那么难看”的版本
-    const refinedPersonCanvas = createSmoothInsetCutout(personCanvas, 4, 5, 1.6);
+const refinedPersonCanvas = createSmoothInsetCutout(personCanvas, 4, 5, 1.6);
 
-    const solidPersonCanvas = document.createElement('canvas');
-    const solidPersonCtx = solidPersonCanvas.getContext('2d', { willReadFrequently: true });
-    solidPersonCanvas.width = aw;
-    solidPersonCanvas.height = ah;
-    solidPersonCtx.drawImage(refinedPersonCanvas, 0, 0);
-    tintCanvasDark(solidPersonCtx, aw, ah, 0.10);
+console.log("最终 coverage =", coverage);
 
-    console.log("最终 coverage =", coverage);
-
-    if (DEBUG_PERSON_MASK) {
-        ctx.save();
-        ctx.globalAlpha = 0.35;
-        ctx.fillStyle = "#000";
-        ctx.fillRect(drawX, drawY, drawW, drawH);
-        ctx.globalAlpha = 1;
-        ctx.drawImage(debugCanvas, drawX, drawY, drawW, drawH);
-        ctx.restore();
-        return;
-    }
-
-    // 这一段就是你刚刚缺失的
-    const ghostCanvas = document.createElement('canvas');
-    const ghostCtx = ghostCanvas.getContext('2d', { willReadFrequently: true });
-    ghostCanvas.width = aw;
-    ghostCanvas.height = ah;
-
-    // 主体锚点：人物底部中点
-    const anchorX = aw * 0.52;
-    const anchorY = ah * 0.96;
-
-    const pathType = pickPathType();
-    const pts = buildCopyPathPoints(pathType, anchorX, anchorY, p.stepBase, p.copiesPerTrail);
-
-    // 单独建一个“路径模糊层”
-const blurTrailCanvas = document.createElement('canvas');
-const blurTrailCtx = blurTrailCanvas.getContext('2d', { willReadFrequently: true });
-blurTrailCanvas.width = aw;
-blurTrailCanvas.height = ah;
-
-// 1. 后景复制层 + 对应路径模糊
-for (let i = pts.length - 1; i >= Math.ceil(pts.length * 0.55); i--) {
-    const pt = pts[i];
-    const dir = getPathDirection(pts, i);
-
-    // 先画路径模糊
-    drawMotionBlurFigure(
-        blurTrailCtx,
-        solidPersonCanvas,
-        pt.x,
-        pt.y,
-        dir,
-        p,
-        1
-    );
-
-    // 再画清晰复制人像
-    ghostCtx.save();
-    ghostCtx.globalAlpha = 1;
-    drawAnchoredPerson(ghostCtx, solidPersonCanvas, pt.x, pt.y, 1);
-    ghostCtx.restore();
+if (DEBUG_PERSON_MASK) {
+    ctx.save();
+    ctx.globalAlpha = 0.35;
+    ctx.fillStyle = "#000";
+    ctx.fillRect(drawX, drawY, drawW, drawH);
+    ctx.globalAlpha = 1;
+    ctx.drawImage(debugCanvas, drawX, drawY, drawW, drawH);
+    ctx.restore();
+    return;
 }
 
-// 2. 中心主体前，也给它一个非常轻的路径拖影
-if (pts.length > 0) {
-    const dirMain = getPathDirection(pts, 0);
-    drawMotionBlurFigure(
-        blurTrailCtx,
-        refinedPersonCanvas,
-        anchorX,
-        anchorY,
-        dirMain,
-        p,
-        1
-    );
-}
+const { groupCanvas } = await buildPersonCompositeGroupCanvas(srcCanvas);
 
-// 3. 主体
-ghostCtx.save();
-ghostCtx.globalAlpha = 1;
-drawAnchoredPerson(ghostCtx, refinedPersonCanvas, anchorX, anchorY, 1);
-ghostCtx.restore();
+// 最终统一加一点颗粒
+const groupCtx = groupCanvas.getContext('2d', { willReadFrequently: true });
+addFilmGrainToCanvas(groupCtx, aw, ah, p.grainAmount);
 
-// 4. 前景复制层 + 对应路径模糊
-for (let i = Math.ceil(pts.length * 0.55) - 1; i >= 0; i--) {
-    const pt = pts[i];
-    const dir = getPathDirection(pts, i);
-
-    drawMotionBlurFigure(
-        blurTrailCtx,
-        solidPersonCanvas,
-        pt.x,
-        pt.y,
-        dir,
-        p,
-        1
-    );
-
-    ghostCtx.save();
-    ghostCtx.globalAlpha = 1;
-    drawAnchoredPerson(ghostCtx, solidPersonCanvas, pt.x, pt.y, 1);
-    ghostCtx.restore();
-}
-
-// 5. 给模糊层压一点暗色，避免太亮太飘
-darkenCanvasAlphaOnly(
-    blurTrailCtx,
-    aw,
-    ah,
-    p.trailDarkness
-);
-
-// 6. 先把模糊层叠到人物层底下
-ghostCtx.save();
-ghostCtx.globalAlpha = 1;
-ghostCtx.drawImage(blurTrailCanvas, 0, 0);
-ghostCtx.restore();
-
-// 7. 最后统一加颗粒
-addFilmGrainToCanvas(ghostCtx, aw, ah, p.grainAmount);
-
-    ctx.drawImage(ghostCanvas, drawX, drawY, drawW, drawH);
+ctx.drawImage(groupCanvas, drawX, drawY, drawW, drawH);
 
 
 
@@ -1784,7 +3134,7 @@ addFilmGrainToCanvas(ghostCtx, aw, ah, p.grainAmount);
                 workingCanvas.height = workH;
                 wCtx.drawImage(uploadedImage, 0, 0, workW, workH);
 
-                const palette = extractColors(workingCanvas);
+                const palette = extractExtendedPalette(workingCanvas);
                 const userText = document.getElementById('userText').value.trim();
 
                 currentFragmentNumber = await reserveFragmentNumber();
@@ -1876,27 +3226,53 @@ addFilmGrainToCanvas(ghostCtx, aw, ah, p.grainAmount);
                 const templateUrl = TEMPLATES[layoutType];
                 const templateImg = new Image();
 
-                templateImg.onload = function() {
-                    ctx.drawImage(templateImg, 0, 0, baseW, baseH);
+                templateImg.onload = async function() {
+    // 不要先把模板画到主 canvas 上
 
-                    const finalDataUrl = canvas.toDataURL("image/png");
-                    finalImage.src = finalDataUrl;
-                    modalImage.src = finalDataUrl;
-                    saveImageBtn.onclick = function(){
-                        const link = document.createElement("a");
-                        link.href = finalDataUrl;
-                        link.download = `Fragment-${currentFragmentNumber}.png`;
-                        link.click();
-                    };
+    // 先保存“无模板”的基础底图
+    currentBaseCanvas = cloneCanvas(canvas);
 
-                    canvas.style.display = 'none';
-                    finalImage.style.display = 'block';
+    // 再单独做模板层
+    currentTemplateCanvas = document.createElement('canvas');
+    currentTemplateCanvas.width = baseW;
+    currentTemplateCanvas.height = baseH;
+    const templateCtx = currentTemplateCanvas.getContext('2d');
+    templateCtx.drawImage(templateImg, 0, 0, baseW, baseH);
 
-                    document.getElementById('inputPage').style.display = 'none';
-                    document.getElementById('resultArea').style.display = 'block';
-                    loadingMsg.style.display = 'none';
-                    window.scrollTo(0, 0);
-                };
+    currentPaletteData = palette;
+    currentLayoutType = layoutType;
+    currentImageRegion = imageRegion;
+    currentWorkingCanvas = workingCanvas;
+
+    typeControls.style.display = 'block';
+    typeTextInput.value = userText || "";
+typeSliderA.value = Math.floor(Math.random() * 100); // 随机 0–99
+typeSliderB.value = 52;
+typeSliderC.value = 18;
+    updateTypeControlLabels();
+
+    currentPersonCompositePath = null;
+    if (selectedCategory === "person") {
+        await preparePersonCompositePathCache();
+    }
+
+    await rerenderPosterWithTypeLayer(userText);
+
+    saveImageBtn.onclick = function(){
+        const link = document.createElement("a");
+        link.href = finalImage.src;
+        link.download = `Fragment-${currentFragmentNumber}.png`;
+        link.click();
+    };
+
+    canvas.style.display = 'none';
+    finalImage.style.display = 'block';
+
+    document.getElementById('inputPage').style.display = 'none';
+    document.getElementById('resultArea').style.display = 'block';
+    loadingMsg.style.display = 'none';
+    window.scrollTo(0, 0);
+};
 
                 templateImg.onerror = function() {
                     alert('模板图片没有加载成功，请检查 images 文件夹路径和文件名');
