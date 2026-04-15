@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Co-Everyday | A Participatory Visual System</title>
+    <title>Photo to Poem | 「用一张照片，换一首诗」</title>
     <style>
         @font-face {
     font-family: "ABC Favorit Expanded";
@@ -352,13 +352,13 @@
 <body>
     <div class="container">
         <header>
-            <h1>Co-Everyday</h1>
-            <div class="subtitle">A Participatory Visual System</div>
+            <h1>Photo to Poem</h1>
+            <div class="subtitle">「用一张照片，换一首诗」</div>
         </header>
 
         <div id="inputPage">
             <div class="input-group">
-                <label>1. 上传照片</label>
+                <label>1. 分享一张最近的日常仪式感照片</label>
                 <div class="upload-area" onclick="document.getElementById('fileInput').click()">
                     <span id="uploadPlaceholder">点击或拖拽图片到此处</span>
                     <img id="imagePreview" src="" alt="预览" />
@@ -405,10 +405,6 @@
     <div id="typeControls" class="type-controls" style="display:none;">
         <div class="type-controls-title">文字生成调整</div>
 
-        <div class="type-control-row">
-        <label for="typeTextInput">生成文字</label>
-        <input id="typeTextInput" type="text" placeholder="输入想叠加在图像上的文字">
-    </div>
 
         <div class="type-control-row">
             <label for="typeSliderA" id="typeSliderALabel">参数 A</label>
@@ -438,7 +434,7 @@
         <img id="modalImage" alt="预览大图" />
     </div>
     
-    <footer>&copy; 2026 Co-Everyday Project.</footer>
+    <footer>&copy; 2026 Photo to Poem.</footer>
     
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -542,6 +538,7 @@ typeSystem: {
         let currentBasePosterState = null;
 let currentPaletteData = null;
 let currentLayoutType = null;
+let currentAiPoem = "";
 let currentImageRegion = null;
 let currentWorkingCanvas = null;
 let currentBaseCanvas = null;
@@ -583,7 +580,6 @@ imageSegmenterReady = initImageSegmenter();
         const DEBUG_PERSON_MASK = false;
 
         const typeControls = document.getElementById('typeControls');
-const typeTextInput = document.getElementById('typeTextInput');
 const typeSliderA = document.getElementById('typeSliderA');
 const typeSliderB = document.getElementById('typeSliderB');
 const typeSliderC = document.getElementById('typeSliderC');
@@ -592,6 +588,7 @@ const typeSliderBLabel = document.getElementById('typeSliderBLabel');
 const typeSliderCLabel = document.getElementById('typeSliderCLabel');
 const TYPE_FONT_STACK = '"ABC Favorit Expanded", "Source Han Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif';
 const MORISAWA_FONT = '"ABC Favorit Expanded", sans-serif';
+
 
 
         fileInput.addEventListener('change', async function(e) {
@@ -723,6 +720,8 @@ function formatEnglishTimeFromParts(parts) {
                 neutral: `rgb(${neutral.r},${neutral.g},${neutral.b})`
             };
         }
+
+
 
         function extractExtendedPalette(img) {
     const canvas = document.createElement('canvas');
@@ -1061,10 +1060,9 @@ function cloneCanvas(sourceCanvas) {
     return canvas;
 }
 
-async function drawGeneratedTypeLayer(ctx, rect, palette, userText) {
-    const text = (typeTextInput.value || userText || "").trim();
-    if (!text) return;
-
+async function drawGeneratedTypeLayer(ctx, rect, palette) {
+    // 图像区域优先使用程序生成的诗句，但不能因为诗句为空就整层不画
+    const poemText = String(document.getElementById('userText').value ?? "").trim();
     const mode = getResolvedTypeMode();
 
     ctx.save();
@@ -1073,21 +1071,22 @@ async function drawGeneratedTypeLayer(ctx, rect, palette, userText) {
     ctx.clip();
 
     if (mode === "string") {
-    await drawStringTypeLayer(ctx, rect, palette, text);
-} else if (mode === "danger") {
-    drawDangerTypeLayer(ctx, rect, palette, text);
-} else if (mode === "morisawa") {
-    drawMorisawaTypeLayer(ctx, rect, palette, text);
-} else if (mode === "pow") {
-    drawShineTypeLayer(ctx, rect, palette, text);
-} else {
-        // 其他模式先保留一个轻量占位
-        ctx.globalAlpha = 0.14;
-        ctx.fillStyle = palette.white || "#ffffff";
-        ctx.textAlign = "center";
-        ctx.textBaseline = "middle";
-        ctx.font = `500 72px ${TYPE_FONT_STACK}`;
-        ctx.fillText(text.slice(0, 8), rect.x + rect.w / 2, rect.y + rect.h / 2);
+        await drawStringTypeLayer(ctx, rect, palette, poemText);
+    } else if (mode === "danger") {
+        if (poemText) drawDangerTypeLayer(ctx, rect, palette, poemText);
+    } else if (mode === "morisawa") {
+        if (poemText) drawMorisawaTypeLayer(ctx, rect, palette, poemText);
+    } else if (mode === "pow") {
+        if (poemText) drawShineTypeLayer(ctx, rect, palette, poemText);
+    } else {
+        if (poemText) {
+            ctx.globalAlpha = 0.14;
+            ctx.fillStyle = palette.white || "#ffffff";
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
+            ctx.font = `500 72px ${TYPE_FONT_STACK}`;
+            ctx.fillText(poemText.slice(0, 8), rect.x + rect.w / 2, rect.y + rect.h / 2);
+        }
     }
 
     ctx.restore();
@@ -1350,11 +1349,12 @@ async function drawStringTypeLayer(ctx, rect, palette, text) {
     // 整体离边缘再外扩一点
     const path = offsetPathPoints(basePath, contourOffsetBoost);
 
-    let pathText = text.trim();
-    if (pathText.length < 10) {
-        pathText = (pathText + " ").repeat(5).trim();
-    } else if (pathText.length > 24) {
-        pathText = pathText.slice(0, 24);
+    // 路径文字：保留完整诗句，不再截成 24 字
+    let pathText = String(text || "").replace(/\n+/g, "　").trim();
+    const hasPathText = !!pathText;
+
+    if (hasPathText && pathText.length < 10) {
+        pathText = (pathText + "　").repeat(4).trim();
     }
 
     const pink = (palette.palette5 && palette.palette5[1]) || "#f0b6b6";
@@ -1370,13 +1370,15 @@ async function drawStringTypeLayer(ctx, rect, palette, text) {
             alpha: 1
         });
 
-        drawTextAlongPolyline(ctx, pathText, path, {
-            fontSize,
-            color: white,
-            letterSpacing: fontSize * 0.08,
-            startOffset: 0,
-            textAlign: "start"
-        });
+        if (hasPathText) {
+            drawTextAlongPolyline(ctx, pathText, path, {
+                fontSize: fontSize * 0.88,
+                color: white,
+                letterSpacing: fontSize * 0.18,
+                startOffset: fontSize * 0.4,
+                textAlign: "start"
+            });
+        }
         return;
     }
 
@@ -1429,13 +1431,15 @@ async function drawStringTypeLayer(ctx, rect, palette, text) {
         alpha: 1
     });
 
-    drawTextAlongPolyline(ctx, pathText, pathBottom, {
-        fontSize,
-        color: white,
-        letterSpacing: fontSize * 0.08,
-        startOffset: 0,
-        textAlign: "start"
-    });
+    if (hasPathText) {
+        drawTextAlongPolyline(ctx, pathText, pathBottom, {
+            fontSize: fontSize * 0.88,
+            color: white,
+            letterSpacing: fontSize * 0.18,
+            startOffset: fontSize * 0.4,
+            textAlign: "start"
+        });
+    }
 }
 
 async function rerenderPosterWithTypeLayer(userText) {
@@ -1455,16 +1459,17 @@ async function rerenderPosterWithTypeLayer(userText) {
 
     // 2. 重新画 fragment / 日期 / 正文
     drawDynamicText(
-        ctx,
-        currentLayoutType,
-        canvas.width,
-        canvas.height,
-        userText,
-        currentFragmentNumber
-    );
+    ctx,
+    currentLayoutType,
+    canvas.width,
+    canvas.height,
+    userText,
+    currentFragmentNumber,
+    currentAiPoem
+);
 
     // 3. 再画文字生成层
-    await drawGeneratedTypeLayer(ctx, currentImageRegion, currentPaletteData, userText);
+    await drawGeneratedTypeLayer(ctx, currentImageRegion, currentPaletteData);
 
     // 4. 最后盖模板
     if (currentTemplateCanvas) {
@@ -1562,10 +1567,10 @@ function drawThinStrokeWord(ctx, text, x, y, fontSize, scaleX = 1, alpha = 1) {
     ctx.restore();
 }
 
-[typeTextInput, typeSliderA, typeSliderB, typeSliderC]
+[typeSliderA, typeSliderB, typeSliderC]
     .filter(Boolean)
     .forEach(el => {
-        el.addEventListener('input', function() {
+        el.addEventListener('input', function () {
             updateTypeControlLabels();
 
             if (rerenderTimer) clearTimeout(rerenderTimer);
@@ -2209,25 +2214,25 @@ function darkenCanvasAlphaOnly(targetCtx, width, height, alpha = 0.12) {
 }
 
         function wrapText(ctx, text, x, y, maxWidth, lineHeight) {
-            
-            const chars = text.split('');
-            let line = '';
-            let cursorY = y;
+    const safeText = String(text ?? "");
+    const chars = safeText.split('');
+    let line = '';
+    let cursorY = y;
 
-            for (let i = 0; i < chars.length; i++) {
-                const testLine = line + chars[i];
-                const metrics = ctx.measureText(testLine);
-                if (metrics.width > maxWidth && line !== '') {
-                    ctx.fillText(line, x, cursorY);
-                    line = chars[i];
-                    cursorY += lineHeight;
-                } else {
-                    line = testLine;
-                }
-            }
-
-            if (line) ctx.fillText(line, x, cursorY);
+    for (let i = 0; i < chars.length; i++) {
+        const testLine = line + chars[i];
+        const metrics = ctx.measureText(testLine);
+        if (metrics.width > maxWidth && line !== '') {
+            ctx.fillText(line, x, cursorY);
+            line = chars[i];
+            cursorY += lineHeight;
+        } else {
+            line = testLine;
         }
+    }
+
+    if (line) ctx.fillText(line, x, cursorY);
+}
         
         async function reserveFragmentNumber() {
                 const { data, error } = await supabaseClient.rpc('reserve_fragment_number');
@@ -2263,7 +2268,8 @@ function darkenCanvasAlphaOnly(targetCtx, width, height, alpha = 0.12) {
             const imageUrl = `${SUPABASE_URL}/storage/v1/object/public/generated-images/${fileName}`;
 
             const location = document.getElementById('locationInput').value.trim();
-            const userText = document.getElementById('userText').value.trim();
+            const userText = getUserTextValue()
+            
 
             const { error: insertError } = await supabaseClient
                 .from("submissions")
@@ -2375,8 +2381,402 @@ function darkenCanvasAlphaOnly(targetCtx, width, height, alpha = 0.12) {
     ctx.restore();
 }
 
+function getUserTextValue() {
+    const el = document.getElementById("userText");
+    return typeof el?.value === "string" ? el.value.trim() : "";
+}
 
-        function drawDynamicText(ctx, layoutType, baseW, baseH, userText, indexNumber) {
+function pickRandom(arr) {
+    return arr[Math.floor(Math.random() * arr.length)];
+}
+
+function shuffleArray(arr) {
+    const a = [...arr];
+    for (let i = a.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [a[i], a[j]] = [a[j], a[i]];
+    }
+    return a;
+}
+
+function uniqueArray(arr) {
+    return [...new Set(arr.filter(Boolean))];
+}
+
+function cleanPoemText(text = "") {
+    return String(text || "")
+        .replace(/[，。！？；：、“”"'‘’（）()\[\]【】<>《》,.!?;:]/g, " ")
+        .replace(/\s+/g, " ")
+        .trim();
+}
+
+function splitChinesePhrases(text = "") {
+    const cleaned = cleanPoemText(text);
+    if (!cleaned) return [];
+
+    // 抓连续中文片段
+    const chunks = cleaned.match(/[\u4e00-\u9fa5]{1,20}/g) || [];
+    const phrases = [];
+
+    chunks.forEach(chunk => {
+        // 从每个连续片段里切出 2~6 字短词
+        for (let len = 2; len <= 6; len++) {
+            for (let i = 0; i <= chunk.length - len; i++) {
+                phrases.push(chunk.slice(i, i + len));
+            }
+        }
+    });
+
+    return phrases;
+}
+
+const POEM_STOPWORDS = new Set([
+    "今天","现在","刚刚","然后","就是","感觉","真的","有点","那个","这个","因为","所以",
+    "而且","不是","但是","如果","已经","还有","一下","一直","一个","一种","一些","一点",
+    "这里","那里","自己","我们","你们","他们","她们","时候","东西","照片","图片","一下子",
+    "可以","没有","不是很","然后就","我觉得","就是很","有时候","这个时候","那个时候",
+    "我的","你的","他的","她的","它的","一个人","我们都","然后又","还是会","真的很"
+]);
+
+function isValidPoemFragment(word) {
+    if (!word) return false;
+    const w = String(word).trim();
+
+    if (w.length < 2 || w.length > 6) return false;
+    if (POEM_STOPWORDS.has(w)) return false;
+    if (/^[的了着呢吗啊呀哦嗯哇吧啦哈]+$/.test(w)) return false;
+    if (/^(就是|然后|真的|有点|一下|一直|一个|一些|没有|不是|因为|所以)$/.test(w)) return false;
+
+    // 避免很像语气残片
+    const badStart = ["的","了","着","很","又","还","就","也","把","被","让","给","向","往"];
+    const badEnd = ["的","了","着","呢","吗","啊","呀","哦","吧","嘛"];
+    if (badStart.includes(w[0])) return false;
+    if (badEnd.includes(w[w.length - 1])) return false;
+
+    return true;
+}
+
+function scorePoemFragment(word) {
+    let score = 0;
+    const w = String(word);
+
+    // 偏好更像意象、状态、动作的词
+    if (/[风雨雪云光影夜晨晚梦雾热冷猫狗花草树叶水灯路窗车站街人心声空慢亮暗]/.test(w)) score += 3;
+    if (/[看等走坐站停靠落吹晃飘藏留经过回家散步发呆睡醒路过]/.test(w)) score += 2;
+    if (/[安静温柔潮湿明亮模糊缓慢沉默疲惫松动柔软拥挤空荡平静慌乱]/.test(w)) score += 3;
+
+    // 2~4字更适合入诗
+    if (w.length >= 2 && w.length <= 4) score += 2;
+
+    // 过长稍微降权
+    if (w.length >= 5) score -= 1;
+
+    return score;
+}
+
+function extractPoemFragments(text = "") {
+    const raw = splitChinesePhrases(text)
+        .map(s => s.trim())
+        .filter(isValidPoemFragment);
+
+    const unique = uniqueArray(raw);
+
+    const ranked = unique
+        .map(w => ({ w, score: scorePoemFragment(w) }))
+        .sort((a, b) => b.score - a.score || a.w.length - b.w.length)
+        .map(item => item.w);
+
+    return ranked.slice(0, 12);
+}
+
+function getTimeWord(parts) {
+    const hour = Number(parts?.hour || 12);
+
+    if (hour >= 5 && hour < 8) return "清晨";
+    if (hour >= 8 && hour < 11) return "上午";
+    if (hour >= 11 && hour < 14) return "中午";
+    if (hour >= 14 && hour < 17) return "午后";
+    if (hour >= 17 && hour < 19) return "傍晚";
+    if (hour >= 19 && hour < 23) return "夜晚";
+    return "深夜";
+}
+
+function getCategoryAtmosphere(category) {
+    const map = {
+        space: {
+            nouns: ["角落", "楼影", "街口", "窗边", "站台", "走廊", "路面", "天桥", "空地", "缝隙"],
+            verbs: ["停着", "延伸", "包围", "下沉", "后退", "折回", "打开", "靠近"],
+            moods: ["安静下来", "没有给出答案", "显得很近", "被慢慢放大", "像在等待什么"]
+        },
+        object: {
+            nouns: ["杯口", "桌角", "屏幕", "伞边", "纸面", "袋子", "椅背", "拉链", "玻璃", "手边"],
+            verbs: ["留下余温", "轻轻反光", "靠在那里", "没有被拿走", "慢慢变凉", "停在原处"],
+            moods: ["比语言更诚实", "把日常留了下来", "替人记住一部分时间", "没有立刻消失"]
+        },
+        moment: {
+            nouns: ["这一秒", "片刻", "停顿", "空白", "傍晚之前", "刚刚", "一瞬间", "那一下"],
+            verbs: ["被单独留下", "没有继续", "轻轻拖长", "停在边缘", "从身边经过", "没有被说破"],
+            moods: ["像没说完的话", "显得格外清楚", "让时间慢了一拍", "更像一次呼吸"]
+        },
+        person: {
+            nouns: ["背影", "肩膀", "手指", "头发", "眼神", "步子", "侧脸", "衣角", "身体", "影子"],
+            verbs: ["轻轻偏过去", "停了一下", "从旁边经过", "慢慢靠近", "被风吹乱", "碰到光"],
+            moods: ["比语言先有反应", "藏着没有说出的情绪", "把场景变得具体", "让这一刻有了重量"]
+        },
+        light: {
+            nouns: ["光斑", "反光", "亮处", "影子", "天色", "余光", "窗上的亮", "地面的白", "暮色", "灯影"],
+            verbs: ["慢慢撤退", "停在表面", "轻轻晃动", "把边界照亮", "沿着墙面移动", "落在身上"],
+            moods: ["让很多事变软", "照亮没有名字的部分", "把沉默留在原地", "让空气有了层次"]
+        }
+    };
+
+    return map[category] || map.moment;
+}
+
+const POEM_LIBRARY = {
+    adjectives: [
+        "安静的","缓慢的","潮湿的","明亮的","模糊的","松动的","轻轻的","温柔的","迟来的","发亮的",
+        "空荡的","柔软的","微热的","低垂的","沉默的","漂浮的","黏稠的","安稳的","摇晃的","短暂的",
+        "没有说完的","刚刚落下的","尚未散去的","不太确定的","慢慢靠近的","被风吹乱的"
+    ],
+    nouns: [
+        "风","雨声","天色","灯影","玻璃","脚步","窗口","街道","余温","水面",
+        "背影","叶子","桌角","光斑","站台","猫","狗","云层","空气","影子",
+        "楼影","晚风","傍晚","杯口","伞边","走廊","路口","天桥","纸面","门缝"
+    ],
+    verbs: [
+        "停着","经过","下沉","发亮","晃动","散开","靠近","后退","悬着","折回",
+        "落下","贴着","漂着","藏着","留着","穿过","围住","照亮","推迟","停留"
+    ],
+    endings: [
+        "没有人解释","像没说完的话","还留在这里","比刚刚更轻","慢了一拍",
+        "让日常露出缝隙","把时间折了一下","像被悄悄记住","并没有真正结束","只是没有立刻消失",
+        "让空气轻了一点","像在等下一句","把沉默留了下来","使边界慢慢变软","和今天有关"
+    ],
+    connectors: [
+        "还在","刚刚","好像","一直","只是","忽然","慢慢","轻轻","仍然","像是"
+    ],
+    lineOpeners: [
+        "后来","此刻","有时候","傍晚里","夜色中","风经过时","在回去的路上","等光落下来之前","很多时候","不知为什么"
+    ],
+    fallback: [
+        ["风停在边缘","很多事没有说完","这一刻先留下来"],
+        ["影子被拉长","空气轻轻退后","日常慢了一下"],
+        ["光落在表面","时间没有回答","东西还留在原处"],
+        ["街道有一点安静","人群慢慢向前","傍晚没有结束"],
+        ["一切都很轻","轻得没有声音","却被悄悄记住"],
+        ["窗边亮了一下","夜晚还没有完全落下","世界先安静了一秒"],
+        ["热气停在附近","很多感受没有名字","只好让风替人说话"],
+        ["这一刻不算特别","却没有立刻消失","像生活留下的余白"],
+        ["城市没有停下","只是把声音放低","让细节浮出来"],
+        ["有人从这里经过","有人把时间留在这里","而光什么也没说"],
+        ["空气有一点潮湿","很多事情变得更近","像刚刚发生过"],
+        ["没有结论的傍晚","也没有被打断的沉默","只是慢慢落下来"],
+        ["风从旁边过去","影子还靠着墙","一切没有急着结束"],
+        ["很多东西没有名字","但它们都在场","而且没有走远"],
+        ["天色慢慢变软","光把边界照亮","然后又退了回去"],
+        ["日常还在继续","只是这一小块停住了","像一句没说完的话"],
+        ["这一刻并不响亮","却刚好能被记住","像衣角沾住的风"],
+        ["安静开始铺开","很多声音退到后面","世界轻了一层"],
+        ["没有人真正停下","只有细节被留住","在光落下来的地方"],
+        ["生活向前走着","而这一瞬间留了下来","并且没有解释"]
+    ]
+};
+
+function buildPoemLine(materials, category, timeWord, locationText) {
+    const atm = getCategoryAtmosphere(category);
+
+    const custom1 = materials[0] || pickRandom(POEM_LIBRARY.nouns);
+    const custom2 = materials[1] || pickRandom(atm.nouns);
+    const custom3 = materials[2] || pickRandom(POEM_LIBRARY.nouns);
+
+    const patterns = [
+        `${pickRandom(POEM_LIBRARY.adjectives)}${custom1}`,
+        `${custom1}${pickRandom(POEM_LIBRARY.connectors)}${pickRandom(atm.verbs)}`,
+        `${pickRandom(atm.nouns)}${pickRandom(atm.verbs)}`,
+        `${timeWord}的${custom1}`,
+        `${locationText ? locationText + "的" : ""}${custom2}`,
+        `${pickRandom(POEM_LIBRARY.lineOpeners)}，${custom1}${pickRandom(atm.verbs)}`,
+        `${pickRandom(POEM_LIBRARY.adjectives)}${custom2}${pickRandom(POEM_LIBRARY.connectors)}${pickRandom(POEM_LIBRARY.verbs)}`,
+        `${custom3}像${pickRandom(atm.nouns)}`,
+        `${pickRandom(atm.moods)}`,
+        `${custom1}把${pickRandom(atm.nouns)}${pickRandom(POEM_LIBRARY.verbs)}`,
+        `${pickRandom(POEM_LIBRARY.adjectives)}${custom1}，${pickRandom(POEM_LIBRARY.endings)}`,
+        `${custom2}${pickRandom(POEM_LIBRARY.connectors)}${pickRandom(POEM_LIBRARY.endings)}`
+    ];
+
+    return pickRandom(patterns);
+}
+
+function buildPoemFromMaterials(userText, category, dateParts, locationText) {
+    const materials = extractPoemFragments(userText);
+    const timeWord = getTimeWord(dateParts);
+
+    let lineCount = 3;
+    const rand = Math.random();
+    if (rand < 0.18) lineCount = 2;
+    else if (rand > 0.82) lineCount = 4;
+
+    let lines = [];
+
+    if (materials.length === 0) {
+        lines = [...pickRandom(POEM_LIBRARY.fallback)];
+    } else {
+        const shuffled = shuffleArray(materials);
+
+        for (let i = 0; i < lineCount; i++) {
+            lines.push(
+                buildPoemLine(
+                    shuffled.slice(i, i + 3),
+                    category,
+                    timeWord,
+                    i === 0 ? String(locationText || "").trim() : ""
+                )
+            );
+        }
+    }
+
+    // 去重和清理
+    lines = uniqueArray(
+        lines
+            .map(s => String(s || "").replace(/\s+/g, "").trim())
+            .filter(Boolean)
+    );
+
+    // 太少就补到至少 2~3 行
+    while (lines.length < 3) {
+        lines.push(
+            buildPoemLine(
+                materials,
+                category,
+                timeWord,
+                ""
+            )
+        );
+        lines = uniqueArray(lines);
+        if (lines.length >= 3) break;
+    }
+
+    // 最终控制在 2~4 行
+    lines = lines.slice(0, 4);
+
+    return lines.join("\n");
+}
+
+async function generateChinesePoem(userText) {
+    const safeText = String(userText ?? "").trim();
+    const locationText = document.getElementById("locationInput")?.value?.trim() || "";
+
+    return buildPoemFromMaterials(
+        safeText,
+        selectedCategory,
+        currentPhotoDateParts,
+        locationText
+    );
+}
+
+function wrapPoemText(ctx, text, x, y, maxWidth, lineHeight) {
+    const paragraphs = String(text || "").split("\n");
+    let currentY = y;
+
+    paragraphs.forEach(paragraph => {
+        const chars = paragraph.split("");
+        let line = "";
+
+        for (let i = 0; i < chars.length; i++) {
+            const testLine = line + chars[i];
+            const testWidth = ctx.measureText(testLine).width;
+
+            if (testWidth > maxWidth && line !== "") {
+                ctx.fillText(line, x, currentY);
+                line = chars[i];
+                currentY += lineHeight;
+            } else {
+                line = testLine;
+            }
+        }
+
+        if (line) {
+            ctx.fillText(line, x, currentY);
+            currentY += lineHeight;
+        }
+
+        // 每个原始段落之间留一点额外空隙
+        currentY += Math.round(lineHeight * 0.15);
+    });
+
+    return currentY;
+}
+
+function measurePoemTextHeight(ctx, text, maxWidth, lineHeight) {
+    const paragraphs = String(text || "").split("\n");
+    let totalHeight = 0;
+
+    paragraphs.forEach(paragraph => {
+        const chars = paragraph.split("");
+        let line = "";
+
+        for (let i = 0; i < chars.length; i++) {
+            const testLine = line + chars[i];
+            const testWidth = ctx.measureText(testLine).width;
+
+            if (testWidth > maxWidth && line !== "") {
+                totalHeight += lineHeight;
+                line = chars[i];
+            } else {
+                line = testLine;
+            }
+        }
+
+        if (line) {
+            totalHeight += lineHeight;
+        }
+
+        totalHeight += Math.round(lineHeight * 0.15);
+    });
+
+    return totalHeight;
+}
+
+function getVerticalDynamicLayout(ctx, aiPoem) {
+    const poemFont = '700 100px "Source Han Sans CN", "Noto Sans SC", sans-serif';
+    const poemMaxWidth = 750;
+    const poemLineHeight = 90;
+
+    const topPadding = 18;
+    const bottomPadding = 24;
+
+    // 这两个值来自你原来固定 1200 高度下的竖版比例换算
+    // 中间图片区固定、底部区固定
+    const fixedImageH = 708;
+    const fixedBottomH = 192;
+
+    ctx.save();
+    ctx.font = poemFont;
+    const poemHeight = aiPoem.trim()
+        ? measurePoemTextHeight(ctx, aiPoem, poemMaxWidth, poemLineHeight)
+        : poemLineHeight;
+    ctx.restore();
+
+    const topBlockH = topPadding + poemHeight + bottomPadding;
+    const baseW = 750;
+    const baseH = Math.round(topBlockH + fixedImageH + fixedBottomH);
+
+    return {
+        baseW,
+        baseH,
+        topBlockH: Math.round(topBlockH),
+        imageH: fixedImageH,
+        bottomH: fixedBottomH,
+        poemFont,
+        poemMaxWidth,
+        poemLineHeight,
+        poemX: 0,
+        poemY: topPadding
+    };
+}
+
+        function drawDynamicText(ctx, layoutType, baseW, baseH, userText, indexNumber, aiPoem){
     ctx.save();
     ctx.fillStyle = "#ffffff";
     ctx.textBaseline = "top";
@@ -2385,29 +2785,77 @@ function darkenCanvasAlphaOnly(targetCtx, width, height, alpha = 0.12) {
     const englishDate = formatEnglishDateFromParts(currentPhotoDateParts);
     const englishTime = formatEnglishTimeFromParts(currentPhotoDateParts);
     const fragmentNo = String(indexNumber).padStart(3, "0");
+    const safeUserText = String(userText ?? "");
+    const safeAiPoem = String(aiPoem ?? "");
 
     if (layoutType === 'vertical') {
-        // 正文
-        ctx.font = '400 20px "ABC Favorit Expanded", sans-serif';
-        wrapText(ctx, userText || "No text", 520, 610, 210, 22);
 
-        // 信息块
-        ctx.font = '400 18px "ABC Favorit Expanded", sans-serif';
-        ctx.fillText(`Date: ${englishDate}`, 18, 1028);
-        ctx.fillText(`Time: ${englishTime}`, 18, 1048);
-        ctx.fillText(`Loc.: ${locationText}`, 18, 1068);
+    const vLayout = getVerticalDynamicLayout(ctx, safeAiPoem);
 
-        // Fragment 两行
-        ctx.font = '400 20px "ABC Favorit Expanded", sans-serif';
-        ctx.fillText(`#Fragment`, 18, 1138);
+    const blackRect = {
+        x: 0,
+        y: vLayout.topBlockH,
+        w: baseW,
+        h: vLayout.imageH
+    };
 
-        ctx.font = '600 30px "ABC Favorit Expanded", sans-serif';
-        ctx.fillText(fragmentNo, 18, 1164);
+    const redRect = {
+        x: 0,
+        y: vLayout.topBlockH + vLayout.imageH,
+        w: baseW,
+        h: vLayout.bottomH
+    };
+
+    // ===== 正文（跟着图片区走）=====
+    ctx.font = '400 20px "ABC Favorit Expanded", sans-serif';
+    wrapText(
+        ctx,
+        safeUserText || "",
+        520,
+        blackRect.y + 310,
+        210,
+        22
+    );
+
+    // ===== AI诗（顶部动态区域）=====
+    if (safeAiPoem.trim()) {
+        ctx.font = '700 100px "Source Han Sans CN", "Noto Sans SC", sans-serif';
+        ctx.textAlign = "left";
+
+        wrapPoemText(
+            ctx,
+            safeAiPoem,
+            0,
+            vLayout.poemY,
+            vLayout.poemMaxWidth,
+            vLayout.poemLineHeight
+        );
+    }
+
+    // ===== 底部信息（跟着底部色块走）=====
+    ctx.font = '400 18px "ABC Favorit Expanded", sans-serif';
+    ctx.fillText(`Date: ${englishDate}`, 18, redRect.y + 20);
+    ctx.fillText(`Time: ${englishTime}`, 18, redRect.y + 40);
+    ctx.fillText(`Loc.: ${locationText}`, 18, redRect.y + 60);
+
+    ctx.font = '400 20px "ABC Favorit Expanded", sans-serif';
+    ctx.fillText(`#Fragment`, 18, redRect.y + 130);
+
+    ctx.font = '600 30px "ABC Favorit Expanded", sans-serif';
+    ctx.fillText(fragmentNo, 18, redRect.y + 156);
+
 
     } else if (layoutType === 'horizontal') {
         // 正文
         ctx.font = '400 24px "ABC Favorit Expanded", sans-serif';
-        wrapText(ctx, userText || "No text", 280, 610, 210, 22);
+        wrapText(ctx, safeUserText || "", 280, 610, 210, 22);
+
+        // 诗句
+        if (safeAiPoem.trim()) {
+        ctx.font = '700 120px "Source Han Sans CN", "Noto Sans SC", sans-serif';
+    ctx.textAlign = "left";
+    wrapPoemText(ctx, safeAiPoem, 0, 0, 1000, 110);
+}
 
         // 信息块
         ctx.font = '400 22px "ABC Favorit Expanded", sans-serif';
@@ -2425,7 +2873,14 @@ function darkenCanvasAlphaOnly(targetCtx, width, height, alpha = 0.12) {
     } else if (layoutType === 'horizontal2') {
         // 正文
         ctx.font = '400 24px "ABC Favorit Expanded", sans-serif';
-        wrapText(ctx, userText || "No text", 25, 220, 380, 22);
+        wrapText(ctx, safeUserText || "", 25, 220, 380, 22);
+
+        // 诗句
+        if (safeAiPoem.trim()) {
+    ctx.font = '700 100px "Source Han Sans CN", "Noto Sans SC", sans-serif';
+    ctx.textAlign = "left";
+    wrapPoemText(ctx, safeAiPoem, 980, 0, 700, 90);
+}
 
         // 信息块
         ctx.font = '400 22px "ABC Favorit Expanded", sans-serif';
@@ -2442,9 +2897,9 @@ function darkenCanvasAlphaOnly(targetCtx, width, height, alpha = 0.12) {
     }
 
     drawDateNumbers(ctx, layoutType);
-
     ctx.restore();
 }
+
 
         function getImageFitRectInRegion(sourceCanvas, rect) {
     const { x, y, w, h } = rect;
@@ -2694,7 +3149,6 @@ function drawTextAlongPolyline(ctx, text, pts, options = {}) {
     ctx.textAlign = "center";
     ctx.font = `500 ${fontSize}px ${TYPE_FONT_STACK}`;
 
-    // 计算折线路径总长
     const segs = [];
     let totalLen = 0;
 
@@ -2712,7 +3166,6 @@ function drawTextAlongPolyline(ctx, text, pts, options = {}) {
     }
 
     const chars = text.split("");
-
     const charWidths = chars.map(ch => ctx.measureText(ch).width + letterSpacing);
     const textLen = charWidths.reduce((a, b) => a + b, 0);
 
@@ -2735,7 +3188,8 @@ function drawTextAlongPolyline(ctx, text, pts, options = {}) {
                 return {
                     x: p0.x + (p1.x - p0.x) * t,
                     y: p0.y + (p1.y - p0.y) * t,
-                    angle: Math.atan2(p1.y - p0.y, p1.x - p0.x)
+                    angle: Math.atan2(p1.y - p0.y, p1.x - p0.x),
+                    segIndex: seg.i
                 };
             }
             acc += seg.len;
@@ -2746,8 +3200,16 @@ function drawTextAlongPolyline(ctx, text, pts, options = {}) {
         return {
             x: last.x,
             y: last.y,
-            angle: Math.atan2(last.y - prev.y, last.x - prev.x)
+            angle: Math.atan2(last.y - prev.y, last.x - prev.x),
+            segIndex: pts.length - 2
         };
+    }
+
+    function normalizeAngleDiff(a, b) {
+        let d = a - b;
+        while (d > Math.PI) d -= Math.PI * 2;
+        while (d < -Math.PI) d += Math.PI * 2;
+        return Math.abs(d);
     }
 
     for (let c = 0; c < chars.length; c++) {
@@ -2759,13 +3221,23 @@ function drawTextAlongPolyline(ctx, text, pts, options = {}) {
 
         const pos = getPointAtLength(midLen);
 
+        // 看当前位置前后方向变化，急转弯就主动拉大间距
+        const prevPos = getPointAtLength(Math.max(0, midLen - fontSize * 0.7));
+        const nextPos = getPointAtLength(Math.min(totalLen, midLen + fontSize * 0.7));
+        const turnDiff = normalizeAngleDiff(prevPos.angle, nextPos.angle);
+
+        // 转折越大，额外留白越多
+        let extraGap = 0;
+        if (turnDiff > 0.55) extraGap += fontSize * 0.35;
+        if (turnDiff > 0.9) extraGap += fontSize * 0.55;
+
         ctx.save();
         ctx.translate(pos.x, pos.y);
         ctx.rotate(pos.angle);
         ctx.fillText(ch, 0, 0);
         ctx.restore();
 
-        cursor += w;
+        cursor += w + extraGap;
     }
 
     ctx.restore();
@@ -3363,6 +3835,9 @@ ctx.drawImage(groupCanvas, drawX, drawY, drawW, drawH);
         
 
         generateBtn.addEventListener('click', async function() {
+            const userText = document.getElementById('userText').value.trim();
+
+
             if (!uploadedImage) return;
 
             loadingMsg.style.display = 'block';
@@ -3387,7 +3862,7 @@ ctx.drawImage(groupCanvas, drawX, drawY, drawW, drawH);
                 wCtx.drawImage(uploadedImage, 0, 0, workW, workH);
 
                 const palette = extractExtendedPalette(workingCanvas);
-                const userText = document.getElementById('userText').value.trim();
+                const userText = getUserTextValue();
 
                 currentFragmentNumber = await reserveFragmentNumber();
                 const indexNumber = currentFragmentNumber;
@@ -3407,17 +3882,22 @@ ctx.drawImage(groupCanvas, drawX, drawY, drawW, drawH);
                 }
 
                 let baseW, baseH;
+let verticalLayout = null;
 
-                if (layoutType === 'vertical') {
-                    baseW = 750;
-                    baseH = 1200;
-                } else if (layoutType === 'horizontal') {
-                    baseW = 2419;
-                    baseH = 1000;
-                } else {
-                    baseW = 1679;
-                    baseH = 1000;
-                }
+// 提前生成 AI 诗，因为竖版高度要靠它来算
+currentAiPoem = await generateChinesePoem(userText);
+
+if (layoutType === 'vertical') {
+    verticalLayout = getVerticalDynamicLayout(ctx, currentAiPoem);
+    baseW = verticalLayout.baseW;
+    baseH = verticalLayout.baseH;
+} else if (layoutType === 'horizontal') {
+    baseW = 2419;
+    baseH = 1000;
+} else {
+    baseW = 1679;
+    baseH = 1000;
+}
 
                 canvas.width = baseW;
                 canvas.height = baseH;
@@ -3426,14 +3906,26 @@ ctx.drawImage(groupCanvas, drawX, drawY, drawW, drawH);
                 let imageRegion;
 
                 if (layoutType === 'vertical') {
-                    const totalH = 207.92 + 490.716 + 133.226;
-                    const blueH = 207.92 / totalH;
-                    const blackH = 490.716 / totalH;
-                    const redH = 133.226 / totalH;
+    blueRect = {
+        x: 0,
+        y: 0,
+        w: baseW,
+        h: verticalLayout.topBlockH
+    };
 
-                    blueRect = { x: 0, y: 0, w: baseW, h: baseH * blueH };
-                    blackRect = { x: 0, y: baseH * blueH, w: baseW, h: baseH * blackH };
-                    redRect = { x: 0, y: baseH * (blueH + blackH), w: baseW, h: baseH * redH };
+    blackRect = {
+        x: 0,
+        y: blueRect.h,
+        w: baseW,
+        h: verticalLayout.imageH
+    };
+
+    redRect = {
+        x: 0,
+        y: blueRect.h + blackRect.h,
+        w: baseW,
+        h: verticalLayout.bottomH
+    };
 
                 } else if (layoutType === 'horizontal') {
                     const totalW = 108.164 + 688.65 + 168.808;
@@ -3474,14 +3966,31 @@ ctx.drawImage(groupCanvas, drawX, drawY, drawW, drawH);
 
                 await processImage(ctx, workingCanvas, imageRegion, selectedCategory, palette);
 
+
+
 // 先保存“纯底图”，不要把动态文字烤进去
 currentBaseCanvas = cloneCanvas(canvas);
 
 await ensureCustomFontsLoaded();
-drawDynamicText(ctx, layoutType, baseW, baseH, userText, indexNumber);
+drawDynamicText(ctx, layoutType, baseW, baseH, userText, indexNumber, currentAiPoem);
 
 const templateUrl = TEMPLATES[layoutType];
 const templateImg = new Image();
+
+function drawTemplateLayer(ctx, templateImg, layoutType, baseW, baseH, verticalLayout) {
+    if (layoutType === 'vertical' && verticalLayout) {
+        const fixedTemplateH = verticalLayout.imageH + verticalLayout.bottomH;
+        const drawY = verticalLayout.topBlockH;
+
+        ctx.drawImage(
+            templateImg,
+            0, 0, templateImg.width, templateImg.height,
+            0, drawY, baseW, fixedTemplateH
+        );
+    } else {
+        ctx.drawImage(templateImg, 0, 0, baseW, baseH);
+    }
+}
 
 templateImg.onload = async function() {
     // 保存模板图层
@@ -3489,10 +3998,10 @@ templateImg.onload = async function() {
     currentTemplateCanvas.width = canvas.width;
     currentTemplateCanvas.height = canvas.height;
     const tctx = currentTemplateCanvas.getContext('2d');
-    tctx.drawImage(templateImg, 0, 0, canvas.width, canvas.height);
+    drawTemplateLayer(tctx, templateImg, layoutType, canvas.width, canvas.height, verticalLayout);
 
     // 主画布盖模板
-    ctx.drawImage(templateImg, 0, 0, canvas.width, canvas.height);
+    drawTemplateLayer(ctx, templateImg, layoutType, canvas.width, canvas.height, verticalLayout);
 
     const finalDataUrl = canvas.toDataURL("image/png");
     finalImage.src = finalDataUrl;
@@ -3503,7 +4012,7 @@ templateImg.onload = async function() {
     currentTemplateCanvas.width = baseW;
     currentTemplateCanvas.height = baseH;
     const templateCtx = currentTemplateCanvas.getContext('2d');
-    templateCtx.drawImage(templateImg, 0, 0, baseW, baseH);
+    drawTemplateLayer(templateCtx, templateImg, layoutType, baseW, baseH, verticalLayout);
 
     currentPaletteData = palette;
     currentLayoutType = layoutType;
@@ -3511,11 +4020,10 @@ templateImg.onload = async function() {
     currentWorkingCanvas = workingCanvas;
 
     typeControls.style.display = 'block';
-    typeTextInput.value = userText || "";
-typeSliderA.value = Math.floor(Math.random() * 100); // 随机 0–99
+typeSliderA.value = Math.floor(Math.random() * 100);
 typeSliderB.value = 52;
 typeSliderC.value = 18;
-    updateTypeControlLabels();
+updateTypeControlLabels();
 
     currentPersonCompositePath = null;
     if (selectedCategory === "person") {
@@ -3584,6 +4092,9 @@ typeSliderC.value = 18;
 reloadBtn.addEventListener("click", function() {
     location.reload();
 });
+
+
+
     </script>
 </body>
 </html>
