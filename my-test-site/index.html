@@ -2324,7 +2324,7 @@ function darkenCanvasAlphaOnly(targetCtx, width, height, alpha = 0.12) {
     ctx.restore();
 }
 
-        function drawDateNumbers(ctx, layoutType) {
+        function drawDateNumbers(ctx, layoutType, verticalLayout = null) {
     const topNum = currentPhotoDateParts.hour;
     const rightNum = currentPhotoDateParts.minute;
     const leftNum = currentPhotoDateParts.month;
@@ -2335,17 +2335,22 @@ function darkenCanvasAlphaOnly(targetCtx, width, height, alpha = 0.12) {
     if (layoutType === 'vertical') {
         const fontSpec = '400 170px "ABC Favorit Expanded", sans-serif';
 
+        const originalTopH = 300;
+        const dynamicTopH = verticalLayout ? verticalLayout.topBlockH : originalTopH;
+        const yOffset = dynamicTopH - originalTopH;
+
         // 上（轻微裁两边）
-        drawMaskedBigNumber(ctx, topNum, 350, 690, fontSpec, 170, 0);
+        drawMaskedBigNumber(ctx, topNum, 485, 690 + yOffset, fontSpec, 170, 0);
 
         // 左（多裁右边 → 向右偏移裁切框）
-        drawMaskedBigNumber(ctx, leftNum, 150, 825, fontSpec, 170, 25);
+        drawMaskedBigNumber(ctx, leftNum, 285, 825 + yOffset, fontSpec, 170, 25);
 
         // 右（多裁左边 → 向左偏移裁切框）
-        drawMaskedBigNumber(ctx, rightNum, 530, 850, fontSpec, 170, 0);
+        drawMaskedBigNumber(ctx, rightNum, 665, 850 + yOffset, fontSpec, 170, 0);
 
         // 下（轻裁）
-        drawMaskedBigNumber(ctx, bottomNum, 370, 980, fontSpec, 170, 10);
+        drawMaskedBigNumber(ctx, bottomNum, 500, 980 + yOffset, fontSpec, 170, 10);
+
 
     } else if (layoutType === 'horizontal') {
         const fontSpec = '400 220px "ABC Favorit Expanded", sans-serif';
@@ -2787,10 +2792,11 @@ function getVerticalDynamicLayout(ctx, aiPoem) {
     const fragmentNo = String(indexNumber).padStart(3, "0");
     const safeUserText = String(userText ?? "");
     const safeAiPoem = String(aiPoem ?? "");
+    let vLayout = null;
 
     if (layoutType === 'vertical') {
 
-    const vLayout = getVerticalDynamicLayout(ctx, safeAiPoem);
+    vLayout = getVerticalDynamicLayout(ctx, safeAiPoem);
 
     const blackRect = {
         x: 0,
@@ -2896,7 +2902,9 @@ function getVerticalDynamicLayout(ctx, aiPoem) {
         ctx.fillText(fragmentNo, 1430, 950);
     }
 
-    drawDateNumbers(ctx, layoutType);
+
+
+drawDateNumbers(ctx, layoutType, vLayout);
     ctx.restore();
 }
 
