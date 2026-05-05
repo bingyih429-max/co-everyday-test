@@ -992,22 +992,35 @@ const TYPE_FONT_STACK = '"ABC Favorit Expanded", "FZ CuHei Traditional", "Source
 
 const MORISAWA_FONT = '"ABC Favorit Expanded", sans-serif';
 async function normalizeImageFile(file) {
-    const name = file.name.toLowerCase();
-    const isHeic = name.endsWith(".heic") || name.endsWith(".heif") || file.type === "image/heic" || file.type === "image/heif";
+    const name = (file.name || "").toLowerCase();
+    const type = (file.type || "").toLowerCase();
+
+    const isHeic =
+        name.endsWith(".heic") ||
+        name.endsWith(".heif") ||
+        type === "image/heic" ||
+        type === "image/heif";
 
     if (!isHeic) return file;
 
-    const convertedBlob = await heic2any({
-        blob: file,
-        toType: "image/jpeg",
-        quality: 0.92
-    });
+    try {
+        const convertedBlob = await heic2any({
+            blob: file,
+            toType: "image/jpeg",
+            quality: 0.92
+        });
 
-    const finalBlob = Array.isArray(convertedBlob) ? convertedBlob[0] : convertedBlob;
+        const finalBlob = Array.isArray(convertedBlob) ? convertedBlob[0] : convertedBlob;
 
-    return new File([finalBlob], file.name.replace(/\.(heic|heif)$/i, ".jpg"), {
-        type: "image/jpeg"
-    });
+        return new File(
+            [finalBlob],
+            name.replace(/\.(heic|heif)$/i, ".jpg"),
+            { type: "image/jpeg" }
+        );
+    } catch (err) {
+        console.warn("HEIC 转换失败，改用原文件继续上传：", err);
+        return file;
+    }
 }
 
 const topLogoWhite = new Image();
@@ -1055,7 +1068,14 @@ if (dateResult) {
     
 
     // 再转换 HEIC，用于预览和绘制
-    const displayFile = await normalizeImageFile(originalFile);
+    let displayFile = originalFile;
+
+try {
+    displayFile = await normalizeImageFile(originalFile);
+} catch (err) {
+    console.warn("图片格式转换失败，使用原文件：", err);
+    displayFile = originalFile;
+}
     currentOriginalFile = originalFile;
 
     console.log("照片时间：", currentPhotoDateParts);
@@ -1414,6 +1434,48 @@ async function readPhotoDateParts(file) {
     return null;
 }
 
+function getDatePartsFromFileName(fileName) {
+    if (!fileName) return null;
+
+    const name = fileName.toLowerCase();
+
+    const patterns = [
+        // IMG_20240501_153012.jpg / 20240501_153012
+        /(\d{4})(\d{2})(\d{2})[_-]?(\d{2})?(\d{2})?/,
+
+        // 2024-05-01 / 2024.05.01 / 2024_05_01
+        /(\d{4})[-_.](\d{1,2})[-_.](\d{1,2})/
+    ];
+
+    for (const pattern of patterns) {
+        const match = name.match(pattern);
+        if (!match) continue;
+
+        const year = Number(match[1]);
+        const month = Number(match[2]);
+        const day = Number(match[3]);
+
+        if (
+            year >= 2000 &&
+            year <= 2100 &&
+            month >= 1 &&
+            month <= 12 &&
+            day >= 1 &&
+            day <= 31
+        ) {
+            return {
+                year: String(year),
+                month: pad2(month),
+                day: pad2(day),
+                hour: match[4] ? pad2(match[4]) : "00",
+                minute: match[5] ? pad2(match[5]) : "00"
+            };
+        }
+    }
+
+    return null;
+}
+
 async function getBestPhotoDate(file) {
     // 1. 优先读取 EXIF 拍摄时间
     const exifParts = await readPhotoDateParts(file);
@@ -1425,7 +1487,17 @@ async function getBestPhotoDate(file) {
         };
     }
 
-    // 2. EXIF 读不到，用文件修改时间兜底
+    // 2. 尝试从文件名读取日期
+    const filenameParts = getDatePartsFromFileName(file.name);
+
+    if (filenameParts) {
+        return {
+            parts: filenameParts,
+            source: "filename"
+        };
+    }
+
+    // 3. 最后用文件修改时间兜底
     if (file.lastModified) {
         return {
             parts: getDatePartsFromDate(new Date(file.lastModified)),
@@ -1433,7 +1505,6 @@ async function getBestPhotoDate(file) {
         };
     }
 
-    // 3. 都读不到
     return null;
 }
 
@@ -4474,7 +4545,7 @@ function darkenCanvasAlphaOnly(targetCtx, width, height, alpha = 0.12) {
 
         // 1. 上传最终生成图
         const generatedBlob = await new Promise(resolve => {
-            canvas.toBlob(resolve, "image/png");
+            canvas.toBlob(resolve, "image/jpeg", 0.82);
         });
 
         const safeNo = String(fragmentNumber).padStart(5, "0");
