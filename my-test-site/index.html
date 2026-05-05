@@ -5,6 +5,24 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title> 历历/在幕 | Scenes of Days </title>
     <style>
+
+body {
+    animation: pageFadeIn 0.55s ease both;
+}
+
+@keyframes pageFadeIn {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+.fade-in {
+    animation: pageFadeIn 0.55s ease both;
+}
+
         @font-face {
     font-family: "ABC Favorit Expanded";
     src: url("./fonts/ABCFavoritExpanded-Light-Trial.otf") format("opentype");
@@ -86,6 +104,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
+    transition: opacity 0.45s ease;
 }
 
 .home-image {
@@ -106,6 +125,20 @@
     cursor: pointer;
 }
 
+.main-title-logo {
+    display: block;
+    width: min(42vw, 180px);
+    height: auto;
+    margin: 0 auto 12px;
+}
+
+@media (max-width: 640px) {
+    .main-title-logo {
+        width: 150px;
+        margin-bottom: 10px;
+    }
+}
+
 /* 👇 loading 就放这里 */
 .submit-loading {
     position: fixed;
@@ -123,6 +156,23 @@
 .submit-loading-img {
     width: min(72vw, 520px);
     height: auto;
+    animation: loadingBreath 1.4s ease-in-out infinite;
+    transition: opacity 0.35s ease;
+}
+
+@keyframes loadingBreath {
+    0% {
+        opacity: 0.25;
+        transform: scale(0.985);
+    }
+    50% {
+        opacity: 1;
+        transform: scale(1.015);
+    }
+    100% {
+        opacity: 0.25;
+        transform: scale(0.985);
+    }
 }
 
 @media (max-width: 640px) {
@@ -629,7 +679,7 @@
 
     <div class="container">
         <header>
-            <h1>历历/在幕</h1>
+            <img src="images/chinese-title.png" class="main-title-logo" alt="历历/在幕">
             <div class="subtitle">「寻找日常仪式感的最大公约数」</div>
         </header>
 
@@ -8261,22 +8311,31 @@ templateImg.onerror = function() {
             }
         });
 
-        document.addEventListener("click", function(e){
+        document.addEventListener("click", async function(e){
 
-            if(e.target && e.target.id === "submitBtn"){
-                if(!currentFragmentNumber){
-                    alert("请先生成海报");
-                    return;
-                }
+    if(e.target && e.target.id === "submitBtn"){
 
-                const canvas = document.getElementById("finalCanvas");
-                const fragmentNumber = currentFragmentNumber;
+        if(!currentFragmentNumber){
+            alert("请先生成海报");
+            return;
+        }
 
-                uploadToSupabase(canvas, fragmentNumber);
+        const submitLoading = document.getElementById("submitLoading");
+        if (submitLoading) submitLoading.style.display = "flex";
 
-            }
+        const canvas = document.getElementById("finalCanvas");
+        const fragmentNumber = currentFragmentNumber;
 
-        });
+        try {
+            await uploadToSupabase(canvas, fragmentNumber);
+        } catch (err) {
+            console.error(err);
+        } finally {
+            if (submitLoading) submitLoading.style.display = "none";
+        }
+    }
+
+});
         
         finalImage.addEventListener("click", function() {
             if (!finalImage.src) return;
@@ -8298,7 +8357,12 @@ const enterBtn = document.getElementById('enterBtn');
 
 if (enterBtn) {
     enterBtn.addEventListener('click', () => {
-        homePage.style.display = 'none';
+        homePage.style.opacity = '0';
+
+setTimeout(() => {
+    homePage.style.display = 'none';
+    document.querySelector('.container').classList.add('fade-in');
+}, 450);
     });
 }
 
