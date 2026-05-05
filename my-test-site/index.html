@@ -66,6 +66,7 @@
             align-items: center;
             line-height: 1.6;
         }
+        
 
         .container {
             max-width: 600px;
@@ -75,6 +76,67 @@
             border-radius: 12px;
             box-shadow: 0 4px 20px rgba(0,0,0,0.05);
         }
+
+        /* 首页 */
+        .home-page {
+    position: fixed;
+    inset: 0;
+    z-index: 10000;
+    background: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.home-image {
+    width: min(86vw, 760px);
+    height: auto;
+    display: block;
+}
+
+.enter-btn {
+    position: fixed;
+    left: 50%;
+    bottom: 22vh;
+    transform: translateX(-50%);
+    width: 120px;
+    height: 90px;
+    opacity: 0;
+    cursor: pointer;
+    border: none;
+    background: transparent;
+}
+
+/* 👇 loading 就放这里 */
+.submit-loading {
+    position: fixed;
+    inset: 0;
+    z-index: 10001;
+    background: rgba(255,255,255,0.82);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.submit-loading-img {
+    width: min(72vw, 520px);
+    height: auto;
+}
+
+@media (max-width: 640px) {
+    .home-image {
+        width: 100vw;
+        max-width: none;
+    }
+
+    .enter-btn {
+        bottom: 24vh;
+        font-size: 64px;
+    }
+}
 
         header {
             text-align: center;
@@ -556,6 +618,16 @@
     </style>
 </head>
 <body>
+
+    <div id="homePage" class="home-page">
+    <img src="image/homepage.png" class="home-image" alt="homepage">
+    <button id="enterBtn" class="enter-btn" type="button">进入</button>
+</div>
+
+<div id="submitLoading" class="submit-loading" style="display:none;">
+    <img src="image/loading.png" class="submit-loading-img" alt="loading">
+</div>
+
     <div class="container">
         <header>
             <h1>历历/在幕</h1>
@@ -8221,6 +8293,15 @@ reloadBtn.addEventListener("click", function() {
 
 setClassificationMode("auto");
 updateDetectedCategoryUI(selectedCategory);
+
+const homePage = document.getElementById('homePage');
+const enterBtn = document.getElementById('enterBtn');
+
+if (enterBtn) {
+    enterBtn.addEventListener('click', () => {
+        homePage.style.display = 'none';
+    });
+}
 
     </script>
 </body>
