@@ -1034,27 +1034,25 @@ if (dateInput) {
     if (!originalFile) return;
 
     // 先读原始文件的日期
-    currentPhotoDateParts = await readPhotoDateParts(originalFile);
+const dateResult = await getBestPhotoDate(originalFile);
 
-    if (!currentPhotoDateParts) {
-    const isHeic =
-        originalFile.name.toLowerCase().endsWith(".heic") ||
-        originalFile.name.toLowerCase().endsWith(".heif") ||
-        originalFile.type === "image/heic" ||
-        originalFile.type === "image/heif";
-
-    currentPhotoDateParts = getDatePartsFromDate(
-        new Date(originalFile.lastModified || Date.now())
-    );
-
-    // HEIC 读不到 EXIF 时，显示日期框，让用户确认/修改
-    showManualDateInput(isHeic);
-}
+if (dateResult) {
+    currentPhotoDateParts = dateResult.parts;
 
     const dateInput = document.getElementById('dateInput');
     if (dateInput) {
         dateInput.value = `${currentPhotoDateParts.year}-${currentPhotoDateParts.month}-${currentPhotoDateParts.day}`;
     }
+
+    // 如果是 EXIF，就隐藏；如果是文件修改时间，就显示出来让用户确认
+    showManualDateInput(dateResult.source !== "exif");
+
+} else {
+    currentPhotoDateParts = getDatePartsFromDate(new Date());
+    showManualDateInput(true);
+}
+
+    
 
     // 再转换 HEIC，用于预览和绘制
     const displayFile = await normalizeImageFile(originalFile);
@@ -1413,6 +1411,29 @@ async function readPhotoDateParts(file) {
         console.warn("EXIF读取失败", err);
     }
 
+    return null;
+}
+
+async function getBestPhotoDate(file) {
+    // 1. 优先读取 EXIF 拍摄时间
+    const exifParts = await readPhotoDateParts(file);
+
+    if (exifParts) {
+        return {
+            parts: exifParts,
+            source: "exif"
+        };
+    }
+
+    // 2. EXIF 读不到，用文件修改时间兜底
+    if (file.lastModified) {
+        return {
+            parts: getDatePartsFromDate(new Date(file.lastModified)),
+            source: "lastModified"
+        };
+    }
+
+    // 3. 都读不到
     return null;
 }
 
@@ -7951,14 +7972,14 @@ ctx.drawImage(groupCanvas, drawX, drawY, drawW, drawH);
     const dateWrap = document.getElementById('dateInputWrap');
     const dateInput = document.getElementById('dateInput');
 
-    if (dateWrap && dateInput && dateWrap.style.display !== 'none') {
-        const manualDateValue = dateInput.value.trim();
-        const manualParts = getDatePartsFromDateInputValue(manualDateValue);
-
+if (dateInput) {
+    dateInput.addEventListener('change', function() {
+        const manualParts = getDatePartsFromDateInputValue(this.value);
         if (manualParts) {
             currentPhotoDateParts = manualParts;
         }
-    }
+    });
+}
 
     loadingMsg.style.display = 'block';
     generateBtn.disabled = true;
