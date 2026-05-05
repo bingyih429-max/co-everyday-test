@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Photo to Poem | 「用一张照片，换一首诗」</title>
+    <title> 历历/在幕 | Scenes of Days </title>
     <style>
         @font-face {
     font-family: "ABC Favorit Expanded";
@@ -30,6 +30,13 @@
     font-family: "ABC Favorit Expanded";
     src: url("./fonts/ABCFavoritExpanded-Book-Trial.otf") format("opentype");
     font-weight: 600;
+    font-style: normal;
+}
+
+@font-face {
+    font-family: "FZ CuHei Traditional";
+    src: url("./fonts/FZH4FW.TTF") format("truetype");
+    font-weight: 700;
     font-style: normal;
 }
 
@@ -145,6 +152,64 @@
             border-color: var(--primary-color);
         }
 
+        .classification-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .classification-mode-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+
+        .mode-btn {
+            border: 1px solid #ddd;
+            background: #fff;
+            border-radius: 999px;
+            padding: 11px 14px;
+            font-size: 14px;
+            cursor: pointer;
+        }
+
+        .mode-btn.active {
+            background: #111;
+            color: #fff;
+            border-color: #111;
+        }
+
+        .detected-category-card {
+            border: 1px solid #e6e6e6;
+            border-radius: 12px;
+            padding: 14px;
+            background: #fafafa;
+        }
+
+        .detected-category-label {
+            font-size: 12px;
+            color: #777;
+            margin-bottom: 6px;
+            letter-spacing: 0.04em;
+        }
+
+        .detected-category-name {
+            font-size: 20px;
+            font-weight: 700;
+            color: #111;
+            margin-bottom: 4px;
+        }
+
+        .detected-category-desc {
+            font-size: 13px;
+            color: #666;
+            line-height: 1.55;
+        }
+
+        .manual-hidden {
+            display: none;
+        }
+
         textarea {
             width: 100%;
             padding: 12px;
@@ -218,9 +283,13 @@
             line-height: 0;
             box-shadow: 0 10px 30px rgba(0,0,0,0.15);
             max-width: 100%;
-            background: #000;
+            background: #f5f5f5;
             overflow: hidden;
         }
+
+        #finalImage {
+    background: transparent;
+}
 
         #finalImage {
             width: 100%;
@@ -304,14 +373,30 @@
         }
 
         .type-controls {
-    margin: 20px auto 0;
-    padding: 18px 16px;
-    max-width: 100%;
-    border: 1px solid #ddd;
-    border-radius: 10px;
-    background: #fff;
-    text-align: left;
+    position: fixed;
+    left: 50%;
+    bottom: 28px;
+    transform: translateX(-50%);
+
+    width: min(86vw, 620px);
+    max-height: 58vh;
+    overflow-y: auto;
+
+    z-index: 9998;
+
+    margin: 0;
+    padding: 48px 22px 22px;
     box-sizing: border-box;
+
+    background: rgba(255,255,255,0.58);
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
+
+    border-radius: 22px;
+    box-shadow: 0 16px 48px rgba(0,0,0,0.22);
+    border: 1px solid rgba(255,255,255,0.7);
+
+    text-align: left;
 }
 
 .type-controls-title {
@@ -347,48 +432,171 @@
     width: 100%;
 }
 
+.type-controls-toggle {
+    position: absolute;
+    left: 50%;
+    top: 20px;
+    transform: translateX(-50%);
+    width: 48px;
+    height: 28px;
+    border: none;
+    background: transparent;
+    color: transparent;
+    cursor: pointer;
+}
+
+.type-controls-toggle::before {
+    content: '';
+    display: block;
+    width: 22px;
+    height: 22px;
+    margin: 0 auto;
+    border-left: 5px solid rgba(0,0,0,0.4);
+    border-top: 5px solid rgba(0,0,0,0.4);
+    transform: rotate(45deg);
+}
+
+.type-controls.collapsed {
+    height: 52px;
+    padding: 8px 22px;
+    overflow: hidden;
+}
+
+.type-controls.collapsed .type-controls-title,
+.type-controls.collapsed .type-control-row {
+    display: none;
+}
+
+.type-controls.collapsed .type-controls-toggle::before {
+    transform: rotate(225deg);
+}
+
+.type-controls-hint {
+    text-align: center;
+    font-size: 12px;
+    color: rgba(0,0,0,0.45);
+
+    margin-top: 2px;    /* ← 更贴近箭头 */
+    margin-bottom: 18px;/* ← 和下面内容拉开 */
+}
+
+.type-controls.collapsed .type-controls-toggle {
+    top: 14px;   /* 收起时稍微往上收一点 */
+}
+
+.type-controls.collapsed .type-controls-hint {
+    margin-top: 6px;
+    margin-bottom: 6px;
+}
+
+        @media (max-width: 640px) {
+            body {
+                padding: 0;
+                background: #fff;
+            }
+
+            .container {
+                max-width: 100%;
+                min-height: 100vh;
+                border-radius: 0;
+                box-shadow: none;
+                padding: 18px 16px 120px;
+            }
+
+            header {
+                margin-bottom: 22px;
+            }
+
+            h1 {
+                font-size: 24px;
+            }
+
+            .subtitle {
+                font-size: 12px;
+                letter-spacing: 1.2px;
+            }
+
+            .upload-area {
+                padding: 28px 16px;
+            }
+
+            .category-group {
+                grid-template-columns: 1fr;
+            }
+
+            .action-row {
+                position: sticky;
+                bottom: 0;
+                background: rgba(255,255,255,0.96);
+                padding: 10px 0 2px;
+            }
+
+            .action-btn {
+                width: 100%;
+                min-width: 0;
+            }
+
+            .type-controls {
+                padding: 14px 12px;
+            }
+
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <header>
-            <h1>Photo to Poem</h1>
-            <div class="subtitle">「用一张照片，换一首诗」</div>
+            <h1>历历/在幕</h1>
+            <div class="subtitle">「寻找日常仪式感的最大公约数」</div>
         </header>
 
         <div id="inputPage">
             <div class="input-group">
-                <label>1. 分享一张最近的日常仪式感照片</label>
+                <label>分享一个具有仪式感的日常</label>
                 <div class="upload-area" onclick="document.getElementById('fileInput').click()">
-                    <span id="uploadPlaceholder">点击或拖拽图片到此处</span>
+                    <span id="uploadPlaceholder">点击此处上传图片</span>
                     <img id="imagePreview" src="" alt="预览" />
-                    <input type="file" id="fileInput" hidden accept="image/*" />
+                    <input type="file" id="fileInput" hidden accept=".jpg,.jpeg,.png,.webp,.heic,.heif,image/*" />
                 </div>
             </div>
 
             <div class="input-group">
-                <label>2. 选择分类</label>
-                <div class="category-group">
-                    <button class="cat-btn active" data-type="space">空间</button>
-                    <button class="cat-btn" data-type="object">物件</button>
-                    <button class="cat-btn" data-type="moment">时刻</button>
-                    <button class="cat-btn" data-type="person">人物</button>
-                    <button class="cat-btn" data-type="light">光影</button>
+                <label>分类方式</label>
+                <div class="classification-panel">
+                    <div class="classification-mode-row">
+                        <button type="button" id="autoClassifyBtn" class="mode-btn active">自动识别</button>
+                        <button type="button" id="manualClassifyBtn" class="mode-btn">手动指定</button>
+                    </div>
+                    <div id="detectedCategoryCard" class="detected-category-card">
+                        <div class="detected-category-label">当前分类</div>
+                        <div id="detectedCategoryName" class="detected-category-name">待识别</div>
+                        <div id="detectedCategoryDesc" class="detected-category-desc">上传图片后自动判断：光与时刻 / 日常之物 / 行为之中</div>
+                    </div>
+                    <div id="manualCategoryGroup" class="category-group manual-hidden">
+                        <button class="cat-btn active" data-type="light_time">光与时刻</button>
+                        <button class="cat-btn" data-type="daily_object">日常之物</button>
+                        <button class="cat-btn" data-type="in_action">行为之中</button>
+                    </div>
                 </div>
             </div>
 
+            <div class="input-group" id="dateInputWrap" style="display:none;">
+    <label>拍摄日期（图片未读取到日期，请手动填写）</label>
+    <input id="dateInput" type="date">
+</div>
+
             <div class="input-group">
-                <label>3. 拍摄地点</label>
+                <label>拍摄地点</label>
                 <input id="locationInput" type="text" placeholder="例如：杭州西湖">
             </div>
 
             <div class="input-group">
-                <label>4. 拍摄感想</label>
-               <textarea id="userText" placeholder="记录一下拍摄这张照片时的感受"></textarea>
+                <label>拍摄感想</label>
+               <textarea id="userText" placeholder="这张照片的仪式感来自于……"></textarea>
             </div>
 
-            <button id="generateBtn" disabled>生成海报</button>
-            <div id="loadingMsg" class="loading">正在处理图像，请稍候...</div>
+            <button id="generateBtn" disabled>生成我的专属日历</button>
+            <div id="loadingMsg" class="loading">正在生成专属日历，请稍候...</div>
         </div>
 
         <div id="resultArea">
@@ -402,8 +610,12 @@
     <p style="font-size: 12px; color: #888; margin-top: 15px;">长按图片可保存，点击图片可查看大图</p>
 
     <!-- 新增：文字生成控制区 -->
-    <div id="typeControls" class="type-controls" style="display:none;">
-        <div class="type-controls-title">文字生成调整</div>
+    <div id="typeControls" class="type-controls floating-type-controls" style="display:none;">
+    <button id="typeControlsToggle" class="type-controls-toggle"></button>
+<div id="typeControlsHint" class="type-controls-hint">
+    点击此处收起面板
+</div>
+    <div class="type-controls-title">图像个性化调整</div>
 
 
         <div class="type-control-row">
@@ -434,11 +646,12 @@
         <img id="modalImage" alt="预览大图" />
     </div>
     
-    <footer>&copy; 2026 Photo to Poem.</footer>
+    <footer>&copy; 2026 Scenes of Days.</footer>
     
-
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/exifr/dist/lite.umd.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/heic2any/dist/heic2any.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/lunar-javascript/lunar.min.js"></script>
     <script type="module">
         import {
           FilesetResolver,
@@ -453,6 +666,24 @@
             vertical: './images/竖版.png',
             horizontal: './images/横版.png',
             horizontal2: './images/横版2.png'
+        };
+
+        const CATEGORY_META = {
+            light_time: {
+                name: '光与时刻',
+                desc: '偏光线、天空、时间氛围、昼夜变化、灯光与瞬时感。',
+                posterTag: '光与时刻'
+            },
+            daily_object: {
+                name: '日常之物',
+                desc: '偏静物、器物、食物、植物、桌面与局部物件。',
+                posterTag: '日常之物'
+            },
+            in_action: {
+                name: '行为之中',
+                desc: '偏人物、动作、互动、行走、运动或事件现场。',
+                posterTag: '行为之中'
+            }
         };
 
         const FX = {
@@ -512,17 +743,20 @@ typeSystem: {
     enabled: true,
     defaultText: "",
     autoModeMap: {
-        space: "morisawa",
-        object: "construct",
-        moment: "pow",
-        person: "string",
-        light: "danger"
+        light_time: "danger",
+        daily_object: "construct",
+        in_action: "string"
     }
 }
         };
 
-        let selectedCategory = 'space';
+        let selectedCategory = 'light_time';
+        let classifyMode = 'auto';
         let uploadedImage = null;
+
+        let currentOriginalFile = null;
+const GENERATION_VERSION = "photo-to-poem-v1";
+
         let currentFragmentNumber = null;
         let currentPhotoDateParts = {
     year: "2026",
@@ -543,10 +777,22 @@ let currentImageRegion = null;
 let currentWorkingCanvas = null;
 let currentBaseCanvas = null;
 let currentTemplateCanvas = null;
+let currentCategory = null;
+let currentLightTimeLeftCuts = [];
+let currentFragmentBoxPosition = 'bottom';
+let hasInitializedLightTimeSliders = false;
+let currentDailyObjectSourceCanvas = null;
+let currentDailyObjectRegions = [];
+
+//新增一个干净底图缓存
+let currentCleanLayoutCanvas = null;
+
+let currentUploadedImageRatio = 1;
 
 // 新增缓存
 let currentPersonCompositePath = null;
 let rerenderTimer = null;
+let recentPoemSignatures = [];
 
         async function initImageSegmenter() {
             const vision = await FilesetResolver.forVisionTasks(
@@ -570,6 +816,11 @@ imageSegmenterReady = initImageSegmenter();
         const uploadPlaceholder = document.getElementById('uploadPlaceholder');
         const generateBtn = document.getElementById('generateBtn');
         const catBtns = document.querySelectorAll('.cat-btn');
+        const autoClassifyBtn = document.getElementById('autoClassifyBtn');
+        const manualClassifyBtn = document.getElementById('manualClassifyBtn');
+        const manualCategoryGroup = document.getElementById('manualCategoryGroup');
+        const detectedCategoryName = document.getElementById('detectedCategoryName');
+        const detectedCategoryDesc = document.getElementById('detectedCategoryDesc');
         const loadingMsg = document.getElementById('loadingMsg');
         const finalCanvas = document.getElementById('finalCanvas');
         const finalImage = document.getElementById('finalImage');
@@ -581,31 +832,86 @@ imageSegmenterReady = initImageSegmenter();
 
         const typeControls = document.getElementById('typeControls');
 const typeSliderA = document.getElementById('typeSliderA');
+
+const typeControlsToggle = document.getElementById('typeControlsToggle');
+
+if (typeControlsToggle) {
+    const hint = document.getElementById('typeControlsHint');
+
+typeControlsToggle.addEventListener('click', () => {
+    const isCollapsed = typeControls.classList.toggle('collapsed');
+
+    if (hint) {
+        hint.textContent = isCollapsed
+            ? '点击此处展开调整'
+            : '点击此处收起面板';
+    }
+});
+}
+
 const typeSliderB = document.getElementById('typeSliderB');
 const typeSliderC = document.getElementById('typeSliderC');
 const typeSliderALabel = document.getElementById('typeSliderALabel');
 const typeSliderBLabel = document.getElementById('typeSliderBLabel');
 const typeSliderCLabel = document.getElementById('typeSliderCLabel');
-const TYPE_FONT_STACK = '"ABC Favorit Expanded", "Source Han Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif';
+const TYPE_FONT_STACK = '"ABC Favorit Expanded", "FZ CuHei Traditional", "Source Han Sans SC", "PingFang SC", sans-serif';
+
 const MORISAWA_FONT = '"ABC Favorit Expanded", sans-serif';
+async function normalizeImageFile(file) {
+    const name = file.name.toLowerCase();
+    const isHeic = name.endsWith(".heic") || name.endsWith(".heif") || file.type === "image/heic" || file.type === "image/heif";
+
+    if (!isHeic) return file;
+
+    const convertedBlob = await heic2any({
+        blob: file,
+        toType: "image/jpeg",
+        quality: 0.92
+    });
+
+    const finalBlob = Array.isArray(convertedBlob) ? convertedBlob[0] : convertedBlob;
+
+    return new File([finalBlob], file.name.replace(/\.(heic|heif)$/i, ".jpg"), {
+        type: "image/jpeg"
+    });
+}
+
+const topLogoWhite = new Image();
+const topLogoBlack = new Image();
+
+topLogoWhite.src = './images/top-logo-white.png';
+topLogoBlack.src = './images/top-logo-black.png';
 
 
 
         fileInput.addEventListener('change', async function(e) {
-    const file = e.target.files[0];
+    let file = e.target.files[0];
     if (!file) return;
 
-    // 先读取照片时间
-    currentPhotoDateParts = await readPhotoDateParts(file);
+    file = await normalizeImageFile(file);
+    currentOriginalFile = file;
+
+// 先读取照片时间
+currentPhotoDateParts = await readPhotoDateParts(file);
+
+if (!currentPhotoDateParts) {
+    currentPhotoDateParts = getDatePartsFromDate(new Date());
+}
+
     console.log("照片时间：", currentPhotoDateParts);
 
     const reader = new FileReader();
     reader.onload = function(event) {
         uploadedImage = new Image();
-        uploadedImage.onload = () => {
+        uploadedImage.onload = async () => {
             imagePreview.src = event.target.result;
             imagePreview.style.display = 'block';
             uploadPlaceholder.style.display = 'none';
+            if (classifyMode === 'auto') {
+                selectedCategory = await classifyImage(file, uploadedImage);
+                catBtns.forEach(b => b.classList.toggle('active', b.dataset.type === selectedCategory));
+                updateDetectedCategoryUI(selectedCategory);
+            }
             generateBtn.disabled = false;
         };
         uploadedImage.src = event.target.result;
@@ -613,13 +919,256 @@ const MORISAWA_FONT = '"ABC Favorit Expanded", sans-serif';
     reader.readAsDataURL(file);
 });
 
+function getLunarInfo(parts) {
+    try {
+        const solar = Solar.fromYmd(
+            Number(parts.year),
+            Number(parts.month),
+            Number(parts.day)
+        );
+
+        const lunar = solar.getLunar();
+
+        return {
+            year: lunar.getYearInGanZhi() + '年',
+            zodiac: lunar.getYearShengXiao(),
+            monthDay: lunar.getMonthInChinese() + '月' + lunar.getDayInChinese(),
+            week: '星期' + '日一二三四五六'[solar.getWeek()]
+        };
+
+    } catch (e) {
+        return {
+            year: '',
+            zodiac: '',
+            monthDay: '',
+            week: ''
+        };
+    }
+}
+
+function dataURLToBlob(dataUrl) {
+    const arr = dataUrl.split(',');
+    const mime = arr[0].match(/:(.*?);/)?.[1] || 'image/png';
+    const bstr = atob(arr[1]);
+    let n = bstr.length;
+    const u8arr = new Uint8Array(n);
+
+    while (n--) {
+        u8arr[n] = bstr.charCodeAt(n);
+    }
+
+    return new Blob([u8arr], { type: mime });
+}
+
+async function uploadBlobToSupabase(bucket, filePath, fileObj, contentType) {
+    const { error } = await supabaseClient.storage
+        .from(bucket)
+        .upload(filePath, fileObj, {
+            upsert: true,
+            contentType
+        });
+
+    if (error) throw error;
+
+    const { data } = supabaseClient.storage
+        .from(bucket)
+        .getPublicUrl(filePath);
+
+    return data.publicUrl;
+}
+
+function showManualDateInput(show = true) {
+    const wrap = document.getElementById('dateInputWrap');
+    if (!wrap) return;
+
+    wrap.style.display = show ? 'block' : 'none';
+}
+
+        function updateDetectedCategoryUI(type) {
+            const meta = CATEGORY_META[type] || CATEGORY_META.light_time;
+            detectedCategoryName.textContent = meta.name;
+            detectedCategoryDesc.textContent = meta.desc;
+        }
+
+        function setClassificationMode(mode) {
+            classifyMode = mode;
+            const isAuto = mode === 'auto';
+            autoClassifyBtn.classList.toggle('active', isAuto);
+            manualClassifyBtn.classList.toggle('active', !isAuto);
+            manualCategoryGroup.classList.toggle('manual-hidden', isAuto);
+        }
+
+        autoClassifyBtn.addEventListener('click', () => setClassificationMode('auto'));
+        manualClassifyBtn.addEventListener('click', () => setClassificationMode('manual'));
+
         catBtns.forEach(btn => {
             btn.addEventListener('click', () => {
                 catBtns.forEach(b => b.classList.remove('active'));
                 btn.classList.add('active');
                 selectedCategory = btn.dataset.type;
+                updateDetectedCategoryUI(selectedCategory);
             });
         });
+
+        updateDetectedCategoryUI(selectedCategory);
+
+        function getContrastTextColor(colorStr, threshold = 150) {
+    const { r, g, b } = rgbStringToObj(colorStr || 'rgb(255,255,255)');
+    const lum = 0.299 * r + 0.587 * g + 0.114 * b;
+    return lum < threshold ? '#ffffff' : '#111111';
+}
+
+        function getMonthDayString(parts = currentPhotoDateParts) {
+    return `${String(parts.month || '00').padStart(2, '0')}${String(parts.day || '00').padStart(2, '0')}`;
+}
+
+        function getChineseDateLabel(parts = currentPhotoDateParts) {
+    return `${parts.year}.${String(parts.month).padStart(2, '0')}.${String(parts.day).padStart(2, '0')}`;
+}
+
+        function drawDateNumbers(ctx, layoutType, verticalLayout = null, category = null) {
+            const imageLum = sampleCanvasRegionLuminance(ctx.canvas, {
+    x: 0,
+    y: 0,
+    w: ctx.canvas.width,
+    h: ctx.canvas.height
+});
+
+const useDifference = imageLum > 150;
+            const monthDay = getMonthDayString(currentPhotoDateParts);
+
+    // ===== 可调参数：日期字 =====
+    const DATE_BLUR_PX = 3.6;       // 高斯模糊程度：越大越虚
+    const DATE_STROKE_WIDTH = 27;    // 描边粗细：越大越厚
+    const DATE_FILL_COLOR = '#f3d2bb';
+
+    if (category === 'light_time' || category === 'light_time_moment') {
+        const off = document.createElement('canvas');
+        off.width = layoutType === 'vertical' ? 900 : 1400;
+        off.height = layoutType === 'vertical' ? 1200 : 700;
+        const octx = off.getContext('2d');
+
+        octx.clearRect(0, 0, off.width, off.height);
+        octx.textAlign = 'left';
+        octx.textBaseline = 'top';
+        octx.fillStyle = DATE_FILL_COLOR;
+        octx.strokeStyle = DATE_FILL_COLOR;
+        octx.lineJoin = 'round';
+        octx.miterLimit = 2;
+        octx.lineWidth = DATE_STROKE_WIDTH;
+
+        if (layoutType === 'vertical') {
+            const topH = verticalLayout ? verticalLayout.topBlockH : 170;
+            octx.font = '600 164px "ABC Favorit Expanded", sans-serif';
+
+            // 日期大字 左上贴边
+            const drawX = 0;
+            const drawY = topH + 5;
+
+            octx.strokeText(monthDay, drawX, drawY);
+octx.fillText(monthDay, drawX, drawY);
+
+        } else if (layoutType === 'horizontal') {
+            octx.font = '600 240px "ABC Favorit Expanded", sans-serif';
+            octx.font = '600 270px "ABC Favorit Expanded", sans-serif';
+octx.strokeText(monthDay, 140, 255);
+octx.fillText(monthDay, 140, 255);
+        } else {
+            octx.font = '600 220px "ABC Favorit Expanded", sans-serif';
+            octx.strokeText(monthDay, 110, 42);
+            octx.fillText(monthDay, 110, 42);
+        }
+
+        ctx.save();
+        ctx.globalCompositeOperation = useDifference ? 'difference' : 'source-over';
+        ctx.filter = `blur(${DATE_BLUR_PX}px)`;
+        ctx.drawImage(off, 0, 0);
+        ctx.filter = 'none';
+        ctx.restore();
+        return;
+    }
+
+    // 其他分类保留普通逻辑
+    ctx.save();
+    ctx.fillStyle = DATE_FILL_COLOR;
+    ctx.strokeStyle = DATE_FILL_COLOR;
+    ctx.lineJoin = 'round';
+    ctx.miterLimit = 2;
+    ctx.lineWidth = DATE_STROKE_WIDTH;
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+
+    if (layoutType === 'vertical') {
+        const topH = verticalLayout ? verticalLayout.topBlockH : 300;
+        ctx.font = '600 180px "ABC Favorit Expanded", sans-serif';
+        ctx.strokeText(monthDay, 78, topH + 110);
+        ctx.fillText(monthDay, 78, topH + 110);
+    } else if (layoutType === 'horizontal') {
+        ctx.font = '600 240px "ABC Favorit Expanded", sans-serif';
+        ctx.strokeText(monthDay, 980, 145);
+        ctx.fillText(monthDay, 980, 145);
+    } else {
+        ctx.font = '600 220px "ABC Favorit Expanded", sans-serif';
+        ctx.strokeText(monthDay, 110, 145);
+        ctx.fillText(monthDay, 110, 145);
+    }
+
+    ctx.restore();
+}
+
+
+        async function classifyImage(file, imageEl) {
+    try {
+        await imageSegmenterReady;
+        const tempCanvas = document.createElement('canvas');
+        const maxSide = 256;
+        const ratio = Math.min(maxSide / imageEl.width, maxSide / imageEl.height, 1);
+        tempCanvas.width = Math.max(32, Math.round(imageEl.width * ratio));
+        tempCanvas.height = Math.max(32, Math.round(imageEl.height * ratio));
+        const tctx = tempCanvas.getContext('2d', { willReadFrequently: true });
+        tctx.drawImage(imageEl, 0, 0, tempCanvas.width, tempCanvas.height);
+
+        const data = tctx.getImageData(0, 0, tempCanvas.width, tempCanvas.height).data;
+        let brightCount = 0, blueSkyLike = 0, highlightCount = 0, total = 0;
+        for (let i = 0; i < data.length; i += 4) {
+            const r = data[i], g = data[i+1], b = data[i+2], a = data[i+3];
+            if (a < 20) continue;
+            total++;
+            const lum = 0.299 * r + 0.587 * g + 0.114 * b;
+            if (lum > 155) brightCount++;
+            if (lum > 220) highlightCount++;
+            if (b > r + 18 && b > g + 8 && lum > 120) blueSkyLike++;
+        }
+
+        let personCoverage = 0;
+        try {
+            const result = imageSegmenter.segment(tempCanvas);
+            if (result?.confidenceMasks?.length) {
+                const masks = result.confidenceMasks.map(m => m.getAsFloat32Array());
+                if (masks.length >= 2) {
+                    const avg0 = masks[0].reduce((a, b) => a + b, 0) / masks[0].length;
+                    const avg1 = masks[1].reduce((a, b) => a + b, 0) / masks[1].length;
+                    personCoverage = Math.min(avg0, avg1);
+                } else {
+                    personCoverage = masks[0].reduce((a, b) => a + b, 0) / masks[0].length;
+                }
+            }
+        } catch (segErr) {
+            console.warn('自动分类人物识别失败', segErr);
+        }
+
+        const brightRatio = total ? brightCount / total : 0;
+        const skyRatio = total ? blueSkyLike / total : 0;
+        const highlightRatio = total ? highlightCount / total : 0;
+
+        if (personCoverage > 0.08) return 'in_action';
+        if (brightRatio > 0.48 || skyRatio > 0.16 || highlightRatio > 0.08) return 'light_time';
+        return 'daily_object';
+    } catch (err) {
+        console.warn('自动分类失败，使用默认分类', err);
+        return 'daily_object';
+    }
+}
 
         function pad2(n) {
     return String(n).padStart(2, "0");
@@ -635,25 +1184,49 @@ function getDatePartsFromDate(dateObj) {
     };
 }
 
+function getDatePartsFromDateInputValue(value) {
+    if (!value) return null;
+    const [year, month, day] = value.split("-");
+    if (!year || !month || !day) return null;
+
+    return {
+        year: String(year),
+        month: String(month).padStart(2, "0"),
+        day: String(day).padStart(2, "0"),
+        hour: "00",
+        minute: "00"
+    };
+}
+
 
 
 async function ensureCustomFontsLoaded() {
     try {
-        await document.fonts.load('400 20px "ABC Favorit Expanded"');
+        await Promise.all([
+            document.fonts.load('300 20px "ABC Favorit Expanded"'),
+            document.fonts.load('400 20px "ABC Favorit Expanded"'),
+            document.fonts.load('500 20px "ABC Favorit Expanded"'),
+            document.fonts.load('600 20px "ABC Favorit Expanded"'),
+            document.fonts.load('700 20px "FZ CuHei Traditional"')
+        ]);
+
         await document.fonts.ready;
-        console.log("ABC Favorit Expanded 已加载");
+
+        // 多等一帧，避免 canvas 在字体刚 ready 时仍用 fallback
+        await new Promise(requestAnimationFrame);
+
+        console.log("自定义字体已加载");
     } catch (err) {
         console.warn("字体加载失败：", err);
     }
 }
 
 async function readPhotoDateParts(file) {
+
     try {
-        const exifData = await exifr.parse(file, [
-            "DateTimeOriginal",
-            "CreateDate",
-            "ModifyDate"
-        ]);
+        const exifData = await exifr.parse(file, {
+            pick: ["DateTimeOriginal", "CreateDate", "ModifyDate"]
+        });
 
         const exifDate =
             exifData?.DateTimeOriginal ||
@@ -661,14 +1234,21 @@ async function readPhotoDateParts(file) {
             exifData?.ModifyDate;
 
         if (exifDate instanceof Date && !isNaN(exifDate)) {
+
+            // 成功读取日期：隐藏手动输入框
+            showManualDateInput(false);
+
             return getDatePartsFromDate(exifDate);
         }
+
     } catch (err) {
-        console.warn("EXIF 读取失败：", err);
+        console.warn("EXIF读取失败", err);
     }
 
-    // 兜底：没有照片日期时用当前时间
-    return getDatePartsFromDate(new Date());
+    // 没读取到：显示输入框
+    showManualDateInput(true);
+
+    return null;
 }
 
 function formatEnglishDateFromParts(parts) {
@@ -693,6 +1273,43 @@ function formatEnglishTimeFromParts(parts) {
     if (hour12 === 0) hour12 = 12;
 
     return `${String(hour12).padStart(2, "0")}:${minute} ${suffix}`;
+}
+
+function getLunarCalendarInfo(parts) {
+    try {
+        const solar = Solar.fromYmd(
+            Number(parts.year),
+            Number(parts.month),
+            Number(parts.day)
+        );
+
+        const lunar = solar.getLunar();
+
+        const jieQi = lunar.getJieQi();
+        const lunarFestivals = lunar.getFestivals() || [];
+        const solarFestivals = solar.getFestivals() || [];
+
+        const special =
+            jieQi ||
+            lunarFestivals[0] ||
+            solarFestivals[0] ||
+            '';
+
+        return {
+            yearZodiac: lunar.getYearInGanZhi() + '年' + lunar.getYearShengXiao(),
+            monthDay: lunar.getMonthInChinese() + '月' + lunar.getDayInChinese(),
+            weekday: '星期' + '日一二三四五六'[solar.getWeek()],
+            special
+        };
+    } catch (err) {
+        console.warn('农历信息生成失败：', err);
+        return {
+            yearZodiac: '',
+            monthDay: '',
+            weekday: '',
+            special: ''
+        };
+    }
 }
 
         function extractColors(img) {
@@ -779,6 +1396,62 @@ function rgbStringToObj(str) {
     };
 }
 
+function getAdaptiveSaturatedColorByBackground(baseColorStr, canvas, sampleRect, threshold = 140) {
+    const base = rgbStringToObj(baseColorStr);
+    const bgLum = sampleCanvasRegionLuminance(canvas, sampleRect);
+
+    const max = Math.max(base.r, base.g, base.b);
+    const min = Math.min(base.r, base.g, base.b);
+
+    // 提高饱和度：把三个通道从灰度中心拉开
+    const gray = (max + min) / 2;
+    let r = gray + (base.r - gray) * 1.65;
+    let g = gray + (base.g - gray) * 1.65;
+    let b = gray + (base.b - gray) * 1.65;
+
+    if (bgLum < threshold) {
+        // 背景暗：提亮
+        r = r * 0.25 + 255 * 0.75;
+g = g * 0.25 + 255 * 0.75;
+b = b * 0.25 + 255 * 0.75;
+    } else {
+        // 背景亮：压暗
+        r = r * 0.55;
+        g = g * 0.55;
+        b = b * 0.55;
+    }
+
+    r = Math.max(0, Math.min(255, Math.round(r)));
+    g = Math.max(0, Math.min(255, Math.round(g)));
+    b = Math.max(0, Math.min(255, Math.round(b)));
+
+    return `rgb(${r}, ${g}, ${b})`;
+}
+
+function sampleAverageColorFromCanvas(canvas, rect) {
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+
+    const x = Math.max(0, Math.floor(rect.x));
+    const y = Math.max(0, Math.floor(rect.y));
+    const w = Math.max(1, Math.floor(rect.w));
+    const h = Math.max(1, Math.floor(rect.h));
+
+    const data = ctx.getImageData(x, y, w, h).data;
+
+    let r = 0, g = 0, b = 0, count = 0;
+
+    for (let i = 0; i < data.length; i += 40) {
+        r += data[i];
+        g += data[i + 1];
+        b += data[i + 2];
+        count++;
+    }
+
+    if (!count) return '#ffffff';
+
+    return `rgb(${Math.round(r / count)}, ${Math.round(g / count)}, ${Math.round(b / count)})`;
+}
+
 function pickExtremePaletteColor(palette, prefer = "dark") {
     const candidates = [...(palette.palette5 || []), palette.dominant, palette.secondary, palette.neutral]
         .filter(Boolean)
@@ -852,6 +1525,11 @@ function sampleCanvasRegionLuminance(canvas, rect) {
     }
 
     return count ? sum / count : 128;
+}
+
+function getInkByRectLuminance(canvas, rect, threshold = 150) {
+    const lum = sampleCanvasRegionLuminance(canvas, rect);
+    return lum < threshold ? '#ffffff' : '#111111';
 }
 
 function getAdaptiveDangerInkColor(palette, baseCanvas, imageRect, textBlockHeightRatio = 0.42) {
@@ -987,7 +1665,7 @@ function layoutOutlinedTextBlock(text, maxWidth, maxHeight, fontStack) {
         }
         if (line) lines.push(line);
 
-        const lineHeight = fontSize * 0.94;
+        const lineHeight = fontSize * 1;
         const totalHeight = lines.length * lineHeight;
 
         if (totalHeight <= maxHeight) {
@@ -1016,18 +1694,24 @@ async function preparePersonCompositePathCache() {
 function updateTypeControlLabels() {
     const mode = getResolvedTypeMode();
 
-    if (mode === "danger") {
-        typeSliderALabel.textContent = "尺寸";
+    if (selectedCategory === "light_time") {
+    typeSliderALabel.textContent = "拉伸强度";
+    typeSliderBLabel.textContent = "条带密度";
+    typeSliderCLabel.textContent = "随机位置";
+
+    } else if (selectedCategory === "daily_object") {
+    typeSliderALabel.textContent = "容差";
+    typeSliderBLabel.textContent = "随机装饰";
+    typeSliderCLabel.textContent = "主体大小";
+
+} else if (mode === "danger") {
+    typeSliderALabel.textContent = "尺寸";
     typeSliderBLabel.textContent = "油墨强度";
     typeSliderCLabel.textContent = "颗粒密度";
     } else if (mode === "string") {
         typeSliderALabel.textContent = "图层模式";
 typeSliderBLabel.textContent = "文字大小";
 typeSliderCLabel.textContent = "偏移距离";
-    } else if (mode === "construct") {
-        typeSliderALabel.textContent = "密度";
-        typeSliderBLabel.textContent = "间距";
-        typeSliderCLabel.textContent = "碎片度";
     } else if (mode === "morisawa") {
         typeSliderALabel.textContent = "层数";
         typeSliderBLabel.textContent = "透视";
@@ -1037,6 +1721,23 @@ typeSliderCLabel.textContent = "偏移距离";
         typeSliderBLabel.textContent = "细节";
         typeSliderCLabel.textContent = "比例";
     }
+}
+
+function applyLightTimeSlidersToFX() {
+    if (selectedCategory !== "light_time") return;
+
+    const stretch = Number(typeSliderA.value) / 100;
+    const density = Number(typeSliderB.value) / 100;
+    const randomSeed = Number(typeSliderC.value) / 100;
+
+    FX.moment.stretchLengthMin = Math.round(120 + stretch * 360);
+    FX.moment.stretchLengthMax = Math.round(280 + stretch * 720);
+
+    FX.moment.sampleCount = Math.round(35 + density * 140);
+    FX.moment.stripHeightMin = Math.round(6 + density * 10);
+    FX.moment.stripHeightMax = Math.round(14 + density * 28);
+
+    FX.moment.randomOffset = randomSeed;
 }
 
 function offsetPathPoints(pts, offsetAmount = 0) {
@@ -1052,6 +1753,10 @@ function offsetPathPoints(pts, offsetAmount = 0) {
 }
 
 function cloneCanvas(sourceCanvas) {
+    if (!sourceCanvas || !sourceCanvas.width || !sourceCanvas.height) {
+        throw new Error('cloneCanvas失败：源canvas尺寸为0，请检查canvas.width和canvas.height设置位置');
+    }
+
     const canvas = document.createElement('canvas');
     canvas.width = sourceCanvas.width;
     canvas.height = sourceCanvas.height;
@@ -1060,9 +1765,959 @@ function cloneCanvas(sourceCanvas) {
     return canvas;
 }
 
-async function drawGeneratedTypeLayer(ctx, rect, palette) {
+
+function getLightTimeHorizontalImageRegion(blackRect, img) {
+    const imgRatio = img.width / img.height;
+
+    // 16:9 及以上，使用 3:2；不那么长条，使用 4:3
+    const targetRatio = imgRatio >= 16 / 9 ? 3 / 2 : 4 / 3;
+
+    let w = blackRect.w;
+    let h = blackRect.h;
+
+    if (w / h > targetRatio) {
+        w = h * targetRatio;
+    } else {
+        h = w / targetRatio;
+    }
+
+    return {
+        x: blackRect.x + (blackRect.w - w) * 0.5,
+        y: blackRect.y + (blackRect.h - h) * 0.5,
+        w,
+        h
+    };
+}
+
+function drawImageCoverToRect(ctx, img, rect) {
+    const imgRatio = img.width / img.height;
+    const rectRatio = rect.w / rect.h;
+
+    let sx = 0;
+    let sy = 0;
+    let sw = img.width;
+    let sh = img.height;
+
+    if (imgRatio > rectRatio) {
+        sw = img.height * rectRatio;
+        sx = (img.width - sw) * 0.5;
+    } else {
+        sh = img.width / rectRatio;
+        sy = (img.height - sh) * 0.5;
+    }
+
+    ctx.drawImage(img, sx, sy, sw, sh, rect.x, rect.y, rect.w, rect.h);
+}
+
+function drawLightTimeHorizontalCutPhoto(ctx, photoLayer, imageRect) {
+    ctx.save();
+
+    // 先完整画一遍
+    ctx.drawImage(photoLayer, 0, 0);
+
+    // 再用左侧色块颜色切掉一些块，让图片区边缘不再是完整矩形
+    ctx.globalCompositeOperation = 'destination-out';
+
+    const cuts = [
+        { x: imageRect.x, y: imageRect.y, w: imageRect.w * 0.10, h: imageRect.h * 0.08 },
+        { x: imageRect.x, y: imageRect.y + imageRect.h * 0.11, w: imageRect.w * 0.06, h: imageRect.h * 0.07 },
+        { x: imageRect.x, y: imageRect.y + imageRect.h * 0.23, w: imageRect.w * 0.13, h: imageRect.h * 0.08 },
+        { x: imageRect.x, y: imageRect.y + imageRect.h * 0.39, w: imageRect.w * 0.08, h: imageRect.h * 0.10 },
+        { x: imageRect.x, y: imageRect.y + imageRect.h * 0.67, w: imageRect.w * 0.11, h: imageRect.h * 0.09 },
+        { x: imageRect.x, y: imageRect.y + imageRect.h * 0.84, w: imageRect.w * 0.17, h: imageRect.h * 0.10 }
+    ];
+
+    cuts.forEach(c => {
+        ctx.fillRect(c.x, c.y, c.w, c.h);
+    });
+
+    ctx.restore();
+}
+
+function applyLeftIrregularPosterMask(ctx, baseW, baseH, leftRect) {
+    ctx.save();
+    ctx.globalCompositeOperation = 'destination-out';
+
+    const leftW = leftRect.w;
+    const cutTopHeavy = currentFragmentBoxPosition === 'bottom';
+
+    const stepCount = 11;
+    const steps = [];
+
+    let y = 0;
+
+    for (let i = 0; i < stepCount; i++) {
+        const isTop = y < 0.33;
+        const isMiddle = y >= 0.33 && y < 0.68;
+        const isBottom = y >= 0.68;
+
+        let minX;
+        let maxX;
+
+        if (cutTopHeavy) {
+            // 上裁多，下保留
+            if (isTop) {
+                minX = leftW * 0.32;
+                maxX = leftW * 0.92;
+            } else if (isMiddle) {
+                minX = leftW * 0.16;
+                maxX = leftW * 0.58;
+            } else {
+                minX = leftW * 0.08;
+                maxX = leftW * 0.34;
+            }
+        } else {
+            // 上保留，下裁多
+            if (isTop) {
+                minX = leftW * 0.08;
+                maxX = leftW * 0.34;
+            } else if (isMiddle) {
+                minX = leftW * 0.16;
+                maxX = leftW * 0.58;
+            } else {
+                minX = leftW * 0.32;
+                maxX = leftW * 0.92;
+            }
+        }
+
+        const x = minX + Math.random() * (maxX - minX);
+
+        steps.push({ y, x });
+
+        // y 间距随机，避免等距
+        y += 0.055 + Math.random() * 0.085;
+        if (y > 1) break;
+    }
+
+    steps.push({
+        y: 1,
+        x: cutTopHeavy
+            ? leftW * (0.08 + Math.random() * 0.18)
+            : leftW * (0.48 + Math.random() * 0.32)
+    });
+
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.lineTo(steps[0].x, 0);
+
+    for (let i = 1; i < steps.length; i++) {
+        const prev = steps[i - 1];
+        const curr = steps[i];
+        const currY = baseH * curr.y;
+
+        ctx.lineTo(prev.x, currY);
+        ctx.lineTo(curr.x, currY);
+    }
+
+    ctx.lineTo(0, baseH);
+    ctx.closePath();
+    ctx.fill();
+
+    ctx.restore();
+}
+
+
+function drawLightTimeHorizontalOverflowStrips(ctx, sourceCanvas, imageRect, canvasW, canvasH) {
+    const p = FX.moment;
+    const sctx = sourceCanvas.getContext('2d', { willReadFrequently: true });
+
+    const sx = Math.floor(imageRect.x);
+    const sy = Math.floor(imageRect.y);
+    const sw = Math.floor(imageRect.w);
+    const sh = Math.floor(imageRect.h);
+
+    const data = sctx.getImageData(sx, sy, sw, sh).data;
+
+    const density = Number(typeSliderB.value) / 100;
+    const strength = Number(typeSliderA.value) / 100;
+    const yControl = Number(typeSliderC.value) / 100;
+
+    const count = Math.round(70 + density * 130);
+
+    currentLightTimeLeftCuts = [];
+
+    ctx.save();
+
+    for (let i = 0; i < count; i++) {
+        const px = Math.floor(Math.random() * sw);
+
+        const centerY = sh * yControl;
+        const py = Math.max(
+            0,
+            Math.min(
+                sh - 2,
+                Math.floor(centerY + (Math.random() - 0.5) * sh * 0.9)
+            )
+        );
+
+        const idx = (py * sw + px) * 4;
+        const r = data[idx];
+        const g = data[idx + 1];
+        const b = data[idx + 2];
+        const a = data[idx + 3];
+        if (a < 20) continue;
+
+        const lum = 0.299 * r + 0.587 * g + 0.114 * b;
+        if (lum < p.luminanceMin || lum > p.luminanceMax) continue;
+
+        //拉伸线条高度
+        const stripH = Math.round(28 + Math.random() * 38);
+
+        const srcW = Math.round(4 + Math.random() * 16);
+
+        const srcLocalX = Math.max(0, Math.min(sw - srcW, px));
+        const srcLocalY = Math.max(0, Math.min(sh - stripH, py - stripH / 2));
+
+        const goLeft = Math.random() < 0.42;
+
+        const minLen = imageRect.w * (0.16 + strength * 0.18);
+        const maxLen = imageRect.w * (0.48 + strength * 0.72);
+        let dstW = Math.round(minLen + Math.random() * (maxLen - minLen));
+        
+
+        const jitterY = (Math.random() - 0.5) * 18;
+        const dstY = imageRect.y + srcLocalY + jitterY;
+
+        let dstX;
+
+// 条带只允许在图片区内，不进入左侧色块
+dstX = imageRect.x + Math.max(0, srcLocalX - dstW * (0.28 + Math.random() * 0.38));
+
+const minLeft = imageRect.x;
+if (dstX < minLeft) {
+    dstW = dstW - (minLeft - dstX);
+    dstX = minLeft;
+}
+
+// 右边界最多到图片区右边，不准进入 redRect / 诗歌区
+const maxRight = imageRect.x + imageRect.w;
+if (dstX + dstW > maxRight) {
+    dstW = maxRight - dstX;
+}
+
+if (dstW <= 4) continue;
+
+        // 关键：不再半透明，不再虚
+        ctx.globalAlpha = 0.92 + Math.random() * 0.08;
+        ctx.imageSmoothingEnabled = false;
+
+        // 记录向左溢出的条带，用于最后生成整体异形边缘
+if (dstX < imageRect.x) {
+    currentLightTimeLeftCuts.push({
+        y: dstY,
+        h: stripH,
+        left: dstX,
+        right: Math.min(dstX + dstW, imageRect.x + imageRect.w)
+    });
+}
+
+        ctx.drawImage(
+            sourceCanvas,
+            sx + srcLocalX,
+            sy + srcLocalY,
+            srcW,
+            stripH,
+            dstX,
+            dstY,
+            dstW,
+            stripH
+        );
+    }
+
+    ctx.restore();
+}
+
+function drawCheckerboardBackground(ctx, rect, size = 18, sampleCanvas = null) {
+    let avgLum = 180;
+
+    if (sampleCanvas) {
+        const topSample = {
+            x: 0,
+            y: 0,
+            w: sampleCanvas.width,
+            h: Math.max(1, rect.y)
+        };
+
+        const bottomSample = {
+            x: 0,
+            y: rect.y + rect.h,
+            w: sampleCanvas.width,
+            h: Math.max(1, sampleCanvas.height - (rect.y + rect.h))
+        };
+
+        const topLum = sampleCanvasRegionLuminance(sampleCanvas, topSample);
+        const bottomLum = sampleCanvasRegionLuminance(sampleCanvas, bottomSample);
+        avgLum = (topLum + bottomLum) / 2;
+    }
+
+    let colorA, colorB;
+
+    if (avgLum < 95) {
+        colorA = '#3a3a3a';
+        colorB = '#565656';
+    } else if (avgLum < 145) {
+        colorA = '#727272';
+        colorB = '#8f8f8f';
+    } else {
+        colorA = '#eeeeee';
+        colorB = '#cfcfcf';
+    }
+
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(rect.x, rect.y, rect.w, rect.h);
+    ctx.clip();
+
+    for (let y = rect.y; y < rect.y + rect.h; y += size) {
+        for (let x = rect.x; x < rect.x + rect.w; x += size) {
+            const ix = Math.floor((x - rect.x) / size);
+            const iy = Math.floor((y - rect.y) / size);
+            ctx.fillStyle = (ix + iy) % 2 === 0 ? colorA : colorB;
+            ctx.fillRect(x, y, size, size);
+        }
+    }
+
+    ctx.restore();
+}
+
+function colorDistanceSq(r1, g1, b1, r2, g2, b2) {
+    const dr = r1 - r2;
+    const dg = g1 - g2;
+    const db = b1 - b2;
+    return dr * dr + dg * dg + db * db;
+}
+
+function createMagicWandMaskFromEdges(sourceCanvas, tolerance = 42) {
+    const w = sourceCanvas.width;
+    const h = sourceCanvas.height;
+    const ctx = sourceCanvas.getContext('2d', { willReadFrequently: true });
+    const img = ctx.getImageData(0, 0, w, h);
+    const data = img.data;
+
+    const bg = new Uint8Array(w * h);
+    const visited = new Uint8Array(w * h);
+    const queue = [];
+
+    function push(x, y, br, bgc, bb) {
+        if (x < 0 || y < 0 || x >= w || y >= h) return;
+        const id = y * w + x;
+        if (visited[id]) return;
+
+        const p = id * 4;
+        const r = data[p];
+        const g = data[p + 1];
+        const b = data[p + 2];
+
+        const dist = colorDistanceSq(r, g, b, br, bgc, bb);
+        if (dist > tolerance * tolerance) return;
+
+        visited[id] = 1;
+        bg[id] = 1;
+        queue.push([x, y, br, bgc, bb]);
+    }
+
+    // 从四边启动，相当于“点选背景”
+    for (let x = 0; x < w; x += 4) {
+        let p1 = x * 4;
+        push(x, 0, data[p1], data[p1 + 1], data[p1 + 2]);
+
+        let p2 = ((h - 1) * w + x) * 4;
+        push(x, h - 1, data[p2], data[p2 + 1], data[p2 + 2]);
+    }
+
+    for (let y = 0; y < h; y += 4) {
+        let p1 = (y * w) * 4;
+        push(0, y, data[p1], data[p1 + 1], data[p1 + 2]);
+
+        let p2 = (y * w + (w - 1)) * 4;
+        push(w - 1, y, data[p2], data[p2 + 1], data[p2 + 2]);
+    }
+
+    let qi = 0;
+    while (qi < queue.length) {
+        const [x, y, br, bgc, bb] = queue[qi++];
+
+        push(x + 1, y, br, bgc, bb);
+        push(x - 1, y, br, bgc, bb);
+        push(x, y + 1, br, bgc, bb);
+        push(x, y - 1, br, bgc, bb);
+    }
+
+    // 返回主体 mask：不是背景的地方保留
+    const mask = new Uint8Array(w * h);
+    for (let i = 0; i < mask.length; i++) {
+        mask[i] = bg[i] ? 0 : 1;
+    }
+
+    return mask;
+}
+
+function getMaskBounds(mask, w, h) {
+    let minX = w, minY = h, maxX = 0, maxY = 0;
+    let count = 0;
+
+    for (let y = 0; y < h; y++) {
+        for (let x = 0; x < w; x++) {
+            const id = y * w + x;
+            if (!mask[id]) continue;
+
+            minX = Math.min(minX, x);
+            minY = Math.min(minY, y);
+            maxX = Math.max(maxX, x);
+            maxY = Math.max(maxY, y);
+            count++;
+        }
+    }
+
+    if (!count) return null;
+
+    return {
+        x: minX,
+        y: minY,
+        w: maxX - minX + 1,
+        h: maxY - minY + 1,
+        count
+    };
+}
+
+function cleanDailyObjectMask(mask, w, h, minArea = 80, erodeIterations = 2) {
+    // 1. 先做轻微腐蚀：去掉毛刺和细碎边
+    let current = mask;
+
+    for (let iter = 0; iter < erodeIterations; iter++) {
+        const next = new Uint8Array(w * h);
+
+        for (let y = 1; y < h - 1; y++) {
+            for (let x = 1; x < w - 1; x++) {
+                const id = y * w + x;
+                if (!current[id]) continue;
+
+                const neighbors =
+                    current[id - 1] +
+                    current[id + 1] +
+                    current[id - w] +
+                    current[id + w] +
+                    current[id - w - 1] +
+                    current[id - w + 1] +
+                    current[id + w - 1] +
+                    current[id + w + 1];
+
+                // 周围像素太少，就认为是孤立噪点/毛边
+                if (neighbors >= 5) {
+                    next[id] = 1;
+                }
+            }
+        }
+
+        current = next;
+    }
+
+    // 2. 删除小连通区域
+    const visited = new Uint8Array(w * h);
+    const cleaned = new Uint8Array(w * h);
+
+    const dirs = [
+        [1, 0], [-1, 0], [0, 1], [0, -1]
+    ];
+
+    for (let y = 0; y < h; y++) {
+        for (let x = 0; x < w; x++) {
+            const start = y * w + x;
+            if (!current[start] || visited[start]) continue;
+
+            const queue = [[x, y]];
+            const pixels = [];
+            visited[start] = 1;
+
+            let qi = 0;
+            while (qi < queue.length) {
+                const [cx, cy] = queue[qi++];
+                const id = cy * w + cx;
+                pixels.push(id);
+
+                for (const [dx, dy] of dirs) {
+                    const nx = cx + dx;
+                    const ny = cy + dy;
+                    if (nx < 0 || ny < 0 || nx >= w || ny >= h) continue;
+
+                    const nid = ny * w + nx;
+                    if (visited[nid] || !current[nid]) continue;
+
+                    visited[nid] = 1;
+                    queue.push([nx, ny]);
+                }
+            }
+
+            if (pixels.length >= minArea) {
+                pixels.forEach(id => cleaned[id] = 1);
+            }
+        }
+    }
+
+    // 3. 再轻微膨胀回来，避免主体被腐蚀得太瘦
+    const dilated = new Uint8Array(w * h);
+
+    for (let y = 1; y < h - 1; y++) {
+        for (let x = 1; x < w - 1; x++) {
+            const id = y * w + x;
+            if (!cleaned[id]) continue;
+
+            dilated[id] = 1;
+            dilated[id - 1] = 1;
+            dilated[id + 1] = 1;
+            dilated[id - w] = 1;
+            dilated[id + w] = 1;
+        }
+    }
+
+    return dilated;
+}
+
+function buildCutoutCanvas(sourceCanvas, mask) {
+    const w = sourceCanvas.width;
+    const h = sourceCanvas.height;
+    const sctx = sourceCanvas.getContext('2d', { willReadFrequently: true });
+    const img = sctx.getImageData(0, 0, w, h);
+    const data = img.data;
+
+    for (let i = 0; i < w * h; i++) {
+        if (!mask[i]) {
+            data[i * 4 + 3] = 0;
+        }
+    }
+
+    const out = document.createElement('canvas');
+    out.width = w;
+    out.height = h;
+    const octx = out.getContext('2d');
+    octx.putImageData(img, 0, 0);
+    return out;
+}
+
+function drawDailyObjectDotDecoration(ctx, rect, seedValue = 0.5) {
+const dotR = 5.8;      // 圆圈半径
+const gap = 15.5;      // 圆圈间距
+const strokeW = 3.8;   // 描边粗细
+
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(rect.x, rect.y, rect.w, rect.h);
+    ctx.clip();
+
+    const baseColor = sampleAverageColorFromCanvas(ctx.canvas, {
+        x: 0,
+        y: 0,
+        w: ctx.canvas.width,
+        h: Math.max(1, rect.y)
+    });
+
+    const rgb = rgbStringToObj(baseColor);
+    const decorColor = `rgb(
+        ${Math.min(255, rgb.r + 35)},
+        ${Math.min(255, rgb.g + 35)},
+        ${Math.min(255, rgb.b + 35)}
+    )`;
+
+    ctx.strokeStyle = decorColor;
+    ctx.lineWidth = strokeW;
+
+    function drawBlobInBox(box, mode = 'top') {
+    const cols = Math.floor(box.w / gap);
+    const rows = Math.floor(box.h / gap);
+
+    //装饰圆圈规整
+    const shapeAmount = 0.45 + seedValue * 0.35;
+
+    for (let y = 0; y < rows; y++) {
+        const t = y / Math.max(1, rows - 1);
+
+        let center;
+        let width;
+
+        if (mode === 'top') {
+            center = cols * (0.58 + Math.sin(t * Math.PI * 2.1 + seedValue * 7) * 0.08);
+            width = cols * (
+                0.48 +
+                Math.sin(t * Math.PI) * 0.22 +
+                Math.sin(t * Math.PI * 3.4 + seedValue * 6) * 0.08
+            ) * shapeAmount;
+        } else {
+            center = cols * (0.34 + Math.sin(t * Math.PI * 2.4 + seedValue * 8) * 0.09);
+            width = cols * (
+                0.42 +
+                Math.sin(t * Math.PI * 1.15) * 0.24 +
+                Math.sin(t * Math.PI * 3.7 + seedValue * 5) * 0.08
+            ) * shapeAmount;
+        }
+
+        const edgeWaveL =
+            Math.sin(t * Math.PI * 4.2 + seedValue * 11) * 3.5 +
+            Math.sin(t * Math.PI * 8.1 + seedValue * 4) * 1.6;
+
+        const edgeWaveR =
+            Math.sin(t * Math.PI * 3.8 + seedValue * 9) * 3.5 +
+            Math.sin(t * Math.PI * 7.6 + seedValue * 6) * 1.6;
+
+        let left = Math.round(center - width / 2 + edgeWaveL);
+        let right = Math.round(center + width / 2 + edgeWaveR);
+
+        left = Math.max(0, left);
+        right = Math.min(cols - 1, right);
+
+        // 保证每一行都有一定宽度，避免断开
+        if (right - left < 5) {
+            const mid = Math.round((left + right) / 2);
+            left = Math.max(0, mid - 3);
+            right = Math.min(cols - 1, mid + 3);
+        }
+
+        for (let x = left; x <= right; x++) {
+            const px = box.x + x * gap + gap * 0.5;
+            const py = box.y + y * gap + gap * 0.5;
+
+            ctx.beginPath();
+            ctx.arc(px, py, dotR, 0, Math.PI * 2);
+            ctx.stroke();
+        }
+    }
+}
+
+    // 上方红框区域：避开左侧日期大字和右上农历，位于图像上部偏右
+    const topBox = {
+        x: rect.x + rect.w * 0.26,
+        y: rect.y + rect.h * 0.09,
+        w: rect.w * 0.68,
+        h: rect.h * 0.15
+    };
+
+    // 下方红框区域：位于图像下部偏左，避开右下角月历
+    const bottomBox = {
+        x: rect.x + rect.w * 0.02,
+        y: rect.y + rect.h * 0.82,
+        w: rect.w * 0.82,
+        h: rect.h * 0.15
+    };
+
+    drawBlobInBox(topBox, 'top');
+    drawBlobInBox(bottomBox, 'bottom');
+
+    ctx.restore();
+}
+
+function lightenRgbColor(color, amount = 35) {
+    const nums = String(color).match(/\d+/g);
+    if (!nums || nums.length < 3) return color;
+
+    const r = Math.min(255, Number(nums[0]) + amount);
+    const g = Math.min(255, Number(nums[1]) + amount);
+    const b = Math.min(255, Number(nums[2]) + amount);
+
+    return `rgb(${r}, ${g}, ${b})`;
+}
+
+function drawTextAsDotMatrix(ctx, text, x, y, options = {}) {
+    const {
+        font = '900 160px "FZ CuHei Traditional", sans-serif',
+        color = '#ffffff',
+        dotR = 3.8,
+        gap = 7,
+        lineHeight = 170,
+        maxWidth = 720,
+        strokeWidth = 2.8,
+        textStrokeWidth = 64
+    } = options;
+
+    const lines = String(text || '').split('\n').filter(Boolean);
+    if (!lines.length) return;
+
+    const pad = 80;
+    const temp = document.createElement('canvas');
+    temp.width = Math.ceil(maxWidth + pad * 2);
+    temp.height = Math.ceil(lines.length * lineHeight + pad * 2);
+
+    const tctx = temp.getContext('2d', { willReadFrequently: true });
+    tctx.clearRect(0, 0, temp.width, temp.height);
+
+    tctx.fillStyle = '#000';
+    tctx.strokeStyle = '#000';
+    tctx.lineWidth = textStrokeWidth;
+    tctx.lineJoin = 'round';
+    tctx.miterLimit = 2;
+    tctx.font = font;
+    tctx.textAlign = 'left';
+    tctx.textBaseline = 'top';
+
+    lines.forEach((line, idx) => {
+        const ty = pad + idx * lineHeight;
+        tctx.strokeText(line, pad, ty);
+        tctx.fillText(line, pad, ty);
+    });
+
+    const img = tctx.getImageData(0, 0, temp.width, temp.height);
+    const data = img.data;
+
+    ctx.save();
+    ctx.strokeStyle = color;
+    ctx.lineWidth = strokeWidth;
+
+    for (let py = 0; py < temp.height; py += gap) {
+        for (let px = 0; px < temp.width; px += gap) {
+            const id = (py * temp.width + px) * 4;
+            if (data[id + 3] > 70) {
+                ctx.beginPath();
+                ctx.arc(x + px - pad, y + py - pad, dotR, 0, Math.PI * 2);
+                ctx.stroke();
+            }
+        }
+    }
+
+    ctx.restore();
+}
+
+function extractDailyObjectBackgroundColor(sourceCanvas) {
+    const ctx = sourceCanvas.getContext('2d', { willReadFrequently: true });
+    const w = sourceCanvas.width;
+    const h = sourceCanvas.height;
+
+    const sampleSize = 80;
+    const temp = document.createElement('canvas');
+    temp.width = sampleSize;
+    temp.height = sampleSize;
+
+    const tctx = temp.getContext('2d', { willReadFrequently: true });
+    tctx.drawImage(sourceCanvas, 0, 0, sampleSize, sampleSize);
+
+    const data = tctx.getImageData(0, 0, sampleSize, sampleSize).data;
+
+    let r = 0, g = 0, b = 0, count = 0;
+
+    // 只采样边缘区域，避免取到主体中心颜色
+    for (let y = 0; y < sampleSize; y++) {
+        for (let x = 0; x < sampleSize; x++) {
+            const edge =
+                x < 12 ||
+                x > sampleSize - 13 ||
+                y < 12 ||
+                y > sampleSize - 13;
+
+            if (!edge) continue;
+
+            const p = (y * sampleSize + x) * 4;
+
+            r += data[p];
+            g += data[p + 1];
+            b += data[p + 2];
+            count++;
+        }
+    }
+
+    if (!count) return '#d8d8d8';
+
+    r = Math.round(r / count);
+    g = Math.round(g / count);
+    b = Math.round(b / count);
+
+    // 轻微去饱和，避免背景太花
+    const gray = Math.round((r + g + b) / 3);
+    r = Math.round(r * 0.65 + gray * 0.35);
+    g = Math.round(g * 0.65 + gray * 0.35);
+    b = Math.round(b * 0.65 + gray * 0.35);
+
+    // 轻微提亮，和主体拉开
+    r = Math.min(255, r + 18);
+    g = Math.min(255, g + 18);
+    b = Math.min(255, b + 18);
+
+    return `rgb(${r}, ${g}, ${b})`;
+}
+
+function processDailyObjectImage(ctx, sourceCanvas, imageRect) {
+    const tolerance = 8 + Number(typeSliderA.value) * 0.6;  //抠图容差
+    const decorationSeed = Number(typeSliderB.value) / 100;
+    const sizeSlider = Number(typeSliderC.value) / 100;
+    [typeSliderA, typeSliderB, typeSliderC].forEach(slider => {
+    if (!slider) return;
+
+    slider.addEventListener('input', () => {
+        if (!uploadedImage) return;
+        generateBtn.click();
+    });
+});
+
+    const objectBgColor = extractDailyObjectBackgroundColor(sourceCanvas);
+
+ctx.save();
+ctx.fillStyle = objectBgColor;
+ctx.fillRect(imageRect.x, imageRect.y, imageRect.w, imageRect.h);
+ctx.restore();
+
+    const analysisCanvas = document.createElement('canvas');
+    const maxSide = 520;
+    const ratio = Math.min(maxSide / sourceCanvas.width, maxSide / sourceCanvas.height, 1);
+
+    analysisCanvas.width = Math.round(sourceCanvas.width * ratio);
+    analysisCanvas.height = Math.round(sourceCanvas.height * ratio);
+
+    const actx = analysisCanvas.getContext('2d');
+    actx.drawImage(sourceCanvas, 0, 0, analysisCanvas.width, analysisCanvas.height);
+
+    let mask = createMagicWandMaskFromEdges(analysisCanvas, tolerance);
+
+// 清理非主体边缘碎像素
+mask = cleanDailyObjectMask(
+    mask,
+    analysisCanvas.width,
+    analysisCanvas.height,
+    80,   // 小碎片最小面积，越大删得越干净
+    2     // 边缘收缩次数，越大边缘越干净但主体损失越多
+);
+
+const bounds = getMaskBounds(mask, analysisCanvas.width, analysisCanvas.height);
+
+    if (!bounds) {
+        ctx.drawImage(sourceCanvas, imageRect.x, imageRect.y, imageRect.w, imageRect.h);
+        return;
+    }
+
+    const cutout = buildCutoutCanvas(analysisCanvas, mask);
+
+    const subjectRatio = bounds.w / bounds.h;
+    // 主体初始就放大：最小约占图片区 90%，最大允许到 130%
+const targetAreaScale = 0.90 + sizeSlider * 0.40;
+    const targetWByArea = imageRect.w * targetAreaScale;
+    const targetHByArea = imageRect.h * targetAreaScale;
+
+    let drawW, drawH;
+
+// 以主体 bbox 为依据，而不是以原图为依据
+const fitScale = Math.min(
+    imageRect.w / bounds.w,
+    imageRect.h / bounds.h
+);
+
+// 初始放大系数：保证主体明显占据画面中心
+const objectScale = fitScale * targetAreaScale;
+
+drawW = bounds.w * objectScale;
+drawH = bounds.h * objectScale;
+
+    
+
+    const sx = bounds.x;
+    const sy = bounds.y;
+    const sw = bounds.w;
+    const sh = bounds.h;
+
+    const dx = imageRect.x + imageRect.w / 2 - drawW / 2;
+    const dy = imageRect.y + imageRect.h / 2 - drawH / 2;
+
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(imageRect.x, imageRect.y, imageRect.w, imageRect.h);
+    ctx.clip();
+
+    ctx.imageSmoothingEnabled = true;
+    ctx.drawImage(
+        cutout,
+        sx,
+        sy,
+        sw,
+        sh,
+        dx,
+        dy,
+        drawW,
+        drawH
+    );
+
+    drawDailyObjectDotDecoration(ctx, imageRect, decorationSeed);
+
+    ctx.restore();
+}
+
+function drawLightTimeContourLayer(ctx, sourceCanvas, imageRect) {
+    const w = Math.floor(imageRect.w);
+    const h = Math.floor(imageRect.h);
+
+    const temp = document.createElement('canvas');
+    temp.width = w;
+    temp.height = h;
+    const tctx = temp.getContext('2d', { willReadFrequently: true });
+
+    tctx.drawImage(
+        sourceCanvas,
+        imageRect.x,
+        imageRect.y,
+        imageRect.w,
+        imageRect.h,
+        0,
+        0,
+        w,
+        h
+    );
+
+    const img = tctx.getImageData(0, 0, w, h);
+    const data = img.data;
+
+    const out = tctx.createImageData(w, h);
+    const od = out.data;
+
+    function grayAt(x, y) {
+        const i = (y * w + x) * 4;
+        return 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
+    }
+
+    for (let y = 1; y < h - 1; y++) {
+        for (let x = 1; x < w - 1; x++) {
+            const gx =
+                -grayAt(x - 1, y - 1) + grayAt(x + 1, y - 1) +
+                -2 * grayAt(x - 1, y) + 2 * grayAt(x + 1, y) +
+                -grayAt(x - 1, y + 1) + grayAt(x + 1, y + 1);
+
+            const gy =
+                -grayAt(x - 1, y - 1) - 2 * grayAt(x, y - 1) - grayAt(x + 1, y - 1) +
+                grayAt(x - 1, y + 1) + 2 * grayAt(x, y + 1) + grayAt(x + 1, y + 1);
+
+            const edge = Math.sqrt(gx * gx + gy * gy);
+            const i = (y * w + x) * 4;
+
+            if (edge > 72) {
+                od[i] = 245;
+                od[i + 1] = 245;
+                od[i + 2] = 235;
+                od[i + 3] = Math.min(210, edge);
+            }
+        }
+    }
+
+    tctx.putImageData(out, 0, 0);
+
+    ctx.save();
+ctx.globalAlpha = 0.9;
+
+// 原位置淡一点
+ctx.drawImage(temp, imageRect.x, imageRect.y, imageRect.w, imageRect.h);
+
+// 偏移位置更明显一点
+ctx.globalAlpha = 0.78;
+ctx.drawImage(
+    temp,
+    imageRect.x + 8,
+    imageRect.y + 6,
+    imageRect.w,
+    imageRect.h
+);
+
+ctx.restore();
+}
+
+async function drawGeneratedTypeLayer(ctx, rect, palette, category) {
+    // light_time 跳过图片区文字叠加
+    if (category === 'light_time' || category === 'light_time_moment') {
+        return;
+    }
+
     // 图像区域优先使用程序生成的诗句，但不能因为诗句为空就整层不画
-    const poemText = String(document.getElementById('userText').value ?? "").trim();
+    const poemText = String(currentAiPoem || "").trim();
     const mode = getResolvedTypeMode();
 
     ctx.save();
@@ -1073,7 +2728,7 @@ async function drawGeneratedTypeLayer(ctx, rect, palette) {
     if (mode === "string") {
         await drawStringTypeLayer(ctx, rect, palette, poemText);
     } else if (mode === "danger") {
-        if (poemText) drawDangerTypeLayer(ctx, rect, palette, poemText);
+        if (poemText) drawDangerTypeLayer(ctx, rect, palette, poemText, category);
     } else if (mode === "morisawa") {
         if (poemText) drawMorisawaTypeLayer(ctx, rect, palette, poemText);
     } else if (mode === "pow") {
@@ -1092,7 +2747,12 @@ async function drawGeneratedTypeLayer(ctx, rect, palette) {
     ctx.restore();
 }
 
-function drawDangerTypeLayer(ctx, rect, palette, text) {
+function drawDangerTypeLayer(ctx, rect, palette, text, category) {
+    // light_time 跳过图片区文字叠加
+    if (category === 'light_time' || category === 'light_time_moment') {
+        return;
+    }
+
     const size = Number(typeSliderA.value);        // 尺寸
     const complexity = Number(typeSliderB.value);  // 油墨强度
     const columns = Number(typeSliderC.value);     // 颗粒密度
@@ -1324,6 +2984,151 @@ function drawMorisawaTypeLayer(ctx, rect, palette, text) {
     ctx.restore();
 }
 
+function drawShineTypeLayer(ctx, rect, palette, text) {
+    const p = FX.moment;
+
+    // 滑杆映射
+    const strength = Number(typeSliderA.value) / 100; // 强度：影响抽样数量与透明度
+    const detail = Number(typeSliderB.value) / 100;   // 细节：影响条带厚度与采样步长
+    const scale = Number(typeSliderC.value) / 100;    // 比例：影响拉伸长度
+
+    // 用当前底图做采样，确保只来自图像本身
+    if (!currentWorkingCanvas) return;
+
+    const srcCanvas = currentWorkingCanvas;
+    const srcCtx = srcCanvas.getContext('2d', { willReadFrequently: true });
+
+    // 图像区域在 currentWorkingCanvas 里的位置
+    const sx = Math.max(0, Math.floor(rect.x));
+    const sy = Math.max(0, Math.floor(rect.y));
+    const sw = Math.max(1, Math.floor(rect.w));
+    const sh = Math.max(1, Math.floor(rect.h));
+
+    const imgData = srcCtx.getImageData(sx, sy, sw, sh);
+    const data = imgData.data;
+
+    // 把“时刻”效果理解成：从图中提取若干亮度合适的横向片段，再向左右拉伸
+    const densityControl = Number(typeSliderB.value) / 100;
+const sampleCount = Math.round(25 + densityControl * 160);  // 最低条带数量和最高增加数量
+    const sampleStep = Math.max(2, Math.round(p.sampleStep - detail * 1.2));
+
+    const stripHeightMin = Math.round(
+        p.stripHeightMin * (0.85 - detail * 0.2)
+    );
+    const stripHeightMax = Math.round(
+        p.stripHeightMax * (0.92 - detail * 0.18)
+    );
+
+    const stretchMin = Math.round(
+        p.stretchLengthMin * (0.82 + scale * 0.45)
+    );
+    const stretchMax = Math.round(
+        p.stretchLengthMax * (0.9 + scale * 0.5)
+    );
+
+    const strips = [];
+
+    for (let i = 0; i < sampleCount; i++) {
+        const randomOffset = FX.moment.randomOffset ?? 0.5;
+
+const randomControl = Number(typeSliderC.value) / 100;
+
+// X 仍然随机
+const px = Math.floor(Math.random() * (sw - 2));
+
+// Y 根据滑杆控制重心：0偏上，1偏下
+const centerY = randomControl * sh;
+const spreadY = sh * 0.55;
+
+const py = Math.max(
+    0,
+    Math.min(
+        sh - 2,
+        Math.floor(centerY + (Math.random() - 0.5) * spreadY)
+    )
+);
+
+        const idx = (py * sw + px) * 4;
+        const r = data[idx];
+        const g = data[idx + 1];
+        const b = data[idx + 2];
+        const a = data[idx + 3];
+
+        if (a < 20) continue;
+
+        const lum = 0.299 * r + 0.587 * g + 0.114 * b;
+
+        if (lum < p.luminanceMin || lum > p.luminanceMax) continue;
+
+        const stripH = Math.max(
+            2,
+            Math.round(stripHeightMin + Math.random() * (stripHeightMax - stripHeightMin))
+        );
+
+        const stretchControl = Number(typeSliderA.value) / 100;
+
+// 拉伸强度：越小条带越短，越大条带越长
+const stretchMinLive = rect.w * (0.10 + stretchControl * 0.35);
+const stretchMaxLive = rect.w * (0.18 + stretchControl * 0.82);
+
+const stretchLen = Math.round(
+    stretchMinLive + Math.random() * (stretchMaxLive - stretchMinLive)
+);
+
+        // 条带起点尽量和采样点靠近，但允许一点漂移
+        const localY = Math.max(0, Math.min(sh - stripH, py - Math.floor(stripH / 2)));
+        const localX = Math.max(0, Math.min(sw - sampleStep, px));
+
+        strips.push({
+            srcX: localX,
+            srcY: localY,
+            srcW: Math.max(2, sampleStep),
+            srcH: stripH,
+            dstX: rect.x + localX,
+            dstY: rect.y + localY,
+            dstW: stretchLen,
+            dstH: stripH,
+            alpha: 0.16 + strength * 0.16
+        });
+    }
+
+    // 先画原图采样拉伸条带
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(rect.x, rect.y, rect.w, rect.h);
+    ctx.clip();
+
+    strips.forEach(strip => {
+        ctx.globalAlpha = strip.alpha;
+        ctx.drawImage(
+            srcCanvas,
+            sx + strip.srcX, sy + strip.srcY, strip.srcW, strip.srcH,
+            strip.dstX, strip.dstY, strip.dstW, strip.dstH
+        );
+    });
+
+    ctx.restore();
+
+    // 再叠一层更淡的白色雾条，让效果更柔和，但不变成“光影圆斑”
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(rect.x, rect.y, rect.w, rect.h);
+    ctx.clip();
+
+    const fogCount = Math.round(8 + strength * 8);
+    for (let i = 0; i < fogCount; i++) {
+        const y = rect.y + rect.h * (0.08 + Math.random() * 0.8);
+        const h = rect.h * (0.006 + Math.random() * 0.015);
+        const w = rect.w * (0.18 + Math.random() * 0.42);
+        const x = rect.x + Math.random() * (rect.w - w);
+
+        ctx.fillStyle = `rgba(255,255,255,${0.035 + strength * 0.03})`;
+        ctx.fillRect(x, y, w, h);
+    }
+
+    ctx.restore();
+}
+
 async function drawStringTypeLayer(ctx, rect, palette, text) {
     const sliderA = Number(typeSliderA.value); // Layer Mode
     const sliderB = Number(typeSliderB.value); // Size
@@ -1445,38 +3250,169 @@ async function drawStringTypeLayer(ctx, rect, palette, text) {
 async function rerenderPosterWithTypeLayer(userText) {
     await ensureCustomFontsLoaded();
     if (!currentBaseCanvas || !currentImageRegion || !currentPaletteData) return;
+    const canvas = document.getElementById('finalCanvas');
+    const ctx = canvas.getContext('2d');
+    canvas.width = currentBaseCanvas.width;
+    canvas.height = currentBaseCanvas.height;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(currentBaseCanvas, 0, 0);
+    await drawGeneratedTypeLayer(ctx, currentImageRegion, currentPaletteData, currentCategory);
+    if (currentTemplateCanvas) ctx.drawImage(currentTemplateCanvas, 0, 0);
+    drawDynamicText(ctx, currentLayoutType, canvas.width, canvas.height, userText, currentFragmentNumber, currentAiPoem, currentCategory);
+    const finalDataUrl = canvas.toDataURL('image/png');
+    finalImage.src = finalDataUrl;
+    modalImage.src = finalDataUrl;
+}
+
+async function rerenderLightTimePosterLive() {
+    if (!currentImageRegion || !currentPaletteData || !currentBaseCanvas) return;
 
     const canvas = document.getElementById('finalCanvas');
     const ctx = canvas.getContext('2d');
 
-    canvas.width = currentBaseCanvas.width;
-    canvas.height = currentBaseCanvas.height;
+    const baseW = currentBaseCanvas.width;
+    const baseH = currentBaseCanvas.height;
 
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    canvas.width = baseW;
+    canvas.height = baseH;
 
-    // 1. 先画底图（不含模板、也不含旧动态文字，理想情况下）
-    ctx.drawImage(currentBaseCanvas, 0, 0);
+    const liveUserText = document.getElementById('userText').value.trim();
 
-    // 2. 重新画 fragment / 日期 / 正文
-    drawDynamicText(
-    ctx,
-    currentLayoutType,
-    canvas.width,
-    canvas.height,
-    userText,
-    currentFragmentNumber,
-    currentAiPoem
-);
+    const liveCanvas = document.createElement('canvas');
+    liveCanvas.width = baseW;
+    liveCanvas.height = baseH;
+    const lctx = liveCanvas.getContext('2d');
 
-    // 3. 再画文字生成层
-    await drawGeneratedTypeLayer(ctx, currentImageRegion, currentPaletteData);
+    lctx.drawImage(currentCleanLayoutCanvas || currentBaseCanvas, 0, 0);
 
-    // 4. 最后盖模板
-    if (currentTemplateCanvas) {
-        ctx.drawImage(currentTemplateCanvas, 0, 0);
+    applyLightTimeSlidersToFX();
+
+    if (currentLayoutType === 'horizontal') {
+        const photoLayer = document.createElement('canvas');
+        photoLayer.width = baseW;
+        photoLayer.height = baseH;
+        const photoCtx = photoLayer.getContext('2d');
+
+        drawImageCoverToRect(photoCtx, uploadedImage, currentImageRegion);
+
+        lctx.drawImage(photoLayer, 0, 0);
+        drawLightTimeHorizontalOverflowStrips(
+            lctx,
+            photoLayer,
+            currentImageRegion,
+            baseW,
+            baseH
+        );
+    } else {
+        const r = currentImageRegion;
+
+        lctx.save();
+        lctx.beginPath();
+        lctx.rect(r.x, r.y, r.w, r.h);
+        lctx.clip();
+
+        lctx.fillStyle = '#1a1a1a';
+        lctx.fillRect(r.x, r.y, r.w, r.h);
+
+        if (currentCategory === 'daily_object') {
+    processDailyObjectImage(lctx, currentWorkingCanvas, currentImageRegion);
+} else {
+    await processImage(
+        lctx,
+        currentWorkingCanvas,
+        currentImageRegion,
+        currentCategory,
+        currentPaletteData
+    );
+}
+
+        lctx.restore();
     }
 
-    const finalDataUrl = canvas.toDataURL("image/png");
+    ctx.clearRect(0, 0, baseW, baseH);
+    ctx.drawImage(liveCanvas, 0, 0);
+
+    const oldBase = currentBaseCanvas;
+    currentBaseCanvas = cloneCanvas(liveCanvas);
+
+    await ensureCustomFontsLoaded();
+
+    drawDynamicText(
+        ctx,
+        currentLayoutType,
+        baseW,
+        baseH,
+        liveUserText,
+        currentFragmentNumber,
+        currentAiPoem,
+        currentCategory
+    );
+
+    if (
+        currentLayoutType === 'horizontal' &&
+        (currentCategory === 'light_time_moment' || currentCategory === 'light_time')
+    ) {
+        applyLeftIrregularPosterMask(ctx, baseW, baseH, {
+            x: 0,
+            y: 0,
+            w: 560,
+            h: baseH
+        });
+    }
+
+    currentBaseCanvas = oldBase;
+
+    const finalDataUrl = canvas.toDataURL('image/png');
+    finalImage.src = finalDataUrl;
+    modalImage.src = finalDataUrl;
+}
+
+async function rerenderDailyObjectPosterLive() {
+    if (!currentImageRegion || !currentWorkingCanvas || !currentPaletteData || !currentBaseCanvas) return;
+
+    const canvas = document.getElementById('finalCanvas');
+    const ctx = canvas.getContext('2d');
+
+    const baseW = currentBaseCanvas.width;
+    const baseH = currentBaseCanvas.height;
+
+    canvas.width = baseW;
+    canvas.height = baseH;
+
+    const liveCanvas = document.createElement('canvas');
+    liveCanvas.width = baseW;
+    liveCanvas.height = baseH;
+    const lctx = liveCanvas.getContext('2d');
+
+    // 回到底色结构
+    lctx.drawImage(currentCleanLayoutCanvas || currentBaseCanvas, 0, 0);
+
+    // 重新按滑杆处理日常之物图像
+    processDailyObjectImage(lctx, currentWorkingCanvas, currentImageRegion);
+
+    // 画回主画布
+    ctx.clearRect(0, 0, baseW, baseH);
+    ctx.drawImage(liveCanvas, 0, 0);
+
+    const oldBase = currentBaseCanvas;
+    currentBaseCanvas = cloneCanvas(liveCanvas);
+
+    await ensureCustomFontsLoaded();
+
+    drawDynamicText(
+        ctx,
+        currentLayoutType,
+        baseW,
+        baseH,
+        document.getElementById('userText').value.trim(),
+        currentFragmentNumber,
+        currentAiPoem,
+        currentCategory
+    );
+
+    currentBaseCanvas = oldBase;
+
+    const finalDataUrl = canvas.toDataURL('image/png');
     finalImage.src = finalDataUrl;
     modalImage.src = finalDataUrl;
 }
@@ -1576,9 +3512,17 @@ function drawThinStrokeWord(ctx, text, x, y, fontSize, scaleX = 1, alpha = 1) {
             if (rerenderTimer) clearTimeout(rerenderTimer);
 
             rerenderTimer = setTimeout(async () => {
-                const userText = document.getElementById('userText').value.trim();
-                await rerenderPosterWithTypeLayer(userText);
-            }, 80);
+                applyLightTimeSlidersToFX();
+
+                const liveCategory = selectedCategory === "light_time" ? "light_time_moment" : selectedCategory;
+
+if (liveCategory === "light_time_moment" || liveCategory === "light_time") {
+    await rerenderLightTimePosterLive();
+} else if (liveCategory === "daily_object") {
+    if (!uploadedImage) return;
+    await rerenderDailyObjectPosterLive();
+}
+            }, 60);
         });
     });
 
@@ -2222,7 +4166,7 @@ function darkenCanvasAlphaOnly(targetCtx, width, height, alpha = 0.12) {
     for (let i = 0; i < chars.length; i++) {
         const testLine = line + chars[i];
         const metrics = ctx.measureText(testLine);
-        if (metrics.width > maxWidth && line !== '') {
+        if ((metrics.width > maxWidth || testLine.length > 7) && line !== "") {
             ctx.fillText(line, x, cursorY);
             line = chars[i];
             cursorY += lineHeight;
@@ -2247,50 +4191,108 @@ function darkenCanvasAlphaOnly(targetCtx, width, height, alpha = 0.12) {
             }
 
         async function uploadToSupabase(canvas, fragmentNumber) {
+    try {
+        if (!currentOriginalFile) {
+            alert("没有找到原始上传图片");
+            return;
+        }
 
-            const blob = await new Promise(resolve => {
-                canvas.toBlob(resolve, "image/png");
+        // 1. 上传最终生成图
+        const generatedBlob = await new Promise(resolve => {
+            canvas.toBlob(resolve, "image/png");
+        });
+
+        const safeNo = String(fragmentNumber).padStart(5, "0");
+        const now = Date.now();
+
+        const generatedFileName = `generated/fragment-${safeNo}-${now}.png`;
+
+        const { error: generatedUploadError } = await supabaseClient
+            .storage
+            .from("generated-images")
+            .upload(generatedFileName, generatedBlob, {
+                contentType: "image/png",
+                upsert: true
             });
 
-            const fileName = `fragment-${fragmentNumber}-${Date.now()}.png`;
+        if (generatedUploadError) throw generatedUploadError;
 
-            const { error: uploadError } = await supabaseClient
-                .storage
-                .from("generated-images")
-                .upload(fileName, blob);
+        const { data: generatedPublicData } = supabaseClient
+            .storage
+            .from("generated-images")
+            .getPublicUrl(generatedFileName);
 
-            if (uploadError) {
-                console.error("上传报错详情：", uploadError);
-                alert("图片上传失败：" + (uploadError.message || JSON.stringify(uploadError)));
-                return;
-            }
+        const generatedImageUrl = generatedPublicData.publicUrl;
 
-            const imageUrl = `${SUPABASE_URL}/storage/v1/object/public/generated-images/${fileName}`;
+        // 2. 上传原始图片
+        const originalExt = currentOriginalFile.name.split(".").pop() || "jpg";
+        const originalFileName = `original/original-${safeNo}-${now}.${originalExt}`;
 
-            const location = document.getElementById('locationInput').value.trim();
-            const userText = getUserTextValue()
-            
+        const { error: originalUploadError } = await supabaseClient
+            .storage
+            .from("original-uploads")
+            .upload(originalFileName, currentOriginalFile, {
+                contentType: currentOriginalFile.type || "image/jpeg",
+                upsert: true
+            });
 
-            const { error: insertError } = await supabaseClient
-                .from("submissions")
-                .insert([
-                    {
-                        serial_number: fragmentNumber,
-                        image_url: imageUrl,
-                        location: location,
-                        daily_tag: selectedCategory,
-                        user_text: userText
-                    }
-                ]);
+        if (originalUploadError) throw originalUploadError;
 
-            if (insertError) {
-                console.error(insertError);
-                alert("数据库写入失败");
-                return;
-            }
+        const { data: originalPublicData } = supabaseClient
+            .storage
+            .from("original-uploads")
+            .getPublicUrl(originalFileName);
 
-            alert("投稿成功！");
-        }
+        const originalImageUrl = originalPublicData.publicUrl;
+
+        // 3. 写入数据库
+        const location = document.getElementById("locationInput").value.trim();
+        const userText = getUserTextValue();
+
+        const generationParams = {
+            sliderA: typeSliderA?.value ?? null,
+            sliderB: typeSliderB?.value ?? null,
+            sliderC: typeSliderC?.value ?? null,
+            layoutType: currentLayoutType,
+            category: currentCategory,
+            imageRatio: currentUploadedImageRatio
+        };
+
+        const { error: insertError } = await supabaseClient
+            .from("submissions")
+            .insert([
+                {
+                    serial_number: fragmentNumber,
+
+                    // 兼容旧 gallery
+                    image_url: generatedImageUrl,
+
+                    // 新增：双图保存
+                    generated_image_url: generatedImageUrl,
+                    original_image_url: originalImageUrl,
+
+                    location: location,
+                    daily_tag: (CATEGORY_META[selectedCategory] || {}).posterTag || selectedCategory,
+                    category: currentCategory || selectedCategory,
+                    user_text: userText,
+
+                    photo_date: JSON.stringify(currentPhotoDateParts),
+                    fragment_number: fragmentNumber,
+                    generation_version: GENERATION_VERSION,
+                    generation_params: generationParams
+                }
+            ]);
+
+        if (insertError) throw insertError;
+        
+        //投递成功提示语
+        alert("投稿成功！");
+
+    } catch (err) {
+        console.error("投稿失败：", err);
+        alert("投稿失败：" + (err.message || JSON.stringify(err)));
+    }
+}
 
         function drawMaskedBigNumber(
     ctx,
@@ -2324,66 +4326,144 @@ function darkenCanvasAlphaOnly(targetCtx, width, height, alpha = 0.12) {
     ctx.restore();
 }
 
-        function drawDateNumbers(ctx, layoutType, verticalLayout = null) {
-    const topNum = currentPhotoDateParts.hour;
-    const rightNum = currentPhotoDateParts.minute;
-    const leftNum = currentPhotoDateParts.month;
-    const bottomNum = currentPhotoDateParts.day;
+function drawTopDecorationStrip(ctx, layoutType, baseW, baseH, verticalLayout = null, category = null) {
+    if (layoutType === 'horizontal') return;
+    const isLightTime = category === 'light_time' || category === 'light_time_moment';
 
-    ctx.save();
+    if (layoutType === 'horizontal' && isLightTime) return;
 
-    if (layoutType === 'vertical') {
-        const fontSpec = '400 170px "ABC Favorit Expanded", sans-serif';
-
-        const originalTopH = 300;
-        const dynamicTopH = verticalLayout ? verticalLayout.topBlockH : originalTopH;
-        const yOffset = dynamicTopH - originalTopH;
-
-        // 上（轻微裁两边）
-        drawMaskedBigNumber(ctx, topNum, 485, 690 + yOffset, fontSpec, 170, 0);
-
-        // 左（多裁右边 → 向右偏移裁切框）
-        drawMaskedBigNumber(ctx, leftNum, 285, 825 + yOffset, fontSpec, 170, 25);
-
-        // 右（多裁左边 → 向左偏移裁切框）
-        drawMaskedBigNumber(ctx, rightNum, 665, 850 + yOffset, fontSpec, 170, 0);
-
-        // 下（轻裁）
-        drawMaskedBigNumber(ctx, bottomNum, 500, 980 + yOffset, fontSpec, 170, 10);
+    if (Math.random() > 0.5) return;
 
 
-    } else if (layoutType === 'horizontal') {
-        const fontSpec = '400 220px "ABC Favorit Expanded", sans-serif';
+    if (layoutType === 'vertical' && isLightTime && verticalLayout) {
+        const x = 0;
+        const y = 0;
+        const w = baseW;
+        const h = verticalLayout.topBlockH;
 
-        // 上
-        drawMaskedBigNumber(ctx, topNum, 1500, 550, fontSpec, 220, 20);
+        ctx.save();
 
-        // 左（裁右边）
-        drawMaskedBigNumber(ctx, leftNum, 1260, 740, fontSpec, 220, 40);
+        // 底色不要纯白，稍微带灰，接近你示意图
+        ctx.fillStyle = 'rgba(230,230,228,0.96)';
+        ctx.fillRect(x, y, w, h);
 
-        // 右（裁左边）
-        drawMaskedBigNumber(ctx, rightNum, 1740, 780, fontSpec, 220, 10);
+        // 轮廓大字背景
+        ctx.strokeStyle = 'rgba(0,0,0,0.18)';
+        ctx.lineWidth = 1.6;
+        ctx.textBaseline = 'top';
+        ctx.font = '300 118px "ABC Favorit Expanded", sans-serif';
+        ctx.strokeText('CO-E', 8, -18);
+        ctx.strokeText('veryDay', 130, 22);
 
-        // 下
-        drawMaskedBigNumber(ctx, bottomNum, 1520, 950, fontSpec, 220, 20);
+        // 两个小圆点
+        ctx.fillStyle = 'rgba(255,255,255,0.96)';
+        ctx.beginPath();
+        ctx.arc(146, 22, 11, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = 'rgba(0,0,0,0.12)';
+        ctx.stroke();
 
-    } else if (layoutType === 'horizontal2') {
-        const fontSpec = '400 220px "ABC Favorit Expanded", sans-serif';
+        ctx.beginPath();
+        ctx.arc(540, 22, 11, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
 
-        // 上
-        drawMaskedBigNumber(ctx, topNum, 500, 550, fontSpec, 220, 50);
-
-        // 左（裁右边）
-        drawMaskedBigNumber(ctx, leftNum, 255, 740, fontSpec, 220, 40);
-
-        // 右（裁左边）
-        drawMaskedBigNumber(ctx, rightNum, 710, 780, fontSpec, 220, 20);
-
-        // 下
-        drawMaskedBigNumber(ctx, bottomNum, 480, 950, fontSpec, 220, 20);
+        ctx.restore();
+        return;
     }
 
+    // 其他情况保留原本较小的条
+    const stripH = layoutType === 'vertical' ? 44 : 38;
+    const y = layoutType === 'vertical' ? 18 : 16;
+    const x = 18;
+    const w = Math.min(baseW * 0.42, layoutType === 'vertical' ? 270 : 360);
+
+    ctx.save();
+    ctx.fillStyle = 'rgba(255,255,255,0.88)';
+    ctx.fillRect(x, y, w, stripH);
+    ctx.font = '600 18px "ABC Favorit Expanded", sans-serif';
+    ctx.fillStyle = '#111';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('Photo to Poem / Every Day', x + 14, y + stripH / 2 + 1);
     ctx.restore();
+}
+
+function drawMiniCalendar(ctx, x, y, w, h, parts, scale = 1, highlightColor = '#ffffff') {
+    if (!parts) return;
+
+    const year = Number(parts.year);
+    const month = Number(parts.month);
+    const day = Number(parts.day);
+
+    const firstDay = new Date(year, month - 1, 1);
+    const jsWeekday = firstDay.getDay();
+    const startWeekday = (jsWeekday + 6) % 7;
+    const daysInMonth = new Date(year, month, 0).getDate();
+
+    const labels = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+    const cellW = w / 7;
+    const cellH = h / 7;
+
+    const off = document.createElement('canvas');
+    off.width = Math.ceil(x + w + 30);
+    off.height = Math.ceil(y + h + 30);
+    const octx = off.getContext('2d');
+
+    octx.clearRect(0, 0, off.width, off.height);
+    octx.fillStyle = '#ffffff';
+    octx.strokeStyle = '#ffffff';
+    octx.textAlign = 'center';
+    octx.textBaseline = 'middle';
+
+    // 星期字号
+    octx.font = '600 16px "ABC Favorit Expanded", sans-serif';
+    for (let i = 0; i < 7; i++) {
+        octx.fillText(labels[i], x + i * cellW + cellW * 0.5, y + cellH * 0.48);
+    }
+
+    // 日期字号
+    octx.font = `500 ${16 * scale}px "ABC Favorit Expanded", sans-serif`;
+
+    let current = 1;
+    for (let row = 1; row < 7; row++) {
+        for (let col = 0; col < 7; col++) {
+            const cellIndex = (row - 1) * 7 + col;
+            const num = cellIndex >= startWeekday && current <= daysInMonth ? current++ : null;
+            if (!num) continue;
+
+            const cx = x + col * cellW + cellW * 0.5;
+            const cy = y + row * cellH + cellH * 0.56;
+
+            octx.fillText(String(num).padStart(2, '0'), cx, cy);
+
+            if (num === day) {
+    octx.save();
+    octx.strokeStyle = highlightColor;
+    octx.lineWidth = 4.8;
+
+                for (let i = 0; i < 2; i++) {
+                    octx.beginPath();
+                    octx.ellipse(
+                        cx + (Math.random() - 0.5) * 8,
+                        cy + (Math.random() - 0.5) * 6 - 2,
+                        cellW * (0.40 + Math.random() * 0.07),
+                        cellH * (0.28 + Math.random() * 0.06),
+                        -0.18 + (Math.random() - 0.5) * 0.18,
+                        0,
+                        Math.PI * 2
+                    );
+                    octx.stroke();
+                }
+
+                octx.restore();
+            }
+        }
+    }
+
+    ctx.save();
+ctx.globalCompositeOperation = 'source-over';
+ctx.drawImage(off, 0, 0);
+ctx.restore();
 }
 
 function getUserTextValue() {
@@ -2404,9 +4484,7 @@ function shuffleArray(arr) {
     return a;
 }
 
-function uniqueArray(arr) {
-    return [...new Set(arr.filter(Boolean))];
-}
+
 
 function cleanPoemText(text = "") {
     return String(text || "")
@@ -2461,38 +4539,6 @@ function isValidPoemFragment(word) {
     return true;
 }
 
-function scorePoemFragment(word) {
-    let score = 0;
-    const w = String(word);
-
-    // 偏好更像意象、状态、动作的词
-    if (/[风雨雪云光影夜晨晚梦雾热冷猫狗花草树叶水灯路窗车站街人心声空慢亮暗]/.test(w)) score += 3;
-    if (/[看等走坐站停靠落吹晃飘藏留经过回家散步发呆睡醒路过]/.test(w)) score += 2;
-    if (/[安静温柔潮湿明亮模糊缓慢沉默疲惫松动柔软拥挤空荡平静慌乱]/.test(w)) score += 3;
-
-    // 2~4字更适合入诗
-    if (w.length >= 2 && w.length <= 4) score += 2;
-
-    // 过长稍微降权
-    if (w.length >= 5) score -= 1;
-
-    return score;
-}
-
-function extractPoemFragments(text = "") {
-    const raw = splitChinesePhrases(text)
-        .map(s => s.trim())
-        .filter(isValidPoemFragment);
-
-    const unique = uniqueArray(raw);
-
-    const ranked = unique
-        .map(w => ({ w, score: scorePoemFragment(w) }))
-        .sort((a, b) => b.score - a.score || a.w.length - b.w.length)
-        .map(item => item.w);
-
-    return ranked.slice(0, 12);
-}
 
 function getTimeWord(parts) {
     const hour = Number(parts?.hour || 12);
@@ -2508,12 +4554,12 @@ function getTimeWord(parts) {
 
 function getCategoryAtmosphere(category) {
     const map = {
-        space: {
+        light_time: {
             nouns: ["角落", "楼影", "街口", "窗边", "站台", "走廊", "路面", "天桥", "空地", "缝隙"],
             verbs: ["停着", "延伸", "包围", "下沉", "后退", "折回", "打开", "靠近"],
             moods: ["安静下来", "没有给出答案", "显得很近", "被慢慢放大", "像在等待什么"]
         },
-        object: {
+        daily_object: {
             nouns: ["杯口", "桌角", "屏幕", "伞边", "纸面", "袋子", "椅背", "拉链", "玻璃", "手边"],
             verbs: ["留下余温", "轻轻反光", "靠在那里", "没有被拿走", "慢慢变凉", "停在原处"],
             moods: ["比语言更诚实", "把日常留了下来", "替人记住一部分时间", "没有立刻消失"]
@@ -2523,7 +4569,7 @@ function getCategoryAtmosphere(category) {
             verbs: ["被单独留下", "没有继续", "轻轻拖长", "停在边缘", "从身边经过", "没有被说破"],
             moods: ["像没说完的话", "显得格外清楚", "让时间慢了一拍", "更像一次呼吸"]
         },
-        person: {
+        in_action: {
             nouns: ["背影", "肩膀", "手指", "头发", "眼神", "步子", "侧脸", "衣角", "身体", "影子"],
             verbs: ["轻轻偏过去", "停了一下", "从旁边经过", "慢慢靠近", "被风吹乱", "碰到光"],
             moods: ["比语言先有反应", "藏着没有说出的情绪", "把场景变得具体", "让这一刻有了重量"]
@@ -2535,7 +4581,7 @@ function getCategoryAtmosphere(category) {
         }
     };
 
-    return map[category] || map.moment;
+    return map[category] || map.light_time;
 }
 
 const POEM_LIBRARY = {
@@ -2588,96 +4634,983 @@ const POEM_LIBRARY = {
     ]
 };
 
-function buildPoemLine(materials, category, timeWord, locationText) {
-    const atm = getCategoryAtmosphere(category);
-
-    const custom1 = materials[0] || pickRandom(POEM_LIBRARY.nouns);
-    const custom2 = materials[1] || pickRandom(atm.nouns);
-    const custom3 = materials[2] || pickRandom(POEM_LIBRARY.nouns);
-
-    const patterns = [
-        `${pickRandom(POEM_LIBRARY.adjectives)}${custom1}`,
-        `${custom1}${pickRandom(POEM_LIBRARY.connectors)}${pickRandom(atm.verbs)}`,
-        `${pickRandom(atm.nouns)}${pickRandom(atm.verbs)}`,
-        `${timeWord}的${custom1}`,
-        `${locationText ? locationText + "的" : ""}${custom2}`,
-        `${pickRandom(POEM_LIBRARY.lineOpeners)}，${custom1}${pickRandom(atm.verbs)}`,
-        `${pickRandom(POEM_LIBRARY.adjectives)}${custom2}${pickRandom(POEM_LIBRARY.connectors)}${pickRandom(POEM_LIBRARY.verbs)}`,
-        `${custom3}像${pickRandom(atm.nouns)}`,
-        `${pickRandom(atm.moods)}`,
-        `${custom1}把${pickRandom(atm.nouns)}${pickRandom(POEM_LIBRARY.verbs)}`,
-        `${pickRandom(POEM_LIBRARY.adjectives)}${custom1}，${pickRandom(POEM_LIBRARY.endings)}`,
-        `${custom2}${pickRandom(POEM_LIBRARY.connectors)}${pickRandom(POEM_LIBRARY.endings)}`
-    ];
-
-    return pickRandom(patterns);
+function keepShortMaterial(s, maxLen = 4) {
+    const text = String(s || "").replace(/[，。！？；：、“”‘’\s]/g, "").trim();
+    if (!text) return "";
+    return text.slice(0, maxLen);
 }
 
-function buildPoemFromMaterials(userText, category, dateParts, locationText) {
-    const materials = extractPoemFragments(userText);
-    const timeWord = getTimeWord(dateParts);
-
-    let lineCount = 3;
-    const rand = Math.random();
-    if (rand < 0.18) lineCount = 2;
-    else if (rand > 0.82) lineCount = 4;
-
-    let lines = [];
-
-    if (materials.length === 0) {
-        lines = [...pickRandom(POEM_LIBRARY.fallback)];
-    } else {
-        const shuffled = shuffleArray(materials);
-
-        for (let i = 0; i < lineCount; i++) {
-            lines.push(
-                buildPoemLine(
-                    shuffled.slice(i, i + 3),
-                    category,
-                    timeWord,
-                    i === 0 ? String(locationText || "").trim() : ""
-                )
-            );
-        }
-    }
-
-    // 去重和清理
-    lines = uniqueArray(
-        lines
-            .map(s => String(s || "").replace(/\s+/g, "").trim())
+function shortenPoemMaterials(materials, maxLen = 4) {
+    return uniqueArray(
+        (materials || [])
+            .map(item => keepShortMaterial(item, maxLen))
             .filter(Boolean)
+            .filter(item => item.length >= 1 && item.length <= maxLen)
     );
+}
 
-    // 太少就补到至少 2~3 行
-    while (lines.length < 3) {
-        lines.push(
-            buildPoemLine(
-                materials,
-                category,
-                timeWord,
-                ""
-            )
-        );
-        lines = uniqueArray(lines);
-        if (lines.length >= 3) break;
+function limitPoemTotalChars(lines, maxTotal = 36) {
+    const out = [];
+    let total = 0;
+
+    for (const rawLine of lines) {
+        let line = String(rawLine || "").trim();
+        if (!line) continue;
+
+        if (total + line.length <= maxTotal) {
+            out.push(line);
+            total += line.length;
+            continue;
+        }
+
+        const remain = maxTotal - total;
+        if (remain <= 0) break;
+
+        if (remain >= 4) {
+            out.push(line.slice(0, remain));
+        }
+        break;
     }
 
-    // 最终控制在 2~4 行
-    lines = lines.slice(0, 4);
+    return out;
+}
 
-    return lines.join("\n");
+
+function cleanPoemPhrase(s) {
+    return String(s || "")
+        .replace(/[，。、“”‘’！!？?；;：:\-]/g, "")
+        .replace(/\s+/g, "")
+        .trim();
+}
+
+function normalizePoemMaterials(materials) {
+    return uniqueArray(
+        (materials || [])
+            .map(cleanPoemPhrase)
+            .filter(Boolean)
+            .filter(s => s.length >= 2 && s.length <= 8)
+    );
+}
+
+function pickMaterial(materials, fallback = "") {
+    if (!materials || !materials.length) return fallback;
+    return pickRandom(materials);
+}
+
+function pickDifferentMaterial(materials, used = [], fallback = "") {
+    const pool = (materials || []).filter(x => x && !used.includes(x));
+    if (!pool.length) return pickMaterial(materials, fallback);
+    return pickRandom(pool);
+}
+
+function scorePoemFragment(word) {
+    const w = String(word || "").trim();
+    if (!w) return -999;
+
+    let score = 0;
+
+    // 长度偏好：2~4字最佳
+    if (w.length === 2) score += 5;
+    else if (w.length === 3) score += 6;
+    else if (w.length === 4) score += 4;
+    else score -= 8;
+
+    // 偏意象、偏感知的词加分
+    if (/[光影风雨云窗灯路街夜晨暮春夏秋冬车站角落桌杯门树叶水声气味温度颜色轮廓倒影空隙微风晚霞余温亮意]/.test(w)) score += 4;
+
+    // 偏口语叙述、功能词减分
+    if (/[的了着过呢吗啊呀吧哦哈]/.test(w)) score -= 6;
+    if (/^(今天|刚刚|真的|就是|感觉|看到|一个|这个|那个|然后|因为|所以|但是|如果|我们|你们|他们)$/.test(w)) score -= 8;
+
+    // 英文数字直接减分
+    if (/[A-Za-z0-9]/.test(w)) score -= 10;
+
+    return score;
+}
+
+function extractPoemFragments(text = "") {
+    const raw = splitChinesePhrases(text)
+        .map(s => String(s || "").trim())
+        .map(s => s.replace(/[，。！？；：、“”‘’（）()《》〈〉【】\-\—…,.!?:;'"“”‘’♡♥]/g, ""))
+        .map(s => s.replace(/\s+/g, ""))
+        .filter(Boolean);
+
+    const unique = uniqueArray(raw);
+
+    return unique
+        .filter(w => w.length >= 2 && w.length <= 4)
+        .filter(w => !/[A-Za-z0-9]/.test(w))
+        .map(w => ({ w, score: scorePoemFragment(w) }))
+        .filter(item => item.score > 0)
+        .sort((a, b) => b.score - a.score || a.w.length - b.w.length)
+        .map(item => item.w)
+        .slice(0, 6);
+}
+
+function getCategoryPoemBanks(category, timeWord) {
+    const t = String(timeWord || "此刻").trim() || "此刻";
+
+    const banks = {
+        light_time: {
+            startSubject: [`${t}`, "窗", "墙", "檐", "街", "楼", "天", "影"],
+            startAction: ["亮起来", "暗下去", "移过来", "散开", "停住", "变窄", "拉长"],
+
+            middleState: ["风穿过", "声音远了", "空气凉", "雨要来", "云压低", "鸟飞过", "树摇"],
+            middleValue: [],
+
+            endTone: ["", "", ""],
+            endResult: ["还在", "没走", "留着", "记住", "在这"]
+        },
+
+        daily_object: {
+            startSubject: [`${t}`, "杯", "桌", "纸", "笔", "书", "灯", "窗"],
+            startAction: ["温着", "凉了", "旧了", "新的", "空着", "满了", "开着"],
+
+            middleState: ["沾了灰", "反着光", "有划痕", "还干净", "摆得正", "歪了", "叠着"],
+            middleValue: [],
+
+            endTone: ["", "", ""],
+            endResult: ["在那", "没动", "留着", "还有", "搁着"]
+        },
+
+        moment: {
+            startSubject: [`${t}`, "风", "雨", "光", "声", "云", "烟", "雾"],
+            startAction: ["停了", "来了", "散了", "远了", "近了", "过去", "留下"],
+
+            middleState: ["空气湿", "天变暗", "冷下来", "热起来", "安静了", "吵起来", "慢下来"],
+            middleValue: [],
+
+            endTone: ["", "", ""],
+            endResult: ["还在", "走了", "留着", "记得", "忘了"]
+        },
+
+        in_action: {
+            startSubject: [`${t}`, "人", "眼", "手", "脸", "背", "影", "声"],
+            startAction: ["转过来", "走过去", "停住", "抬起", "放下", "靠近", "远了"],
+
+            middleState: ["没说话", "笑了", "沉默", "叹气", "点头", "摇头", "看着"],
+            middleValue: [],
+
+            endTone: ["", "", ""],
+            endResult: ["还在", "走了", "留下", "记住", "忘了"]
+        },
+
+        light: {
+            startSubject: [`${t}`, "光", "影", "亮", "暗", "白", "灰", "黑"],
+            startAction: ["落下", "升起", "散开", "聚拢", "穿过", "挡住", "照着"],
+
+            middleState: ["墙上有", "地上有", "水里有", "窗外有", "远处有", "近处有", "到处有"],
+            middleValue: [],
+
+            endTone: ["", "", ""],
+            endResult: ["还在", "没了", "留着", "亮着", "暗了"]
+        }
+    };
+
+    return banks[category] || banks.light;
+}
+
+function makePoemSignature(lines) {
+    return lines.map(s => String(s || "").trim()).join(" / ");
+}
+
+function rememberPoemSignature(signature, maxKeep = 12) {
+    recentPoemSignatures.push(signature);
+    if (recentPoemSignatures.length > maxKeep) {
+        recentPoemSignatures = recentPoemSignatures.slice(-maxKeep);
+    }
+}
+
+function buildPoemFromMaterials(userText, category, dateParts) {
+    const materials = extractPoemFragments(userText);
+    const banks = getCategoryPoemBanks(category, getTimeWord(dateParts));
+
+    const materialTemplates = [
+        (m) => `${m}停住`,
+        (m) => `${m}出现`,
+        (m) => `${m}还在`,
+        (m) => `${m}没动`,
+        (m) => `${m}浮起来`,
+        (m) => `${m}散开`
+    ];
+
+    const buildCandidate = () => {
+        const lines = [];
+
+        // 随机选择句式结构: 两行式、三行式、四行式
+        const structureType = Math.random();
+
+        if (structureType < 0.3) {
+            // 两行式: 起句 + 收束
+            if (materials.length && Math.random() < 0.7) {
+                const m = pickRandom(materials);
+                lines.push(pickRandom(materialTemplates)(m));
+            } else {
+                lines.push(`${pickRandom(banks.startSubject)}${pickRandom(banks.startAction)}`);
+            }
+
+            const endTone = pickRandom(banks.endTone);
+            if (endTone) {
+                lines.push(`${endTone}${pickRandom(banks.endResult)}`);
+            } else {
+                lines.push(pickRandom(banks.endResult));
+            }
+
+        } else if (structureType < 0.65) {
+            // 三行式: 起句 + 中段 + 收束
+            if (materials.length && Math.random() < 0.7) {
+                const m = pickRandom(materials);
+                lines.push(pickRandom(materialTemplates)(m));
+            } else {
+                lines.push(`${pickRandom(banks.startSubject)}${pickRandom(banks.startAction)}`);
+            }
+
+            lines.push(pickRandom(banks.middleState));
+
+            const endTone = pickRandom(banks.endTone);
+            if (endTone) {
+                lines.push(`${endTone}${pickRandom(banks.endResult)}`);
+            } else {
+                lines.push(pickRandom(banks.endResult));
+            }
+
+        } else {
+            // 四行式: 起句 + 中段1 + 中段2 + 收束
+            if (materials.length && Math.random() < 0.7) {
+                const m = pickRandom(materials);
+                lines.push(pickRandom(materialTemplates)(m));
+            } else {
+                lines.push(`${pickRandom(banks.startSubject)}${pickRandom(banks.startAction)}`);
+            }
+
+            lines.push(pickRandom(banks.middleState));
+            lines.push(pickRandom(banks.middleState));
+
+            lines.push(pickRandom(banks.endResult));
+        }
+
+        // 每句最多 10 字,允许不等长
+        const trimmed = uniqueArray(
+            lines.map(line => String(line || "").trim().slice(0, 10)).filter(Boolean)
+        );
+
+        // 总长控制在 20-28 字之间
+        let total = 0;
+        const limited = [];
+        for (const line of trimmed) {
+            if (total + line.length <= 28) {
+                limited.push(line);
+                total += line.length;
+            }
+        }
+
+        return limited.length >= 2 ? limited : null;
+    };
+
+    // 最多尝试 12 次，尽量避开近期重复
+    let bestLines = null;
+
+    for (let i = 0; i < 12; i++) {
+        const candidate = buildCandidate();
+        const sig = makePoemSignature(candidate);
+
+        if (!recentPoemSignatures.includes(sig)) {
+            rememberPoemSignature(sig);
+            return candidate.join("\n");
+        }
+
+        if (!bestLines) bestLines = candidate;
+    }
+
+    // 实在撞了，就返回最后一个候选，但也记入缓存
+    const fallback = bestLines || ["这一刻被看见", "平常也值得记住", "像生活的小回应"];
+    rememberPoemSignature(makePoemSignature(fallback));
+    return fallback.join("\n");
+}
+
+/* =====================================================
+   Photo to Poem｜最终版短诗生成引擎
+   逻辑：
+   1. 用户文字驱动
+   2. 不随机截字，只匹配完整词语
+   3. 使用歌词语料精选词 + 日常低指向词
+   4. 多种生成模式随机切换
+   5. 8–30字之间，主要集中在16–24字
+   6. 避免固定结尾，降低重复率
+===================================================== */
+
+const ritualPoemEngine = {
+  history: [],
+  maxHistory: 80,
+
+  /* ===============================
+     一、可被用户文字精准匹配的词典
+     只匹配完整词，不截取随机字
+  =============================== */
+  dict: {
+    time: [
+      "今天","今晚","清晨","早晨","上午","中午","下午","午后","傍晚","黄昏",
+      "深夜","凌晨","昨天","明天","此刻","现在","刚才","后来","从前","周末",
+      "雨天","晴天","日落","天黑","天亮","入夜","夏天","冬天","春天","秋天",
+      "一刹那","转眼间","很久后","天亮前","下雨时","风停后"
+    ],
+
+    place: [
+      "家里","房间","窗边","窗台","床边","桌前","桌面","厨房","楼下","楼道",
+      "街角","路口","马路","地铁","站台","公交","车站","车里","车窗","路上",
+      "学校","公司","工位","办公室","教室","图书馆","商场","便利店","超市",
+      "海边","公园","河边","桥上","山里","远方","城市","小巷","旧街","门口",
+      "旧城","巷子","广场","岸边","人群","夜色","人间","角落","屋里"
+    ],
+
+    object: [
+      "咖啡","奶茶","茶","水","酒","杯子","碗","筷子","晚饭","早餐","午饭",
+      "甜品","蛋糕","火锅","面包","水果","花","花束","树","树影","云","天空",
+      "夕阳","月亮","月光","灯","灯光","路灯","影子","雨","雨声","风","晚风",
+      "雪","海","海风","浪","照片","相机","手机","屏幕","书","纸","衣服","外套",
+      "鞋子","钥匙","包","车票","礼物","蜡烛","烟花","镜子","窗帘","被子",
+      "微光","尘埃","余温","雾气","灯影","花瓣","声音","画面","镜头","光景",
+      "美梦","背影","风景","情歌","对白","时光","月台","白昼","落霞","旧梦"
+    ],
+
+    body: [
+      "眼睛","眼神","眼泪","手","双手","手心","掌心","肩膀","身体","呼吸",
+      "心跳","心事","心里","耳朵","耳边","头发","背影","怀抱","衣角","脚步",
+      "沉默","喉咙","体温","指尖"
+    ],
+
+    action: [
+      "散步","回家","出门","等待","经过","停下","停住","看见","看到","听见",
+      "想起","记得","忘记","靠近","离开","坐着","站着","走路","发呆","吃饭",
+      "喝水","拍照","整理","收拾","打开","关上","放下","拿起","拥抱","见面",
+      "告别","醒来","睡觉","下雨","吹风","发光","亮起","落下","慢下来",
+      "留下","相信","回头","拥有","接受","走远","藏起","松开","吹散","靠岸"
+    ],
+
+    adjective: [
+      "安静","温柔","明亮","舒服","热闹","普通","柔软","轻松","缓慢","清醒",
+      "干净","漂亮","好看","可爱","孤单","快乐","开心","平静","松弛","认真",
+      "珍贵","熟悉","陌生","潮湿","温暖","微凉","自由","轻盈","新鲜","辽阔",
+      "郑重","暖和","释然"
+    ],
+
+    emotion: [
+      "开心","快乐","想念","怀念","喜欢","释然","安心","期待","满足","感动",
+      "温柔","平静","孤单","安静","松弛","治愈","幸福","难忘","舍不得","轻松",
+      "和解","喜悦","柔软","明亮","清醒"
+    ]
+  },
+
+  //模糊词库
+  aliasDict: {
+  action: {
+    "走路": ["走一走", "走了走", "走着", "走过去", "走回去", "走走", "散散步", "溜达", "逛了逛"],
+    "散步": ["散散步", "出去走", "出去走走", "遛弯", "压马路"],
+    "回家": ["回去", "回来的路", "到家", "回到家"],
+    "停下": ["停一停", "停了下", "停下来", "歇一歇"],
+    "发呆": ["放空", "愣了一会", "什么都没想"],
+    "整理": ["收拾", "收一收", "理一理", "整理了一下"],
+    "拍照": ["拍了一张", "随手拍", "记录一下", "拍下来"]
+  },
+
+  object: {
+    "晚风": ["风吹", "吹风", "有风", "风很舒服"],
+    "雨声": ["下雨", "雨下", "听雨", "雨滴"],
+    "灯光": ["开灯", "灯亮", "亮灯", "路灯"],
+    "夕阳": ["日落", "落日", "晚霞"],
+    "咖啡": ["喝咖啡", "拿铁", "美式"],
+    "照片": ["拍照", "图片", "这张图", "相片"]
+  },
+
+  adjective: {
+    "安静": ["静静", "很静", "不吵", "安安静静"],
+    "舒服": ["舒适", "很放松", "很松弛", "惬意"],
+    "温柔": ["柔和", "软软的", "很暖", "暖暖的"],
+    "明亮": ["亮亮的", "发亮", "亮起来"],
+    "缓慢": ["慢慢的", "不着急", "慢下来"]
+  },
+
+  emotion: {
+    "怀念": ["想起", "想到了", "有点想念", "想念"],
+    "喜悦": ["很开心", "开心", "高兴", "快乐"],
+    "释然": ["放下", "想开了", "没关系了"],
+    "安心": ["踏实", "安稳", "放心"],
+    "松弛": ["放松", "松了一口气", "轻松"]
+  }
+},
+  
+
+  /* ===============================
+     二、低指向兜底词库
+     用户没有写到具体词时使用
+  =============================== */
+  fallback: {
+    time: [
+      "此刻","今天","今晚","午后","黄昏","深夜","后来","清晨","入夜后",
+      "天黑以后","风停以后","日落以后","很久以后","一瞬之间","转眼之间"
+    ],
+
+    place: [
+      "这里","生活里","日子里","时间里","心里","人间","普通的一天",
+      "窗边","路上","角落","楼下","夜色里","风里","光里","沉默里"
+    ],
+
+    object: [
+      "光","风","声音","影子","小事","日子","瞬间","沉默","温度","雨声",
+      "微光","灯影","月光","余温","雾气","尘埃","晚风","落霞","旧梦","白昼",
+      "一束光","一阵风","一场雨","一点声音","一段沉默","一个瞬间","一页日子"
+    ],
+
+    body: [
+      "呼吸","心事","掌心","眼睛","沉默","脚步","肩膀","手心","眼神",
+      "身体","背影","心跳","衣角","怀抱"
+    ],
+
+    action: [
+      "慢下来","亮起来","停一下","轻一点","安静下来","被记住","落下来",
+      "松开","靠近","经过","留下","回头","醒来","散开","停住","照亮",
+      "藏起来","被看见","被放好","被听见"
+    ],
+
+    adjective: [
+      "安静","温柔","明亮","缓慢","轻盈","郑重","柔软","清醒","松弛",
+      "微凉","暖和","普通","干净","自由","熟悉","陌生"
+    ],
+
+    emotion: [
+      "安静","松弛","温柔","释然","期待","怀念","喜悦","和解","平静",
+      "清醒","柔软","明亮","安心"
+    ]
+  },
+
+  /* ===============================
+     三、可变句法词池
+     这些词用于打散固定模板感
+  =============================== */
+  phraseParts: {
+    subject: [
+      "我","时间","生活","风","光","雨","夜晚","白天","这一刻","心事",
+      "沉默","日子","影子","声音","晚风","月光","人间","今天","旧梦","余温",
+      "脚步","呼吸","眼睛","路灯","窗边","黄昏","清晨","微光","雨声","灯影"
+    ],
+
+    verb: [
+      "停住","靠近","松开","亮起","落下","经过","回来","变轻","慢下来","被记住",
+      "被看见","被放好","散开","醒来","照亮","藏起","靠岸","折返","留下","回头",
+      "安静","流动","发光","停留","变软","走远","变慢","变暖","被听见","被原谅"
+    ],
+
+    object: [
+      "一点光","一阵风","一场雨","一个瞬间","一段沉默","今天","自己","日子",
+      "回声","温度","一页黄昏","一小段夜晚","一束月光","一点余温","一声雨",
+      "普通的一天","刚才的心事","没说完的话","安静的部分","微亮的地方"
+    ],
+
+    manner: [
+      "慢慢","轻轻","忽然","刚好","悄悄","终于","仍然","安静地","小心地",
+      "认真地","一点点","低低地","轻微地","缓缓","无声地","温柔地","短暂地"
+    ],
+
+    relation: [
+      "像","替","把","让","向","从","在","等到","靠近","穿过","经过","落进",
+      "照见","带回","留给","藏进","放进","还给","交给"
+    ],
+
+    ending: [
+      "里面","之后","以前","旁边","深处","尽头","之间","背后","此刻","路上",
+      "风里","光里","夜里","心里","窗边","楼下","黄昏后","沉默里","人群外"
+    ],
+
+    measure: [
+      "一瞬","一声","一场","一页","一段","一道","一阵","一次","一小片",
+      "一点点","一整晚","一下午","一条路","一盏灯","一口气"
+    ]
+  },
+
+  /* ===============================
+     四、情绪方向判断
+  =============================== */
+  moodMap: {
+    joy: ["开心","快乐","好看","可爱","幸福","喜欢","满足","感动","热闹","笑"],
+    calm: ["安静","平静","舒服","松弛","轻松","慢","发呆","独处","一个人"],
+    memory: ["想念","怀念","记得","难忘","舍不得","从前","后来","以前"],
+    restart: ["开始","重新","明天","出门","醒来","清晨","整理","收拾"],
+    tender: ["温柔","柔软","月光","晚风","灯光","花","拥抱","暖"],
+    ordinary: ["普通","日常","小事","今天","吃饭","回家","生活"]
+  },
+
+  /* ===============================
+     五、半结构句型
+     注意：这里尽量没有完整固定金句
+  =============================== */
+  phraseStructures: {
+    short: [
+      "{subject}{manner}{verb}",
+      "{object}{manner}{verb}",
+      "{subject}{relation}{object}",
+      "{measure}{object}{verb}",
+      "{time}{manner}{adjective}",
+      "{place}{manner}{verb}",
+      "{body}{manner}{adjective}",
+      "{emotion}{manner}{verb}"
+    ],
+
+    imageLine: [
+      "{object}停在{place}",
+      "{time}有{measure}{object}",
+      "{body}听见{object}",
+      "{place}浮着{object}",
+      "{object}从{place}经过",
+      "{place}落着{object}",
+      "{object}靠近{body}",
+      "{time}把{object}放低",
+      "{object}照见{place}",
+      "{place}藏着{measure}{object}"
+    ],
+
+    feelingLine: [
+      "{body}{manner}{verb}",
+      "{emotion}{manner}{verb}",
+      "{subject}{relation}{emotion}",
+      "{body}{relation}{object}",
+      "{object}{relation}{body}{manner}{verb}",
+      "{emotion}在{ending}{verb}",
+      "{subject}在{ending}{verb}",
+      "{body}从{ending}{manner}{verb}",
+      "{measure}{emotion}{manner}{verb}",
+      "{subject}{manner}{adjective}"
+    ],
+
+    relationLine: [
+      "{object}{relation}{subject}{manner}{verb}",
+      "{subject}{relation}{object}{manner}{verb}",
+      "{place}{relation}{time}{manner}{verb}",
+      "{body}{relation}{object}{manner}{adjective}",
+      "{object}{relation}{emotion}{manner}{verb}",
+      "{time}{relation}{place}{manner}{adjective}",
+      "{measure}{object}{relation}{body}",
+      "{subject}{relation}{measure}{emotion}"
+    ],
+
+    longLine: [
+      "{time}的{place}{manner}{adjective}",
+      "{object}在{place}{manner}{verb}",
+      "{body}把{object}{manner}{verb}",
+      "{place}让{time}{manner}{verb}",
+      "{object}从{place}{manner}{verb}",
+      "{time}{relation}{object}{manner}{verb}",
+      "{place}{relation}{object}{manner}{adjective}",
+      "{body}在{ending}{manner}{verb}",
+      "{measure}{object}在{place}{verb}",
+      "{subject}把{object}放进{ending}"
+    ]
+  }
+};
+
+
+/* =====================================================
+   工具函数
+===================================================== */
+
+function randomPick(arr) {
+  return arr[Math.floor(Math.random() * arr.length)];
+}
+
+function poemCharCount(text) {
+  return String(text || "").replace(/\s|\n|，|。|、|；|：|！|？/g, "").length;
+}
+
+function uniqueArray(arr) {
+  return [...new Set(arr)].filter(Boolean);
+}
+
+function cleanUserText(text) {
+  return String(text || "")
+    .replace(/[^\u4e00-\u9fa5a-zA-Z0-9，。！？、,.!?；;：:\s]/g, "")
+    .replace(/\s+/g, "")
+    .trim();
+}
+
+
+/* =====================================================
+   关键词提取：只匹配完整词，不随机截字
+===================================================== */
+
+function extractWordsByDict(userText) {
+  const text = cleanUserText(userText);
+
+  const result = {
+    time: [],
+    place: [],
+    object: [],
+    body: [],
+    action: [],
+    adjective: [],
+    emotion: []
+  };
+
+  if (!text) return result;
+
+  // 1. 精确匹配词库里的完整词
+  Object.keys(ritualPoemEngine.dict).forEach(type => {
+    ritualPoemEngine.dict[type].forEach(word => {
+      if (text.includes(word)) {
+        result[type].push(word);
+      }
+    });
+  });
+
+  // 2. 模糊匹配：用户说法 → 归一成标准词
+  const aliasDict = ritualPoemEngine.aliasDict || {};
+
+  Object.keys(aliasDict).forEach(type => {
+    Object.keys(aliasDict[type]).forEach(standardWord => {
+      const aliases = aliasDict[type][standardWord];
+
+      aliases.forEach(alias => {
+        if (text.includes(alias)) {
+          result[type].push(standardWord);
+        }
+      });
+    });
+  });
+
+  // 3. 去重、长词优先
+  Object.keys(result).forEach(type => {
+    result[type] = uniqueArray(result[type])
+      .sort((a, b) => b.length - a.length)
+      .slice(0, 8);
+  });
+
+  return result;
+}
+
+
+/* =====================================================
+   情绪方向判断
+===================================================== */
+
+function detectMood(userText, extracted) {
+  const text = cleanUserText(userText);
+  const scores = {};
+
+  Object.keys(ritualPoemEngine.moodMap).forEach(mood => {
+    scores[mood] = 0;
+    ritualPoemEngine.moodMap[mood].forEach(word => {
+      if (text.includes(word)) scores[mood] += 1;
+    });
+  });
+
+  if (extracted.emotion.length > 0) {
+    scores.tender += 1;
+    scores.calm += 1;
+  }
+
+  const sorted = Object.entries(scores).sort((a, b) => b[1] - a[1]);
+  return sorted[0][1] > 0 ? sorted[0][0] : "ordinary";
+}
+
+
+/* =====================================================
+   构建词池：用户词优先 + 歌词精选词 + 日常低指向词
+===================================================== */
+
+function buildWordPool(userText) {
+  const extracted = extractWordsByDict(userText);
+  const mood = detectMood(userText, extracted);
+  const pool = {};
+
+  Object.keys(ritualPoemEngine.fallback).forEach(type => {
+    pool[type] = uniqueArray([
+      ...extracted[type],
+      ...ritualPoemEngine.fallback[type]
+    ]);
+  });
+
+  if (mood === "joy") {
+    pool.emotion.push("喜悦", "明亮", "轻盈", "满足");
+    pool.adjective.push("明亮", "热闹", "可爱", "暖和");
+    pool.object.push("灯光", "笑声", "花", "烟火");
+  }
+
+  if (mood === "calm") {
+    pool.emotion.push("安静", "松弛", "平静", "释然");
+    pool.adjective.push("安静", "缓慢", "柔软", "干净");
+    pool.action.push("慢下来", "停一下", "松开");
+  }
+
+  if (mood === "memory") {
+    pool.emotion.push("怀念", "温柔", "舍不得", "难忘");
+    pool.time.push("后来", "从前", "很久后");
+    pool.object.push("旧梦", "回声", "背影", "余温");
+  }
+
+  if (mood === "restart") {
+    pool.emotion.push("期待", "清醒", "释然");
+    pool.time.push("清晨", "明天", "天亮后");
+    pool.action.push("重新开始", "打开", "醒来", "出门");
+  }
+
+  if (mood === "tender") {
+    pool.emotion.push("温柔", "柔软", "释然", "安心");
+    pool.object.push("光", "风", "月光", "晚风", "灯影");
+    pool.adjective.push("温柔", "暖和", "柔软");
+  }
+
+  Object.keys(pool).forEach(type => {
+    pool[type] = uniqueArray(pool[type]);
+  });
+
+  return { pool, extracted, mood };
+}
+
+
+/* =====================================================
+   填充短语
+===================================================== */
+
+function fillPhrase(phrase, pool) {
+  const p = ritualPoemEngine.phraseParts;
+
+  return phrase
+    .replaceAll("{time}", randomPick(pool.time))
+    .replaceAll("{place}", randomPick(pool.place))
+    .replaceAll("{object}", randomPick(pool.object))
+    .replaceAll("{body}", randomPick(pool.body))
+    .replaceAll("{action}", randomPick(pool.action))
+    .replaceAll("{adjective}", randomPick(pool.adjective))
+    .replaceAll("{emotion}", randomPick(pool.emotion))
+    .replaceAll("{subject}", randomPick([
+      ...p.subject,
+      ...pool.body,
+      ...pool.object
+    ]))
+    .replaceAll("{verb}", randomPick([
+      ...p.verb,
+      ...pool.action
+    ]))
+    .replaceAll("{manner}", randomPick(p.manner))
+    .replaceAll("{relation}", randomPick(p.relation))
+    .replaceAll("{ending}", randomPick([
+      ...p.ending,
+      ...pool.place,
+      ...pool.time
+    ]))
+    .replaceAll("{measure}", randomPick(p.measure));
+}
+
+
+/* =====================================================
+   生成单行
+===================================================== */
+
+function makeLine(type, pool) {
+  const structures = ritualPoemEngine.phraseStructures[type] || ritualPoemEngine.phraseStructures.short;
+  return fillPhrase(randomPick(structures), pool);
+}
+
+
+/* =====================================================
+   多模式生成
+   不同长度、不同结构随机切换
+===================================================== */
+
+function generateFlexiblePoem(pool) {
+  const mode = Math.random();
+
+  // 1. 极短诗：8–14字，约15%
+  if (mode < 0.15) {
+    return makeLine("short", pool);
+  }
+
+  // 2. 两行短诗：14–20字，约30%
+  if (mode < 0.45) {
+    return [
+      makeLine(randomPick(["imageLine", "short", "relationLine"]), pool),
+      makeLine(randomPick(["feelingLine", "short"]), pool)
+    ].join("\n");
+  }
+
+  // 3. 两行标准诗：18–24字，约35%
+  if (mode < 0.80) {
+    return [
+      makeLine(randomPick(["imageLine", "longLine", "relationLine"]), pool),
+      makeLine(randomPick(["feelingLine", "relationLine", "longLine"]), pool)
+    ].join("\n");
+  }
+
+  // 4. 三行微诗：20–30字，约15%
+  if (mode < 0.95) {
+    return [
+      makeLine(randomPick(["short", "imageLine"]), pool),
+      makeLine(randomPick(["feelingLine", "relationLine"]), pool),
+      makeLine(randomPick(["short", "feelingLine"]), pool)
+    ].join("\n");
+  }
+
+  // 5. 断裂式短诗：12–24字，约5%
+  return [
+    makeLine("short", pool),
+    makeLine("short", pool),
+    makeLine("short", pool)
+  ].join("\n");
+}
+
+
+/* =====================================================
+   长度控制
+===================================================== */
+
+function isGoodLength(count) {
+  // 主要控制在16–24字
+  if (count >= 16 && count <= 24) return Math.random() < 0.95;
+
+  // 少量极短诗
+  if (count >= 8 && count < 16) return Math.random() < 0.25;
+
+  // 少量接近30字的长诗
+  if (count > 24 && count <= 30) return Math.random() < 0.55;
+
+  return false;
+}
+
+
+/* =====================================================
+   重复检测
+===================================================== */
+
+function similarity(a, b) {
+  const aa = new Set(String(a).replace(/\n/g, "").split(""));
+  const bb = new Set(String(b).replace(/\n/g, "").split(""));
+  const same = [...aa].filter(x => bb.has(x)).length;
+  return same / Math.max(aa.size, bb.size);
+}
+
+function isTooSimilar(poem) {
+  return ritualPoemEngine.history.some(old => similarity(old, poem) > 0.52);
+}
+
+function rememberPoem(poem) {
+  ritualPoemEngine.history.push(poem);
+  if (ritualPoemEngine.history.length > ritualPoemEngine.maxHistory) {
+    ritualPoemEngine.history.shift();
+  }
+}
+
+
+/* =====================================================
+   不自然组合过滤
+   避免明显机械、不通顺的句子
+===================================================== */
+
+function hasBadPattern(poem) {
+  const badPatterns = [
+    /自己.*自己.*自己/,
+    /今天.*今天.*今天/,
+    /生活.*生活.*生活/,
+    /一点.*一点.*一点/,
+    /很很/,
+    /慢慢.*慢慢.*慢慢/,
+    /轻轻.*轻轻.*轻轻/,
+    /安静.*安静.*安静/,
+    /温柔.*温柔.*温柔/
+  ];
+
+  return badPatterns.some(reg => reg.test(poem));
+}
+
+
+/* =====================================================
+   对外主函数：生成一首诗
+===================================================== */
+
+function generatePoemFromText(userText = "") {
+  const { pool } = buildWordPool(userText);
+
+  for (let i = 0; i < 200; i++) {
+    const poem = generateFlexiblePoem(pool);
+    const count = poemCharCount(poem);
+
+    if (
+      count >= 8 &&
+      count <= 30 &&
+      isGoodLength(count) &&
+      !isTooSimilar(poem) &&
+      !hasBadPattern(poem)
+    ) {
+      rememberPoem(poem);
+      return poem;
+    }
+  }
+
+  // 兜底诗，只有在200次都失败时出现
+  const fallback = "这一刻被轻轻放下\n风从心里经过";
+  rememberPoem(fallback);
+  return fallback;
+}
+
+
+/* =====================================================
+   一次生成三首候选
+===================================================== */
+
+function generatePoemOptionsFromText(userText = "") {
+  return [
+    generatePoemFromText(userText),
+    generatePoemFromText(userText),
+    generatePoemFromText(userText)
+  ];
+}
+
+
+/* =====================================================
+   调试函数：查看提取词和生成结果
+===================================================== */
+
+function debugPoemExtraction(userText = "") {
+  const data = buildWordPool(userText);
+  console.log("用户文本：", userText);
+  console.log("提取词：", data.extracted);
+  console.log("情绪方向：", data.mood);
+  console.log("生成诗：", generatePoemFromText(userText));
 }
 
 async function generateChinesePoem(userText) {
-    const safeText = String(userText ?? "").trim();
-    const locationText = document.getElementById("locationInput")?.value?.trim() || "";
+    return generatePoemFromText(userText);
+}
 
-    return buildPoemFromMaterials(
-        safeText,
-        selectedCategory,
-        currentPhotoDateParts,
-        locationText
-    );
+function wrapPoemTextEven(ctx, text, x, y, maxWidth, lineHeight) {
+    const paragraphs = String(text || '')
+        .split(/\n+/)
+        .map(s => s.trim())
+        .filter(Boolean);
+
+    let currentY = y;
+
+    paragraphs.forEach(paragraph => {
+        const chars = paragraph.split('');
+        let line = '';
+
+        for (let i = 0; i < chars.length; i++) {
+            const testLine = line + chars[i];
+            const testWidth = ctx.measureText(testLine).width;
+
+            if (testWidth > maxWidth && line !== '') {
+                ctx.fillText(line, x, currentY);
+                currentY += lineHeight;
+                line = chars[i];
+            } else {
+                line = testLine;
+            }
+        }
+
+        if (line) {
+            ctx.fillText(line, x, currentY);
+            currentY += lineHeight;
+        }
+    });
+
+    return currentY;
 }
 
 function wrapPoemText(ctx, text, x, y, maxWidth, lineHeight) {
@@ -2743,90 +5676,561 @@ function measurePoemTextHeight(ctx, text, maxWidth, lineHeight) {
     return totalHeight;
 }
 
-function getVerticalDynamicLayout(ctx, aiPoem) {
-    const poemFont = '700 100px "Source Han Sans CN", "Noto Sans SC", sans-serif';
-    const poemMaxWidth = 750;
-    const poemLineHeight = 90;
-
-    const topPadding = 18;
-    const bottomPadding = 24;
-
-    // 这两个值来自你原来固定 1200 高度下的竖版比例换算
-    // 中间图片区固定、底部区固定
-    const fixedImageH = 708;
-    const fixedBottomH = 192;
-
-    ctx.save();
-    ctx.font = poemFont;
-    const poemHeight = aiPoem.trim()
-        ? measurePoemTextHeight(ctx, aiPoem, poemMaxWidth, poemLineHeight)
-        : poemLineHeight;
-    ctx.restore();
-
-    const topBlockH = topPadding + poemHeight + bottomPadding;
+function getVerticalDynamicLayout(ctx, aiPoem, category, imageRatio = currentUploadedImageRatio) {
     const baseW = 750;
-    const baseH = Math.round(topBlockH + fixedImageH + fixedBottomH);
+
+    const poemFont = '700 107px "FZ CuHei Traditional", "FZ CuHei Traditional", sans-serif';
+    const poemMaxWidth = baseW;
+    const poemLineHeight = 97;
+
+    // 顶部 logo 区高度
+    const topBlockH = 180;
+
+    // =========================
+    // 图像区域比例分档
+    // =========================
+    let imageH;
+
+    if (imageRatio <= 2 / 3) {
+        // 很竖，最长限制为 2:3
+        imageH = Math.round(baseW * 1.5); // 750 × 1125
+    } else if (imageRatio <= 3 / 4) {
+        // 中等竖图，使用 3:4
+        imageH = Math.round(baseW * 4 / 3); // 750 × 1000
+    } else {
+        // 不足 3:4 的竖图，使用 1:1
+        imageH = baseW; // 750 × 750
+    }
+
+    // 底部诗歌区高度
+    ctx.save();
+ctx.font = poemFont;
+
+const poemHeight = aiPoem && aiPoem.trim()
+    ? measurePoemTextHeight(ctx, aiPoem, poemMaxWidth, poemLineHeight)
+    : poemLineHeight;
+
+ctx.restore();
+
+// 底部诗歌区：根据诗歌高度自适应
+const poemTopPadding = 10;
+const poemBottomPadding = 70; // 给 Fragment 方框和编号预留空间
+const bottomMinH = 450;
+
+const bottomH = Math.max(
+    bottomMinH,
+    poemHeight + poemTopPadding + poemBottomPadding
+);
+
+    const baseH = topBlockH + imageH + bottomH;
 
     return {
         baseW,
         baseH,
-        topBlockH: Math.round(topBlockH),
-        imageH: fixedImageH,
-        bottomH: fixedBottomH,
+        topBlockH,
+        imageH,
+        bottomH,
         poemFont,
         poemMaxWidth,
         poemLineHeight,
+
         poemX: 0,
-        poemY: topPadding
+        poemY: topBlockH + imageH,
+
+        decorRect: {
+            x: 0,
+            y: 0,
+            w: baseW,
+            h: topBlockH
+        },
+
+        imageRect: {
+            x: 0,
+            y: topBlockH,
+            w: baseW,
+            h: imageH
+        },
+
+        poemRect: {
+            x: 0,
+            y: topBlockH + imageH,
+            w: baseW,
+            h: bottomH
+        }
     };
 }
 
-        function drawDynamicText(ctx, layoutType, baseW, baseH, userText, indexNumber, aiPoem){
-    ctx.save();
-    ctx.fillStyle = "#ffffff";
-    ctx.textBaseline = "top";
+function wrapPoemTextReturnLines(ctx, text, x, y, maxWidth, lineHeight) {
+    const chars = String(text || "").split("");
+    const lines = [];
+    let line = "";
 
-    const locationText = document.getElementById('locationInput').value.trim() || "Unknown";
-    const englishDate = formatEnglishDateFromParts(currentPhotoDateParts);
-    const englishTime = formatEnglishTimeFromParts(currentPhotoDateParts);
-    const fragmentNo = String(indexNumber).padStart(3, "0");
-    const safeUserText = String(userText ?? "");
-    const safeAiPoem = String(aiPoem ?? "");
+    for (let i = 0; i < chars.length; i++) {
+        const ch = chars[i];
+
+        if (ch === "\n") {
+            if (line) {
+                lines.push(line);
+                line = "";
+            }
+            continue;
+        }
+
+        const testLine = line + ch;
+        const metrics = ctx.measureText(testLine);
+
+        if ((metrics.width > maxWidth || testLine.length > 7) && line !== "") {
+            lines.push(line);
+            line = ch;
+        } else {
+            line = testLine;
+        }
+    }
+
+    if (line) lines.push(line);
+
+    return lines.map((lineText, idx) => ({
+        text: lineText,
+        x,
+        y: y + idx * lineHeight
+    }));
+}
+
+function drawFragmentBox(ctx, x, y, w, h, color = '#ffffff') {
+    ctx.save();
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 1.4;
+
+    ctx.strokeRect(x, y, w, h);
+
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    ctx.lineTo(x + w, y + h);
+    ctx.moveTo(x + w, y);
+    ctx.lineTo(x, y + h);
+    ctx.stroke();
+
+    ctx.restore();
+}
+
+function wrapInfoLines(ctx, text, maxWidth) {
+    const chars = String(text || '').split('');
+    const lines = [];
+    let line = '';
+
+    for (const ch of chars) {
+        const testLine = line + ch;
+
+        if (ctx.measureText(testLine).width > maxWidth && line !== '') {
+            lines.push(line);
+            line = ch;
+        } else {
+            line = testLine;
+        }
+    }
+
+    if (line) lines.push(line);
+    return lines;
+}
+
+function breakPoemBySentenceAndWidth(ctx, text, maxWidth, lineHeight) {
+    const raw = String(text || '').trim();
+
+    // 先按句子断开：逗号、句号、顿号、分号、换行都算断点
+    const sentenceParts = raw
+        .split(/(?<=[，。！？；、,.!?;])|\n+/)
+        .map(s => s.trim())
+        .filter(Boolean);
+
+    const finalLines = [];
+
+    sentenceParts.forEach(part => {
+        const lines = breakTextIntoLines(ctx, part, maxWidth, lineHeight);
+        finalLines.push(...lines);
+    });
+
+    return finalLines;
+}
+
+function breakPoemBySentenceAndCharCount(text, maxChars = 7) {
+    const raw = String(text || '').trim();
+
+    const sentenceParts = raw
+        .split(/(?<=[，。！？；、,.!?;])|\n+/)
+        .map(s => s.trim())
+        .filter(Boolean);
+
+    const lines = [];
+
+    sentenceParts.forEach(part => {
+        let current = '';
+
+        for (const ch of part) {
+            current += ch;
+            if (current.length >= maxChars) {
+                lines.push(current);
+                current = '';
+            }
+        }
+
+        if (current) lines.push(current);
+    });
+
+    return lines;
+}
+
+function breakTextIntoLines(ctx, text, maxWidth, lineHeight) {
+    const chars = String(text || '').replace(/\n/g, '').split('');
+    const lines = [];
+    let line = '';
+
+    for (const ch of chars) {
+        const testLine = line + ch;
+        if (ctx.measureText(testLine).width > maxWidth && line !== '') {
+            lines.push(line);
+            line = ch;
+        } else {
+            line = testLine;
+        }
+    }
+
+    if (line) lines.push(line);
+    return lines;
+}
+
+        function drawDynamicText(ctx, layoutType, baseW, baseH, userText, indexNumber, aiPoem, category){
+    ctx.save();
+
+const locationText = document.getElementById('locationInput').value.trim() || 'Unknown';
+const englishTime = formatEnglishTimeFromParts(currentPhotoDateParts);
+const englishDate = formatEnglishDateFromParts(currentPhotoDateParts);
+const fragmentNo = String(indexNumber).padStart(5, '0');
+
+
+if (
+    layoutType === 'horizontal' &&
+    (category === 'light_time_moment' || category === 'light_time')
+) {
+    drawLightTimeHorizontalTexts(
+        ctx,
+        baseW,
+        baseH,
+        userText,
+        fragmentNo,
+        aiPoem,
+        locationText,
+        englishDate,
+        englishTime
+    );
+    ctx.restore();
+    return;
+}
+    const safeUserText = String(userText ?? '');
+    const safeAiPoem = String(aiPoem ?? '');
+    const themeLine = '寻找日常仪式感的最大公约数';
     let vLayout = null;
 
     if (layoutType === 'vertical') {
 
-    vLayout = getVerticalDynamicLayout(ctx, safeAiPoem);
+    const layoutCategory =
+    category === 'daily_object'
+        ? 'light_time_moment'
+        : category;
 
-    const blackRect = {
+vLayout = getVerticalDynamicLayout(
+    ctx,
+    safeAiPoem,
+    layoutCategory,
+    currentUploadedImageRatio
+);
+
+    if (category === 'daily_object') {
+    drawDailyObjectVerticalTexts(
+        ctx,
+        baseW,
+        baseH,
+        safeUserText,
+        fragmentNo,
+        safeAiPoem,
+        locationText,
+        englishDate,
+        englishTime,
+        vLayout
+    );
+    ctx.restore();
+    return;
+}
+
+    const imageRect = {
         x: 0,
         y: vLayout.topBlockH,
         w: baseW,
         h: vLayout.imageH
     };
 
-    const redRect = {
+    const bottomRect = {
         x: 0,
         y: vLayout.topBlockH + vLayout.imageH,
         w: baseW,
         h: vLayout.bottomH
     };
 
-    // ===== 正文（跟着图片区走）=====
-    ctx.font = '400 20px "ABC Favorit Expanded", sans-serif';
-    wrapText(
-        ctx,
-        safeUserText || "",
-        520,
-        blackRect.y + 310,
-        210,
-        22
+    const isLightTime =
+        category === 'light_time' ||
+        category === 'light_time_moment';
+
+    // =========================
+    // 光与时刻专用版式
+    // =========================
+    if (isLightTime) {
+
+        const decorRect = {
+            x: 0,
+            y: 0,
+            w: baseW,
+            h: vLayout.topBlockH
+        };
+
+        const poemRect = bottomRect;
+
+        // 顶部 logo 区
+        ctx.fillStyle = '#d8d8d5';
+        ctx.fillRect(
+            decorRect.x,
+            decorRect.y,
+            decorRect.w,
+            decorRect.h
+        );
+
+        if (topLogoBlack.complete) {
+            ctx.drawImage(
+                topLogoBlack,
+                decorRect.x,
+                decorRect.y,
+                decorRect.w,
+                decorRect.h
+            );
+        }
+
+        // 日期差值
+        drawDateNumbers(ctx, layoutType, vLayout, category);
+
+        // 月历整体位置大小
+        const calendarW = 320;      //月历宽
+        const calendarH = 175;      //月历高
+        const calendarRightGap = 10;    //距离图片右边
+        const calendarBottomGap = 25;    //距离图片底部
+
+drawMiniCalendar(
+    ctx,
+    imageRect.x + imageRect.w - calendarW - calendarRightGap,
+    imageRect.y + imageRect.h - calendarH - calendarBottomGap,
+    calendarW,
+    calendarH,
+    currentPhotoDateParts
+);
+
+// 图片区域信息层：英文日期 / Loc / Note / 右上角农历信息
+const imageUseDiff = useDifferenceOnRect(ctx.canvas, imageRect, 145);
+ctx.globalCompositeOperation = imageUseDiff ? 'difference' : 'source-over';
+ctx.fillStyle = '#ffffff';
+ctx.textAlign = 'left';
+ctx.textBaseline = 'top';
+
+// ===== 1. 英文日期 + 星期 =====
+const metaLeftX = imageRect.x + 18;
+const dateBlockY = imageRect.y + 122; // 控制英文日期整体上下位置
+
+const dateObj = new Date(
+    Number(currentPhotoDateParts.year),
+    Number(currentPhotoDateParts.month) - 1,
+    Number(currentPhotoDateParts.day)
+);
+
+const weekdayNames = [
+    'Sunday', 'Monday', 'Tuesday', 'Wednesday',
+    'Thursday', 'Friday', 'Saturday'
+];
+
+ctx.font = '600 34px "ABC Favorit Expanded", sans-serif';
+ctx.fillText(formatEnglishDateFromParts(currentPhotoDateParts), metaLeftX, dateBlockY);
+
+ctx.font = '600 32px "ABC Favorit Expanded", sans-serif';
+ctx.fillText(weekdayNames[dateObj.getDay()], metaLeftX, dateBlockY + 34);
+
+
+// ===== 2. Loc / Note 地点随记文字 =====
+ctx.font = '500 14px "ABC Favorit Expanded", "Source Han Sans SC", sans-serif';
+
+const metaLabelX = imageRect.x + 18;
+const metaBodyX = imageRect.x + 83;
+const metaStartY = dateBlockY + 115;
+const metaMaxWidth = 280;
+const metaLineHeight = 15;
+const metaBlockGap = 5;
+
+
+const infoItems = [
+    { label: 'Loc.', body: locationText || 'Unknown' },
+    { label: 'Note.', body: safeUserText || 'Unknown' }
+];
+
+let metaY = metaStartY;
+
+infoItems.forEach(item => {
+    ctx.fillText(item.label, metaLabelX, metaY);
+
+    const bodyLines = wrapInfoLines(ctx, item.body, metaMaxWidth);
+
+    bodyLines.forEach((line, idx) => {
+        ctx.fillText(line, metaBodyX, metaY + idx * metaLineHeight);
+    });
+
+    metaY += bodyLines.length * metaLineHeight + metaBlockGap;
+});
+
+
+// ===== 3. 右上角农历 / 节气 / 节日信息 =====
+const lunarInfo = getLunarCalendarInfo(currentPhotoDateParts);
+
+ctx.textAlign = 'right';
+
+const lunarX = imageRect.x + imageRect.w - 18;
+const lunarY = imageRect.y + 5;
+
+ctx.font = '700 26px "FZ CuHei Traditional", sans-serif';
+ctx.fillText(lunarInfo.yearZodiac, lunarX, lunarY);
+ctx.fillText(lunarInfo.monthDay, lunarX, lunarY + 26);
+
+ctx.font = '700 34px "ABC Favorit Expanded", sans-serif';
+ctx.fillText('/', lunarX, lunarY + 54);
+
+ctx.font = '700 24px "FZ CuHei Traditional", sans-serif';
+ctx.fillText(lunarInfo.weekday, lunarX, lunarY + 86);
+
+if (lunarInfo.special) {
+    ctx.font = '700 20px "FZ CuHei Traditional", sans-serif';
+    ctx.fillText(lunarInfo.special, lunarX, lunarY + 117);
+}
+
+ctx.textAlign = 'left';
+ctx.globalCompositeOperation = 'source-over';
+
+
+// 画完 difference 信息后，立刻恢复普通模式，避免影响后面的诗歌 / Fragment
+ctx.globalCompositeOperation = 'source-over';
+
+
+       // 诗歌颜色：根据底部诗歌色块真实亮度黑白切换
+const poemInk = getInkByRectLuminance(ctx.canvas, poemRect);
+
+// 诗歌（光与时刻：模糊显示）
+if (safeAiPoem.trim()) {
+    const poemColor = poemInk;
+
+    // ===== 可调参数 =====
+    const POEM_BLUR_PX = 3;
+    const POEM_STROKE_WIDTH = 7;
+
+    const poemCanvas = document.createElement('canvas');
+    poemCanvas.width = baseW;
+    poemCanvas.height = baseH;
+
+    const pctx = poemCanvas.getContext('2d');
+
+    pctx.clearRect(0, 0, poemCanvas.width, poemCanvas.height);
+    pctx.fillStyle = poemColor;
+    pctx.strokeStyle = poemColor;
+    pctx.lineWidth = POEM_STROKE_WIDTH;
+    pctx.lineJoin = 'round';
+    pctx.miterLimit = 2;
+
+    pctx.font = vLayout.poemFont;
+    pctx.textAlign = 'left';
+    pctx.textBaseline = 'top';
+
+    const lines = wrapPoemTextReturnLines(
+        pctx,
+        safeAiPoem,
+        poemRect.x - 5,
+        poemRect.y + 10,
+        baseW,
+        vLayout.poemLineHeight
     );
 
-    // ===== AI诗（顶部动态区域）=====
+    const GLOBAL_POEM_SCALE_X = 1;
+
+    lines.forEach(line => {
+        pctx.save();
+        pctx.translate(line.x, line.y);
+        pctx.scale(GLOBAL_POEM_SCALE_X, 1);
+        pctx.strokeText(line.text, 0, 0);
+        pctx.fillText(line.text, 0, 0);
+        pctx.restore();
+    });
+
+    ctx.save();
+    ctx.filter = `blur(${POEM_BLUR_PX}px)`;
+    ctx.drawImage(poemCanvas, 0, 0);
+    ctx.filter = 'none';
+    ctx.restore();
+}
+
+// Fragment 方框与编号：相对诗歌底部固定，并与诗歌文字同色
+const fragmentInk = poemInk;
+
+const fragmentBoxW = 275;
+const fragmentBoxH = 90;
+const fragmentRightGap = 18;
+const fragmentBottomGap = 18;
+
+const fragmentBoxX = poemRect.x + poemRect.w - fragmentBoxW - fragmentRightGap;
+const fragmentBoxY = poemRect.y + poemRect.h - fragmentBoxH - fragmentBottomGap;
+
+drawFragmentBox(
+    ctx,
+    fragmentBoxX,
+    fragmentBoxY,
+    fragmentBoxW,
+    fragmentBoxH,
+    fragmentInk
+);
+
+ctx.save();
+ctx.textAlign = 'right';
+ctx.textBaseline = 'alphabetic';
+ctx.fillStyle = fragmentInk;
+
+ctx.font = '500 20px "ABC Favorit Expanded", sans-serif';
+ctx.fillText(
+    '#Fragment',
+    fragmentBoxX + fragmentBoxW - 2,
+    fragmentBoxY + fragmentBoxH - 32
+);
+
+ctx.font = '600 28px "ABC Favorit Expanded", sans-serif';
+ctx.fillText(
+    fragmentNo,
+    fragmentBoxX + fragmentBoxW - 2,
+    fragmentBoxY + fragmentBoxH - 7
+);
+
+ctx.restore();
+
+return;
+
+    }
+
+    // =========================
+    // 其他类别保持原版
+    // =========================
+
+    drawTopDecorationStrip(ctx, layoutType, baseW, baseH, vLayout, category);
+    drawDateNumbers(ctx, layoutType, vLayout, category);
+
     if (safeAiPoem.trim()) {
-        ctx.font = '700 100px "Source Han Sans CN", "Noto Sans SC", sans-serif';
-        ctx.textAlign = "left";
+        ctx.fillStyle = '#ffffff';
+        ctx.font = '700 96px "FZ CuHei Traditional", sans-serif';
 
         wrapPoemText(
             ctx,
@@ -2838,76 +6242,505 @@ function getVerticalDynamicLayout(ctx, aiPoem) {
         );
     }
 
-    // ===== 底部信息（跟着底部色块走）=====
-    ctx.font = '400 18px "ABC Favorit Expanded", sans-serif';
-    ctx.fillText(`Date: ${englishDate}`, 18, redRect.y + 20);
-    ctx.fillText(`Time: ${englishTime}`, 18, redRect.y + 40);
-    ctx.fillText(`Loc.: ${locationText}`, 18, redRect.y + 60);
 
-    ctx.font = '400 20px "ABC Favorit Expanded", sans-serif';
-    ctx.fillText(`#Fragment`, 18, redRect.y + 130);
 
-    ctx.font = '600 30px "ABC Favorit Expanded", sans-serif';
-    ctx.fillText(fragmentNo, 18, redRect.y + 156);
 
 
     } else if (layoutType === 'horizontal') {
-        // 正文
-        ctx.font = '400 24px "ABC Favorit Expanded", sans-serif';
-        wrapText(ctx, safeUserText || "", 280, 610, 210, 22);
-
-        // 诗句
-        if (safeAiPoem.trim()) {
-        ctx.font = '700 120px "Source Han Sans CN", "Noto Sans SC", sans-serif';
-    ctx.textAlign = "left";
-    wrapPoemText(ctx, safeAiPoem, 0, 0, 1000, 110);
+        if (category === 'light_time_moment' || category === 'light_time') {
+    drawLightTimeHorizontalTexts(
+        ctx,
+        baseW,
+        baseH,
+        safeUserText,
+        fragmentNo,
+        safeAiPoem,
+        locationText,
+        englishDate,
+        englishTime
+    );
+    ctx.restore();
+    return;
 }
-
-        // 信息块
-        ctx.font = '400 22px "ABC Favorit Expanded", sans-serif';
-        ctx.fillText(`Date: ${englishDate}`, 2015, 800);
-        ctx.fillText(`Time: ${englishTime}`, 2015, 830);
-        ctx.fillText(`Loc.: ${locationText}`, 2015, 860);
-
-        // Fragment 两行
-        ctx.font = '400 24px "ABC Favorit Expanded", sans-serif';
-        ctx.fillText(`#Fragment`, 2015, 910);
-
-        ctx.font = '600 36px "ABC Favorit Expanded", sans-serif';
-        ctx.fillText(fragmentNo, 2015, 950);
-
-    } else if (layoutType === 'horizontal2') {
-        // 正文
-        ctx.font = '400 24px "ABC Favorit Expanded", sans-serif';
-        wrapText(ctx, safeUserText || "", 25, 220, 380, 22);
-
-        // 诗句
+        drawTopDecorationStrip(ctx, layoutType, baseW, baseH, vLayout, category);
+        drawDateNumbers(ctx, layoutType, vLayout, category);
         if (safeAiPoem.trim()) {
-    ctx.font = '700 100px "Source Han Sans CN", "Noto Sans SC", sans-serif';
-    ctx.textAlign = "left";
-    wrapPoemText(ctx, safeAiPoem, 980, 0, 700, 90);
-}
-
-        // 信息块
-        ctx.font = '400 22px "ABC Favorit Expanded", sans-serif';
-        ctx.fillText(`Date: ${englishDate}`, 1430, 800);
-        ctx.fillText(`Time: ${englishTime}`, 1430, 825);
-        ctx.fillText(`Loc.: ${locationText}`, 1430, 850);
-
-        // Fragment 两行
+            ctx.fillStyle = '#ffffff';
+            ctx.font = '700 120px "FZ CuHei Traditional", sans-serif';
+            wrapPoemText(ctx, safeAiPoem, 18, 18, 920, 110);
+        }
+        ctx.save();
+        ctx.globalCompositeOperation = 'difference';
+        ctx.fillStyle = '#ffffff';
         ctx.font = '400 24px "ABC Favorit Expanded", sans-serif';
-        ctx.fillText(`#Fragment`, 1430, 910);
-
-        ctx.font = '600 36px "ABC Favorit Expanded", sans-serif';
+        wrapText(ctx, safeUserText || '', 1030, 300, 450, 28);
+        ctx.restore();
+        drawMiniCalendar(ctx, 1020, 680, 460, 230, currentPhotoDateParts);
+        const bottomInk = getContrastTextColor(currentPaletteData?.secondary || '#ffffff');
+        ctx.fillStyle = bottomInk;
+        ctx.font = '500 22px "ABC Favorit Expanded", sans-serif';
+        ctx.fillText(getChineseDateLabel(currentPhotoDateParts), 2015, 760);
+        ctx.fillText(`Time ${englishTime}`, 2015, 792);
+        ctx.fillText(`Loc. ${locationText}`, 2015, 824);
+        ctx.fillText(themeLine, 2015, 856);
+        ctx.fillText('#Fragment', 2015, 915);
+        ctx.font = '600 34px "ABC Favorit Expanded", sans-serif';
+        ctx.fillText(fragmentNo, 2015, 948);
+    } else {
+        drawTopDecorationStrip(ctx, layoutType, baseW, baseH, vLayout, category);
+        drawDateNumbers(ctx, layoutType, vLayout, category);
+        if (safeAiPoem.trim()) {
+            ctx.fillStyle = '#ffffff';
+            ctx.font = '700 94px "FZ CuHei Traditional", sans-serif';
+            wrapPoemText(ctx, safeAiPoem, 980, 18, 660, 90);
+        }
+        ctx.save();
+        ctx.globalCompositeOperation = 'difference';
+        ctx.fillStyle = '#ffffff';
+        ctx.font = '400 22px "ABC Favorit Expanded", sans-serif';
+        wrapText(ctx, safeUserText || '', 24, 220, 350, 24);
+        ctx.restore();
+        drawMiniCalendar(ctx, 980, 700, 420, 220, currentPhotoDateParts);
+        const bottomInk = getContrastTextColor(currentPaletteData?.secondary || '#ffffff');
+        ctx.fillStyle = bottomInk;
+        ctx.font = '500 20px "ABC Favorit Expanded", sans-serif';
+        ctx.fillText(getChineseDateLabel(currentPhotoDateParts), 1430, 780);
+        ctx.fillText(`Time ${englishTime}`, 1430, 810);
+        ctx.fillText(`Loc. ${locationText}`, 1430, 840);
+        ctx.fillText(themeLine, 1430, 870);
+        ctx.fillText('#Fragment', 1430, 918);
+        ctx.font = '600 34px "ABC Favorit Expanded", sans-serif';
         ctx.fillText(fragmentNo, 1430, 950);
     }
-
-
-
-drawDateNumbers(ctx, layoutType, vLayout);
     ctx.restore();
 }
 
+function drawDailyObjectTopLogo(ctx, decorRect) {
+    const ink = getInkByRectLuminance(ctx.canvas, decorRect);
+    const logoImg = ink === '#ffffff' ? topLogoWhite : topLogoBlack;
+
+    if (!logoImg || !logoImg.complete) return;
+
+    ctx.save();
+    ctx.drawImage(
+        logoImg,
+        decorRect.x,
+        decorRect.y,
+        decorRect.w,
+        decorRect.h
+    );
+    ctx.restore();
+}
+
+function useDifferenceOnRect(canvas, rect, threshold = 130) {
+    const lum = sampleCanvasRegionLuminance(canvas, rect);
+    return lum >= threshold; // 背景亮才用 difference
+}
+
+function drawDailyObjectVerticalTexts(ctx, baseW, baseH, userText, fragmentNo, aiPoem, locationText, englishDate, englishTime, vLayout) {
+    const decorRect = vLayout.decorRect;
+    const imageRect = vLayout.imageRect;
+    const poemRect = vLayout.poemRect;
+
+    drawDailyObjectTopLogo(ctx, decorRect);
+
+    const imageUseDiff = useDifferenceOnRect(ctx.canvas, imageRect, 145);
+
+    const poemBgColor = sampleAverageColorFromCanvas(ctx.canvas, {
+        x: poemRect.x,
+        y: poemRect.y,
+        w: poemRect.w,
+        h: poemRect.h
+    });
+
+    const monthDay = getMonthDayString(currentPhotoDateParts);
+    const dateSampleRect = {
+    x: imageRect.x,
+    y: imageRect.y,
+    w: imageRect.w,
+    h: imageRect.h * 0.22
+};
+
+const dateDotColor = getAdaptiveSaturatedColorByBackground(
+    poemBgColor,
+    ctx.canvas,
+    dateSampleRect,
+    140
+);
+
+    // 日期大字：点阵字，颜色使用诗歌区色块色，不使用差值
+    ctx.save();
+    ctx.globalCompositeOperation = 'source-over';
+    drawTextAsDotMatrix(
+    ctx,
+    monthDay,
+    imageRect.x - 18,
+    imageRect.y + 5,
+    {
+        // 对应你参考图里的 400pt 大字，但按当前海报比例缩放
+        font: '900 190px "ABC Favorit Expanded", sans-serif',
+
+        // 日期大字颜色：继续使用诗歌区色块
+        color: dateDotColor,
+
+        // 圆圈本体：接近你说的“直径 9.7”的比例
+        dotR: 7,          // 👉 圆变大（核心）
+gap: 14,            // 👉 网格变稀（核心）
+strokeWidth: 8,   // 👉 圆圈描边更粗（更有存在感）
+
+textStrokeWidth: 28, // 👉 稍微收一点，避免糊死
+
+        lineHeight: 210,
+        maxWidth: imageRect.w
+    }
+);
+    ctx.restore();
+
+    // 月历：亮背景用差值，暗背景直接白字
+    const calendarW = 320;
+    const calendarH = 175;
+    const calendarRightGap = 10;
+    const calendarBottomGap = 25;
+
+    ctx.save();
+    ctx.globalCompositeOperation = 'source-over';
+    drawMiniCalendar(
+        ctx,
+        imageRect.x + imageRect.w - calendarW - calendarRightGap,
+        imageRect.y + imageRect.h - calendarH - calendarBottomGap,
+        calendarW,
+        calendarH,
+        currentPhotoDateParts
+    );
+    ctx.restore();
+
+    // 英文日期 图片区域信息层：亮背景用差值，暗背景直接白字
+    ctx.save();
+    ctx.globalCompositeOperation = imageUseDiff ? 'difference' : 'source-over';
+    ctx.fillStyle = '#ffffff';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'top';
+
+    const dateObj = new Date(
+        Number(currentPhotoDateParts.year),
+        Number(currentPhotoDateParts.month) - 1,
+        Number(currentPhotoDateParts.day)
+    );
+
+    const weekdayNames = [
+        'Sunday', 'Monday', 'Tuesday', 'Wednesday',
+        'Thursday', 'Friday', 'Saturday'
+    ];
+
+    const metaLeftX = imageRect.x + 18;
+    const dateBlockY = imageRect.y + imageRect.h * 0.14;
+
+    ctx.font = '600 34px "ABC Favorit Expanded", sans-serif';
+    ctx.fillText(formatEnglishDateFromParts(currentPhotoDateParts), metaLeftX, dateBlockY );
+
+    ctx.font = '600 32px "ABC Favorit Expanded", sans-serif';
+    ctx.fillText(weekdayNames[dateObj.getDay()], metaLeftX, dateBlockY + 34);
+
+    ctx.font = '500 14px "ABC Favorit Expanded", "FZ CuHei Traditional", sans-serif';
+
+    const metaLabelX = imageRect.x + 18;
+    const metaBodyX = imageRect.x + 83;
+    const metaStartY = dateBlockY + 115;
+    const metaMaxWidth = 280;
+    const metaLineHeight = 15;
+    const metaBlockGap = 5;
+
+    const infoItems = [
+        { label: 'Loc.', body: locationText || 'Unknown' },
+        { label: 'Note.', body: userText || 'Unknown' }
+    ];
+
+    let metaY = metaStartY;
+
+    infoItems.forEach(item => {
+        ctx.fillText(item.label, metaLabelX, metaY);
+
+        const bodyLines = wrapInfoLines(ctx, item.body, metaMaxWidth);
+        bodyLines.forEach((line, idx) => {
+            ctx.fillText(line, metaBodyX, metaY + idx * metaLineHeight);
+        });
+
+        metaY += bodyLines.length * metaLineHeight + metaBlockGap;
+    });
+
+    const lunarInfo = getLunarCalendarInfo(currentPhotoDateParts);
+
+    ctx.textAlign = 'right';
+
+    const lunarX = imageRect.x + imageRect.w - 18;
+    const lunarY = imageRect.y + 5;
+
+    ctx.font = '700 26px "FZ CuHei Traditional", sans-serif';
+    ctx.fillText(lunarInfo.yearZodiac, lunarX, lunarY);
+    ctx.fillText(lunarInfo.monthDay, lunarX, lunarY + 30);
+
+    ctx.font = '600 34px "ABC Favorit Expanded", sans-serif';
+    ctx.fillText('/', lunarX, lunarY + 62);
+
+    ctx.font = '700 24px "FZ CuHei Traditional", sans-serif';
+    ctx.fillText(lunarInfo.weekday, lunarX, lunarY + 104);
+
+    if (lunarInfo.special) {
+        ctx.font = '700 22px "FZ CuHei Traditional", sans-serif';
+        ctx.fillText(lunarInfo.special, lunarX, lunarY + 132);
+    }
+
+    ctx.restore();
+
+    // 诗歌区域：点阵字，自动换行，限制在底部区域
+    const poemInk = getInkByRectLuminance(ctx.canvas, poemRect);
+    const fragmentInk = poemInk;
+
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(poemRect.x, poemRect.y, poemRect.w, poemRect.h);
+    ctx.clip();
+
+    ctx.fillStyle = poemInk;
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'top';
+    ctx.font = '900 96px "FZ CuHei Traditional", sans-serif';
+
+    if (String(aiPoem || '').trim()) {
+        const poemLines = breakPoemBySentenceAndCharCount(
+    aiPoem,
+    7
+).join('\n');
+
+        drawTextAsDotMatrix(
+    ctx,
+    poemLines,
+    poemRect.x - 5,
+    poemRect.y + 10,
+    {
+        font: '900 110px "FZ CuHei Traditional", sans-serif',
+        color: poemInk,
+
+        dotR: 5,
+        gap: 9,
+        strokeWidth: 6,
+        textStrokeWidth: 1,
+
+        lineHeight: vLayout.poemLineHeight * 1.15,
+        maxWidth: poemRect.w
+    }
+);
+    }
+
+    ctx.restore();
+
+    // Fragment 方框与编号
+    const fragmentBoxW = 275;
+    const fragmentBoxH = 90;
+    const fragmentRightGap = 18;
+    const fragmentBottomGap = 18;
+
+    const fragmentBoxX = poemRect.x + poemRect.w - fragmentBoxW - fragmentRightGap;
+    const fragmentBoxY = poemRect.y + poemRect.h - fragmentBoxH - fragmentBottomGap;
+
+    drawFragmentBox(
+        ctx,
+        fragmentBoxX,
+        fragmentBoxY,
+        fragmentBoxW,
+        fragmentBoxH,
+        fragmentInk
+    );
+
+    ctx.save();
+    ctx.textAlign = 'right';
+    ctx.textBaseline = 'alphabetic';
+    ctx.fillStyle = fragmentInk;
+
+    ctx.font = '500 20px "ABC Favorit Expanded", sans-serif';
+    ctx.fillText(
+        '#Fragment',
+        fragmentBoxX + fragmentBoxW - 2,
+        fragmentBoxY + fragmentBoxH - 32
+    );
+
+    ctx.font = '600 28px "ABC Favorit Expanded", sans-serif';
+    ctx.fillText(
+        fragmentNo,
+        fragmentBoxX + fragmentBoxW - 2,
+        fragmentBoxY + fragmentBoxH - 7
+    );
+
+    ctx.restore();
+}
+
+function drawLightTimeHorizontalTexts(ctx, baseW, baseH, userText, fragmentNo, aiPoem, locationText, englishDate, englishTime) {
+    const leftW = 560;
+    const rightW = 620;
+    const imageW = baseW - leftW - rightW;
+
+    const leftRect = { x: 0, y: 0, w: leftW, h: baseH };
+    const imageRect = { x: leftW, y: 0, w: imageW, h: baseH };
+    const rightRect = { x: leftW + imageW, y: 0, w: rightW, h: baseH };
+    const rightInk = getInkByRectLuminance(ctx.canvas, rightRect);
+
+    // 1. 左侧编号方框
+    const boxW = leftRect.w * 0.48;
+const boxH = baseH * 0.16;
+
+const boxX = leftRect.x + leftRect.w * 0.48;
+const boxY = currentFragmentBoxPosition === 'top'
+    ? baseH * 0.02
+    : baseH * 0.81;
+
+    drawFragmentBox(ctx, boxX, boxY, boxW, boxH, '#ffffff');
+
+    ctx.save();
+    ctx.fillStyle = rightInk;
+    ctx.textAlign = 'right';
+    ctx.textBaseline = 'alphabetic';
+    if (currentFragmentBoxPosition === 'top') {
+    ctx.font = '500 24px "ABC Favorit Expanded", sans-serif';
+    ctx.fillText('#Fragment', boxX + boxW - 6, boxY + 34);
+
+    ctx.font = '600 42px "ABC Favorit Expanded", sans-serif';
+    ctx.fillText(fragmentNo, boxX + boxW - 6, boxY + 76);
+} else {
+    ctx.font = '500 24px "ABC Favorit Expanded", sans-serif';
+    ctx.fillText('#Fragment', boxX + boxW - 6, boxY + boxH - 56);
+
+    ctx.font = '600 42px "ABC Favorit Expanded", sans-serif';
+    ctx.fillText(fragmentNo, boxX + boxW - 6, boxY + boxH - 18);
+}
+    ctx.restore();
+
+    // 2. 日期大字：横跨左侧色块和图片区
+    drawDateNumbers(ctx, 'horizontal', null, 'light_time_moment');
+
+    // 3. 月历：压在图片区上半部分
+    ctx.save();
+    ctx.globalCompositeOperation = 'difference';
+    drawMiniCalendar(
+        ctx,
+        imageRect.x + imageRect.w * 0.64,
+        imageRect.y + imageRect.h * 0.75,
+        imageRect.w * 0.35,
+        imageRect.h * 0.24,
+        currentPhotoDateParts,
+        1.22
+    );
+    ctx.restore();
+
+    // 4. 图片区域信息层：英文日期 / Loc / Note / 右上角农历信息
+ctx.save();
+ctx.globalCompositeOperation = 'difference';
+ctx.fillStyle = '#ffffff';
+ctx.textBaseline = 'top';
+
+// ===== 英文日期 + 星期 =====
+const dateObj = new Date(
+    Number(currentPhotoDateParts.year),
+    Number(currentPhotoDateParts.month) - 1,
+    Number(currentPhotoDateParts.day)
+);
+
+const weekdayNames = [
+    'Sunday', 'Monday', 'Tuesday', 'Wednesday',
+    'Thursday', 'Friday', 'Saturday'
+];
+
+// 可调：英文日期位置
+const metaLeftX = imageRect.x + imageRect.w * 0.03;
+const dateBlockY = imageRect.y + imageRect.h * 0.27;
+
+ctx.textAlign = 'left';
+ctx.font = '600 40px "ABC Favorit Expanded", sans-serif';
+ctx.fillText(formatEnglishDateFromParts(currentPhotoDateParts), metaLeftX, dateBlockY);
+
+ctx.font = '600 38px "ABC Favorit Expanded", sans-serif';
+ctx.fillText(weekdayNames[dateObj.getDay()], metaLeftX, dateBlockY + 42);
+
+// ===== Loc / Note =====
+ctx.font = '500 20px "ABC Favorit Expanded", "Source Han Sans SC", sans-serif';
+
+const metaLabelX = imageRect.x + imageRect.w * 0.03;    // Loc. / Note. 整组左右位置
+const metaBodyX = metaLabelX + 95;    // 正文距离 Loc. / Note. 标签的距离
+const metaStartY = dateBlockY + 145;    // Loc. 第一行的上下位置
+const metaMaxWidth = imageRect.w * 0.40;    // Loc. / Note. 正文文本框宽度
+const metaLineHeight = 20;    // 正文换行后的行距
+const metaBlockGap = 14;    // Loc. 和 Note. 两组之间的间距
+
+const infoItems = [
+    { label: 'Loc.', body: locationText || 'Unknown' },
+    { label: 'Note.', body: userText || 'Unknown' }
+];
+
+let metaY = metaStartY;
+
+infoItems.forEach(item => {
+    ctx.fillText(item.label, metaLabelX, metaY);
+
+    const bodyLines = wrapInfoLines(ctx, item.body, metaMaxWidth);
+
+    bodyLines.forEach((line, idx) => {
+        ctx.fillText(line, metaBodyX, metaY + idx * metaLineHeight);
+    });
+
+    metaY += bodyLines.length * metaLineHeight + metaBlockGap;
+});
+
+// ===== 右上角农历 / 节气 / 节日信息 =====
+const lunarInfo = getLunarCalendarInfo(currentPhotoDateParts);
+
+const lunarX = imageRect.x + imageRect.w * 0.975;
+const lunarY = imageRect.y + imageRect.h * 0.03;
+
+ctx.textAlign = 'right';
+
+ctx.font = '700 34px "FZ CuHei Traditional", sans-serif';
+ctx.fillText(lunarInfo.yearZodiac, lunarX, lunarY);
+ctx.fillText(lunarInfo.monthDay, lunarX, lunarY + 36);
+
+ctx.font = '600 44px "ABC Favorit Expanded", sans-serif';
+ctx.fillText('/', lunarX, lunarY + 76);
+
+ctx.font = '700 32px "FZ CuHei Traditional", sans-serif';
+ctx.fillText(lunarInfo.weekday, lunarX, lunarY + 120);
+
+if (lunarInfo.special) {
+    ctx.font = '700 28px "FZ CuHei Traditional", sans-serif';
+    ctx.fillText(lunarInfo.special, lunarX, lunarY + 156);
+}
+
+ctx.globalCompositeOperation = 'source-over';
+ctx.restore();
+    
+
+    // 5. 右侧诗歌：严格限制在右侧色块里
+ctx.save();
+ctx.beginPath();
+ctx.rect(rightRect.x, rightRect.y, rightRect.w, rightRect.h);
+ctx.clip();
+
+ctx.fillStyle = rightInk;
+ctx.textAlign = 'left';
+ctx.textBaseline = 'top';
+ctx.filter = 'blur(2.2px)';
+ctx.font = '700 120px "FZ CuHei Traditional", sans-serif';
+
+wrapPoemText(
+    ctx,
+    aiPoem || '',
+    rightRect.x + rightRect.w * 0.02,
+    rightRect.y + rightRect.h * 0.02,
+    rightRect.w * 0.98,
+    100
+);
+
+ctx.filter = 'none';
+ctx.restore();
+
+}
 
         function getImageFitRectInRegion(sourceCanvas, rect) {
     const { x, y, w, h } = rect;
@@ -3443,7 +7276,7 @@ function drawRibbonGradientTube(ctx, pts, options = {}) {
                 drawY = y + (h - drawH) / 2;
             }
 
-            if (type === 'space') {
+            if (type === 'light_time') {
                 const p = FX.space;
 
                 function subdivide(r, depth) {
@@ -3514,7 +7347,7 @@ function drawRibbonGradientTube(ctx, pts, options = {}) {
                     }
                 }
 
-            } else if (type === 'object') {
+            } else if (type === 'daily_object') {
     const p = FX.object;
 
     // 先铺原图
@@ -3645,7 +7478,7 @@ const borderStroke = `rgba(${borderColor.r},${borderColor.g},${borderColor.b},0.
 
 
 
-            } else if (type === 'moment') {
+            } else if (type === 'light_time_moment') {
                 const p = FX.moment;
 
                 // 先铺原图
@@ -3690,7 +7523,13 @@ const borderStroke = `rgba(${borderColor.r},${borderColor.g},${borderColor.b},0.
                     const dx = drawX + sx * mapX;
                     const dy = drawY + sy * mapY;
 
-                    const stretchLen = (p.stretchLengthMin + Math.random() * (p.stretchLengthMax - p.stretchLengthMin)) * mapX;
+                    const stretchControl = Number(typeSliderA.value) / 100;
+
+// 拉伸强度：控制横向长度，不控制高度
+const minLen = 40 + stretchControl * 180;
+const maxLen = 90 + stretchControl * 520;
+
+const stretchLen = (minLen + Math.random() * (maxLen - minLen)) * mapX;
 
                     // 完全不透明，去掉那种半透明糊感
                     ctx.globalAlpha = 1.0;
@@ -3720,7 +7559,12 @@ const borderStroke = `rgba(${borderColor.r},${borderColor.g},${borderColor.b},0.
                     const dx = drawX + sx * mapX;
                     const dy = drawY + sy * mapY;
 
-                    const stretchLen = (280 + Math.random() * 420) * mapX;
+                    const stretchControl = Number(typeSliderA.value) / 100;
+
+const fineMinLen = 60 + stretchControl * 220;
+const fineMaxLen = 120 + stretchControl * 620;
+
+const stretchLen = (fineMinLen + Math.random() * (fineMaxLen - fineMinLen)) * mapX;
 
                     ctx.globalAlpha = 0.96;
                     ctx.drawImage(
@@ -3738,7 +7582,7 @@ const borderStroke = `rgba(${borderColor.r},${borderColor.g},${borderColor.b},0.
 
             
 
-            } else if (type === 'person') {
+            } else if (type === 'in_action') {
     const p = FX.person;
 
     // 先铺原图背景
@@ -3780,7 +7624,7 @@ ctx.drawImage(groupCanvas, drawX, drawY, drawW, drawH);
 
 
 
-            } else if (type === 'light') {
+            } else if (type === 'light_time_extra') {
                 ctx.drawImage(workingCanvas, drawX, drawY, drawW, drawH);
 
                 ctx.globalAlpha = 0.08;
@@ -3843,51 +7687,79 @@ ctx.drawImage(groupCanvas, drawX, drawY, drawW, drawH);
         
 
         generateBtn.addEventListener('click', async function() {
-            const userText = document.getElementById('userText').value.trim();
+            console.log("正在运行：新版光影横构图代码 04:00");
+    if (!uploadedImage) return;
 
+    const dateWrap = document.getElementById('dateInputWrap');
+    const dateInput = document.getElementById('dateInput');
 
-            if (!uploadedImage) return;
+    if (dateWrap && dateInput && dateWrap.style.display !== 'none') {
+        const manualDateValue = dateInput.value.trim();
+        const manualParts = getDatePartsFromDateInputValue(manualDateValue);
 
-            loadingMsg.style.display = 'block';
-            generateBtn.disabled = true;
+        if (manualParts) {
+            currentPhotoDateParts = manualParts;
+        }
+    }
 
-            try {
-                const workingCanvas = document.createElement('canvas');
-                const wCtx = workingCanvas.getContext('2d');
+    loadingMsg.style.display = 'block';
+    generateBtn.disabled = true;
 
-                let workW = uploadedImage.width;
-                let workH = uploadedImage.height;
-                const maxWorkDim = 800;
+    try {
+        await ensureCustomFontsLoaded();
+        if (classifyMode === 'auto' && uploadedImage) {
+            selectedCategory = await classifyImage(fileInput.files?.[0], uploadedImage);
+            updateDetectedCategoryUI(selectedCategory);
+            catBtns.forEach(b => b.classList.toggle('active', b.dataset.type === selectedCategory));
+        }
 
-                if (workW > maxWorkDim || workH > maxWorkDim) {
-                    const ratio = Math.min(maxWorkDim / workW, maxWorkDim / workH);
-                    workW = Math.round(workW * ratio);
-                    workH = Math.round(workH * ratio);
-                }
+        const workingCanvas = document.createElement('canvas');
+        const wCtx = workingCanvas.getContext('2d');
 
-                workingCanvas.width = workW;
-                workingCanvas.height = workH;
-                wCtx.drawImage(uploadedImage, 0, 0, workW, workH);
+        let workW = uploadedImage.width;
+        let workH = uploadedImage.height;
+        const maxWorkDim = 800;
 
-                const palette = extractExtendedPalette(workingCanvas);
-                const userText = getUserTextValue();
+        if (workW > maxWorkDim || workH > maxWorkDim) {
+            const ratio = Math.min(maxWorkDim / workW, maxWorkDim / workH);
+            workW = Math.round(workW * ratio);
+            workH = Math.round(workH * ratio);
+        }
 
-                currentFragmentNumber = await reserveFragmentNumber();
-                const indexNumber = currentFragmentNumber;
+        workingCanvas.width = workW;
+        workingCanvas.height = workH;
+        wCtx.drawImage(uploadedImage, 0, 0, workW, workH);
+
+        const palette = extractExtendedPalette(workingCanvas);
+        const userText = getUserTextValue();
+
+        currentFragmentNumber = await reserveFragmentNumber();
+const indexNumber = currentFragmentNumber;
 
                 const canvas = document.getElementById('finalCanvas');
                 const ctx = canvas.getContext('2d');
 
                 const imageRatio = workW / workH;
+                currentUploadedImageRatio = imageRatio;
                 let layoutType;
 
-                if (imageRatio <= 1) {
-                    layoutType = 'vertical';
-                } else if (imageRatio >= 1.55) {
-                    layoutType = 'horizontal';
-                } else {
-                    layoutType = 'horizontal2';
-                }
+                if (selectedCategory === 'light_time') {
+    // 光影时刻：竖图走竖构图，所有横图都走新的 horizontal 横构图
+    if (imageRatio <= 1) {
+        layoutType = 'vertical';
+    } else {
+        layoutType = 'horizontal';
+    }
+} else {
+    // 其他分类保留原来的判断
+    if (imageRatio <= 1) {
+        layoutType = 'vertical';
+    } else if (imageRatio >= 1.55) {
+        layoutType = 'horizontal';
+    } else {
+        layoutType = 'horizontal2';
+    }
+}
 
                 let baseW, baseH;
 let verticalLayout = null;
@@ -3895,84 +7767,239 @@ let verticalLayout = null;
 // 提前生成 AI 诗，因为竖版高度要靠它来算
 currentAiPoem = await generateChinesePoem(userText);
 
+// 先统一得到当前处理分类
+const processedCategory = selectedCategory === "light_time" ? "light_time_moment" : selectedCategory;
+
+currentCategory = processedCategory;
+
 if (layoutType === 'vertical') {
-    verticalLayout = getVerticalDynamicLayout(ctx, currentAiPoem);
+    const layoutCategory =
+    processedCategory === 'daily_object'
+        ? 'light_time_moment'
+        : processedCategory;
+
+verticalLayout = getVerticalDynamicLayout(
+    ctx,
+    currentAiPoem,
+    layoutCategory,
+    imageRatio
+);
+
     baseW = verticalLayout.baseW;
     baseH = verticalLayout.baseH;
+
 } else if (layoutType === 'horizontal') {
-    baseW = 2419;
     baseH = 1000;
+
+    if (processedCategory === 'light_time_moment' || processedCategory === 'light_time') {
+        const targetImageRatio = imageRatio >= 16 / 9 ? 3 / 2 : 4 / 3;
+
+        const leftW = 560;
+        const rightW = 620;
+        const imageW = baseH * targetImageRatio;
+
+        baseW = leftW + imageW + rightW;
+    } else {
+        baseW = 2419;
+    }
+
 } else {
     baseW = 1679;
     baseH = 1000;
 }
 
-                canvas.width = baseW;
-                canvas.height = baseH;
+baseW = Math.round(baseW);
+baseH = Math.round(baseH);
+
+if (!Number.isFinite(baseW) || !Number.isFinite(baseH) || baseW <= 0 || baseH <= 0) {
+    throw new Error(`画布尺寸错误：baseW=${baseW}, baseH=${baseH}, layoutType=${layoutType}, imageRatio=${imageRatio}, processedCategory=${processedCategory}`);
+}
+
+canvas.width = baseW;
+canvas.height = baseH;
+ctx.clearRect(0, 0, baseW, baseH);
+
 
                 let blueRect, blackRect, redRect;
                 let imageRegion;
 
                 if (layoutType === 'vertical') {
+    if (
+        processedCategory === 'light_time_moment' ||
+        processedCategory === 'light_time' ||
+        processedCategory === 'daily_object'
+    ) {
+        blueRect = { ...verticalLayout.decorRect };
+        blackRect = { ...verticalLayout.imageRect };
+        redRect = { ...verticalLayout.poemRect };
+    } else {
+        blueRect = {
+            x: 0,
+            y: 0,
+            w: baseW,
+            h: verticalLayout.topBlockH
+        };
+
+        blackRect = {
+            x: 0,
+            y: blueRect.h,
+            w: baseW,
+            h: verticalLayout.imageH
+        };
+
+        redRect = {
+            x: 0,
+            y: blueRect.h + blackRect.h,
+            w: baseW,
+            h: verticalLayout.bottomH
+        };
+    }
+
+} else if (layoutType === 'horizontal') {
+
+    if (processedCategory === 'light_time_moment' || processedCategory === 'light_time') {
+
+        const targetImageRatio = imageRatio >= 16 / 9 ? 3 / 2 : 4 / 3;
+
+        const leftW = 560;
+        const imageW = baseH * targetImageRatio;
+        const rightW = 620;
+
+        blueRect = {
+            x: 0,
+            y: 0,
+            w: leftW,
+            h: baseH
+        };
+
+        blackRect = {
+            x: leftW,
+            y: 0,
+            w: imageW,
+            h: baseH
+        };
+
+        redRect = {
+            x: leftW + imageW,
+            y: 0,
+            w: rightW,
+            h: baseH
+        };
+
+    } else {
+
+        const totalW = 108.164 + 688.65 + 168.808;
+        const blueW = 108.164 / totalW;
+        const blackW = 688.65 / totalW;
+        const redW = 168.808 / totalW;
+
+        blueRect = {
+            x: 0,
+            y: 0,
+            w: baseW * blueW,
+            h: baseH
+        };
+
+        blackRect = {
+            x: baseW * blueW,
+            y: 0,
+            w: baseW * blackW,
+            h: baseH
+        };
+
+        redRect = {
+            x: baseW * (blueW + blackW),
+            y: 0,
+            w: baseW * redW,
+            h: baseH
+        };
+    }
+
+} else {
+
+    const totalW = 169.483 + 394.116 + 108.399;
+    const blueW = 169.483 / totalW;
+    const blackW = 394.116 / totalW;
+    const redW = 108.399 / totalW;
+
     blueRect = {
         x: 0,
         y: 0,
-        w: baseW,
-        h: verticalLayout.topBlockH
+        w: baseW * blueW,
+        h: baseH
     };
 
     blackRect = {
-        x: 0,
-        y: blueRect.h,
-        w: baseW,
-        h: verticalLayout.imageH
+        x: baseW * blueW,
+        y: 0,
+        w: baseW * blackW,
+        h: baseH
     };
 
     redRect = {
-        x: 0,
-        y: blueRect.h + blackRect.h,
-        w: baseW,
-        h: verticalLayout.bottomH
+        x: baseW * (blueW + blackW),
+        y: 0,
+        w: baseW * redW,
+        h: baseH
+    };
+}
+
+                
+    imageRegion = {
+        x: blackRect.x,
+        y: blackRect.y,
+        w: blackRect.w,
+        h: blackRect.h
     };
 
-                } else if (layoutType === 'horizontal') {
-                    const totalW = 108.164 + 688.65 + 168.808;
-                    const blueW = 108.164 / totalW;
-                    const blackW = 688.65 / totalW;
-                    const redW = 168.808 / totalW;
-
-                    blueRect = { x: 0, y: 0, w: baseW * blueW, h: baseH };
-                    blackRect = { x: baseW * blueW, y: 0, w: baseW * blackW, h: baseH };
-                    redRect = { x: baseW * (blueW + blackW), y: 0, w: baseW * redW, h: baseH };
-
-                } else {
-                    const totalW = 169.483 + 394.116 + 108.399;
-                    const blueW = 169.483 / totalW;
-                    const blackW = 394.116 / totalW;
-                    const redW = 108.399 / totalW;
-
-                    blueRect = { x: 0, y: 0, w: baseW * blueW, h: baseH };
-                    blackRect = { x: baseW * blueW, y: 0, w: baseW * blackW, h: baseH };
-                    redRect = { x: baseW * (blueW + blackW), y: 0, w: baseW * redW, h: baseH };
-                }
-
-                imageRegion = {
-                    x: blackRect.x,
-                    y: blackRect.y,
-                    w: blackRect.w,
-                    h: blackRect.h
-                };
 
                 ctx.fillStyle = palette.dominant;
-                ctx.fillRect(blueRect.x, blueRect.y, blueRect.w, blueRect.h);
+ctx.fillRect(blueRect.x, blueRect.y, blueRect.w, blueRect.h);
 
-                ctx.fillStyle = '#1a1a1a';
-                ctx.fillRect(blackRect.x, blackRect.y, blackRect.w, blackRect.h);
+ctx.fillStyle = '#1a1a1a';
+ctx.fillRect(blackRect.x, blackRect.y, blackRect.w, blackRect.h);
 
-                ctx.fillStyle = palette.secondary;
-                ctx.fillRect(redRect.x, redRect.y, redRect.w, redRect.h);
+ctx.fillStyle = palette.secondary;
+ctx.fillRect(redRect.x, redRect.y, redRect.w, redRect.h);
 
-                await processImage(ctx, workingCanvas, imageRegion, selectedCategory, palette);
+// 保存一张没有照片、没有条带、没有文字的干净结构底图
+const cleanLayoutCanvas = cloneCanvas(canvas);
+
+if (
+    layoutType === 'horizontal' &&
+    (processedCategory === 'light_time_moment' || processedCategory === 'light_time')
+) {
+    const photoLayer = document.createElement('canvas');
+    photoLayer.width = baseW;
+    photoLayer.height = baseH;
+    const photoCtx = photoLayer.getContext('2d');
+
+    drawImageCoverToRect(photoCtx, uploadedImage, imageRegion);
+
+
+    if (!hasInitializedLightTimeSliders) {
+    typeSliderA.value = 28;
+    typeSliderB.value = 18;
+    typeSliderC.value = 50;
+    hasInitializedLightTimeSliders = true;
+}
+
+applyLightTimeSlidersToFX();
+
+    // 先画被“切口”处理过的照片主体，制造异形边缘基础
+ctx.drawImage(photoLayer, 0, 0);
+drawLightTimeHorizontalOverflowStrips(ctx, photoLayer, imageRegion, baseW, baseH);
+
+    // 最后画轮廓线，保证轮廓压在照片和条带上方
+    //drawLightTimeContourLayer(ctx, photoLayer, imageRegion);
+
+} else {
+    if (processedCategory === 'daily_object') {
+        processDailyObjectImage(ctx, workingCanvas, imageRegion);
+    } else {
+        await processImage(ctx, workingCanvas, imageRegion, processedCategory, palette);
+    }
+}
 
 
 
@@ -3980,37 +8007,33 @@ if (layoutType === 'vertical') {
 currentBaseCanvas = cloneCanvas(canvas);
 
 await ensureCustomFontsLoaded();
-drawDynamicText(ctx, layoutType, baseW, baseH, userText, indexNumber, currentAiPoem);
+
+if (
+    layoutType === 'horizontal' &&
+    (processedCategory === 'light_time_moment' || processedCategory === 'light_time')
+) {
+    currentFragmentBoxPosition = Math.random() < 0.5 ? 'top' : 'bottom';
+}
+
+drawDynamicText(ctx, layoutType, baseW, baseH, userText, indexNumber, currentAiPoem, processedCategory);
+
+if (
+    layoutType === 'horizontal' &&
+    (processedCategory === 'light_time_moment' || processedCategory === 'light_time')
+) {
+    applyLeftIrregularPosterMask(ctx, baseW, baseH, blueRect);
+}
 
 const templateUrl = TEMPLATES[layoutType];
 const templateImg = new Image();
 
-function drawTemplateLayer(ctx, templateImg, layoutType, baseW, baseH, verticalLayout) {
-    if (layoutType === 'vertical' && verticalLayout) {
-        const fixedTemplateH = verticalLayout.imageH + verticalLayout.bottomH;
-        const drawY = verticalLayout.topBlockH;
-
-        ctx.drawImage(
-            templateImg,
-            0, 0, templateImg.width, templateImg.height,
-            0, drawY, baseW, fixedTemplateH
-        );
-    } else {
-        ctx.drawImage(templateImg, 0, 0, baseW, baseH);
-    }
+function drawTemplateLayer(ctx, templateImg, layoutType, baseW, baseH, verticalLayout, category) {
+    // 已取消 PNG 模板蒙版绘制
+    return;
 }
 
 templateImg.onload = async function() {
-    // 保存模板图层
-    currentTemplateCanvas = document.createElement('canvas');
-    currentTemplateCanvas.width = canvas.width;
-    currentTemplateCanvas.height = canvas.height;
-    const tctx = currentTemplateCanvas.getContext('2d');
-    drawTemplateLayer(tctx, templateImg, layoutType, canvas.width, canvas.height, verticalLayout);
-
-    // 主画布盖模板
-    drawTemplateLayer(ctx, templateImg, layoutType, canvas.width, canvas.height, verticalLayout);
-
+    
     const finalDataUrl = canvas.toDataURL("image/png");
     finalImage.src = finalDataUrl;
     modalImage.src = finalDataUrl;
@@ -4020,17 +8043,18 @@ templateImg.onload = async function() {
     currentTemplateCanvas.width = baseW;
     currentTemplateCanvas.height = baseH;
     const templateCtx = currentTemplateCanvas.getContext('2d');
-    drawTemplateLayer(templateCtx, templateImg, layoutType, baseW, baseH, verticalLayout);
-
+    drawTemplateLayer(templateCtx, templateImg, layoutType, baseW, baseH, verticalLayout, processedCategory);
     currentPaletteData = palette;
     currentLayoutType = layoutType;
     currentImageRegion = imageRegion;
     currentWorkingCanvas = workingCanvas;
+    currentCategory = processedCategory;
+    currentCleanLayoutCanvas = cleanLayoutCanvas;
 
     typeControls.style.display = 'block';
-typeSliderA.value = Math.floor(Math.random() * 100);
-typeSliderB.value = 52;
-typeSliderC.value = 18;
+    typeControls.classList.remove('collapsed');
+typeControlsToggle.textContent = '收起';
+
 updateTypeControlLabels();
 
     currentPersonCompositePath = null;
@@ -4038,7 +8062,7 @@ updateTypeControlLabels();
         await preparePersonCompositePathCache();
     }
 
-    await rerenderPosterWithTypeLayer(userText);
+    
 
     saveImageBtn.onclick = function(){
         const link = document.createElement("a");
@@ -4056,11 +8080,12 @@ updateTypeControlLabels();
     window.scrollTo(0, 0);
 };
 
-                templateImg.onerror = function() {
-                    alert('模板图片没有加载成功，请检查 images 文件夹路径和文件名');
-                    loadingMsg.style.display = 'none';
-                    generateBtn.disabled = false;
-                };
+templateImg.onerror = function() {
+    console.error("模板图片加载失败：", templateUrl);
+    alert("模板图片加载失败：" + templateUrl);
+    loadingMsg.style.display = 'none';
+    generateBtn.disabled = false;
+};
 
                 templateImg.src = templateUrl;
 
@@ -4101,7 +8126,8 @@ reloadBtn.addEventListener("click", function() {
     location.reload();
 });
 
-
+setClassificationMode("auto");
+updateDetectedCategoryUI(selectedCategory);
 
     </script>
 </body>
