@@ -254,11 +254,13 @@
         }
 
         #finalCanvas,
-        #finalImage {
-            max-width: 100%;
-            height: auto;
-            display: block;
-        }
+#finalImage {
+    display: block;
+    width: auto;
+    max-width: min(78vw, 360px);
+    max-height: 68vh;
+    margin: 0 auto;
+}
 
         .template-overlay {
             display: none;
@@ -278,27 +280,32 @@
         }
 
         .poster-container {
-            position: relative;
-            display: inline-block;
-            line-height: 0;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.15);
-            max-width: 100%;
-            background: #f5f5f5;
-            overflow: hidden;
-        }
+    position: relative;
+    display: block;
+    width: fit-content;
+    margin: 20px auto;
+    line-height: 0;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+    background: #f5f5f5;
+}
 
         #finalImage {
     background: transparent;
 }
 
         #finalImage {
-            width: 100%;
-            height: auto;
-            -webkit-user-drag: none;
-            user-select: none;
-            -webkit-touch-callout: default;
-            cursor: zoom-in;
-        }
+    display: block;
+    width: auto;
+    max-width: min(78vw, 360px);
+    max-height: 68vh;
+    margin: 0 auto;
+
+    height: auto;
+    -webkit-user-drag: none;
+    user-select: none;
+    -webkit-touch-callout: default;
+    cursor: zoom-in;
+}
 
         #resultArea {
             margin-top: 40px;
@@ -496,12 +503,14 @@
             }
 
             .container {
-                max-width: 100%;
-                min-height: 100vh;
-                border-radius: 0;
-                box-shadow: none;
-                padding: 18px 16px 120px;
-            }
+    width: calc(100% - 48px);
+    max-width: 520px;
+    min-height: 100vh;
+    margin: 0 auto;
+    border-radius: 0;
+    box-shadow: none;
+    padding: 18px 0 120px;
+}
 
             header {
                 margin-bottom: 22px;
@@ -525,11 +534,11 @@
             }
 
             .action-row {
-                position: sticky;
-                bottom: 0;
-                background: rgba(255,255,255,0.96);
-                padding: 10px 0 2px;
-            }
+    position: static;
+    background: transparent;
+    padding: 16px 0 0;
+    margin-top: 18px;
+}
 
             .action-btn {
                 width: 100%;
@@ -538,6 +547,9 @@
 
             .type-controls {
                 padding: 14px 12px;
+                width: calc(100vw - 64px);
+        max-width: 420px;
+        bottom: 72px;
             }
 
         }
@@ -1394,6 +1406,83 @@ function rgbStringToObj(str) {
         g: Number(m[1]),
         b: Number(m[2])
     };
+}
+
+function rgbToHsl(r, g, b) {
+    r /= 255; g /= 255; b /= 255;
+    const max = Math.max(r, g, b);
+    const min = Math.min(r, g, b);
+    let h, s;
+    const l = (max + min) / 2;
+
+    if (max === min) {
+        h = 0;
+        s = 0;
+    } else {
+        const d = max - min;
+        s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+
+        if (max === r) h = (g - b) / d + (g < b ? 6 : 0);
+        else if (max === g) h = (b - r) / d + 2;
+        else h = (r - g) / d + 4;
+
+        h /= 6;
+    }
+
+    return { h, s, l };
+}
+
+function hslToRgb(h, s, l) {
+    let r, g, b;
+
+    if (s === 0) {
+        r = g = b = l;
+    } else {
+        const hue2rgb = (p, q, t) => {
+            if (t < 0) t += 1;
+            if (t > 1) t -= 1;
+            if (t < 1 / 6) return p + (q - p) * 6 * t;
+            if (t < 1 / 2) return q;
+            if (t < 2 / 3) return p + (q - p) * (2 / 3 - t) * 6;
+            return p;
+        };
+
+        const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+        const p = 2 * l - q;
+
+        r = hue2rgb(p, q, h + 1 / 3);
+        g = hue2rgb(p, q, h);
+        b = hue2rgb(p, q, h - 1 / 3);
+    }
+
+    return {
+        r: Math.round(r * 255),
+        g: Math.round(g * 255),
+        b: Math.round(b * 255)
+    };
+}
+
+function getCalendarHighlightColor(canvas, rect) {
+    const bgLum = sampleCanvasRegionLuminance(canvas, rect);
+
+    const baseColor = currentPaletteData
+        ? pickMostSaturatedPaletteColor(currentPaletteData)
+        : 'rgb(0,120,255)';
+
+    const rgb = rgbStringToObj(baseColor);
+    const hsl = rgbToHsl(rgb.r, rgb.g, rgb.b);
+
+    // 取互补色，保证和画面拉开
+    let h = (hsl.h + 0.5) % 1;
+
+    // 高饱和
+    const s = 0.95;
+
+    // 背景暗 → 高亮色；背景亮 → 深亮色
+    const l = bgLum < 140 ? 0.72 : 0.38;
+
+    const finalRgb = hslToRgb(h, s, l);
+    return `rgb(${finalRgb.r}, ${finalRgb.g}, ${finalRgb.b})`;
 }
 
 function getAdaptiveSaturatedColorByBackground(baseColorStr, canvas, sampleRect, threshold = 140) {
@@ -4388,7 +4477,7 @@ function drawTopDecorationStrip(ctx, layoutType, baseW, baseH, verticalLayout = 
     ctx.restore();
 }
 
-function drawMiniCalendar(ctx, x, y, w, h, parts, scale = 1, highlightColor = '#ffffff') {
+function drawMiniCalendar(ctx, x, y, w, h, parts, scale = 1, highlightColor = null) {
     if (!parts) return;
 
     const year = Number(parts.year);
@@ -4404,6 +4493,10 @@ function drawMiniCalendar(ctx, x, y, w, h, parts, scale = 1, highlightColor = '#
     const cellW = w / 7;
     const cellH = h / 7;
 
+    const calendarRect = { x, y, w, h };
+
+const finalHighlightColor = highlightColor || getCalendarHighlightColor(ctx.canvas, calendarRect);
+
     const off = document.createElement('canvas');
     off.width = Math.ceil(x + w + 30);
     off.height = Math.ceil(y + h + 30);
@@ -4411,7 +4504,7 @@ function drawMiniCalendar(ctx, x, y, w, h, parts, scale = 1, highlightColor = '#
 
     octx.clearRect(0, 0, off.width, off.height);
     octx.fillStyle = '#ffffff';
-    octx.strokeStyle = '#ffffff';
+    octx.strokeStyle = finalHighlightColor;
     octx.textAlign = 'center';
     octx.textBaseline = 'middle';
 
@@ -4437,17 +4530,17 @@ function drawMiniCalendar(ctx, x, y, w, h, parts, scale = 1, highlightColor = '#
             octx.fillText(String(num).padStart(2, '0'), cx, cy);
 
             if (num === day) {
-    octx.save();
-    octx.strokeStyle = highlightColor;
-    octx.lineWidth = 4.8;
+                octx.save();
+                octx.strokeStyle = finalHighlightColor;
+                octx.lineWidth = 4.8;
 
                 for (let i = 0; i < 2; i++) {
                     octx.beginPath();
                     octx.ellipse(
                         cx + (Math.random() - 0.5) * 8,
                         cy + (Math.random() - 0.5) * 6 - 2,
-                        cellW * (0.40 + Math.random() * 0.07),
-                        cellH * (0.28 + Math.random() * 0.06),
+                        cellW * (0.55 + Math.random() * 0.08),
+                        cellH * (0.40 + Math.random() * 0.07),
                         -0.18 + (Math.random() - 0.5) * 0.18,
                         0,
                         Math.PI * 2
