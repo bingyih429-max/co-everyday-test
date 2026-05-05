@@ -1016,6 +1016,17 @@ const topLogoBlack = new Image();
 topLogoWhite.src = './images/top-logo-white.png';
 topLogoBlack.src = './images/top-logo-black.png';
 
+const dateInput = document.getElementById('dateInput');
+
+if (dateInput) {
+    dateInput.addEventListener('change', function() {
+        const manualParts = getDatePartsFromDateInputValue(this.value);
+        if (manualParts) {
+            currentPhotoDateParts = manualParts;
+        }
+    });
+}
+
 
 
         fileInput.addEventListener('change', async function(e) {
@@ -1026,9 +1037,19 @@ topLogoBlack.src = './images/top-logo-black.png';
     currentPhotoDateParts = await readPhotoDateParts(originalFile);
 
     if (!currentPhotoDateParts) {
-        currentPhotoDateParts = getDatePartsFromDate(new Date(originalFile.lastModified || Date.now()));
-        showManualDateInput(false);
-    }
+    const isHeic =
+        originalFile.name.toLowerCase().endsWith(".heic") ||
+        originalFile.name.toLowerCase().endsWith(".heif") ||
+        originalFile.type === "image/heic" ||
+        originalFile.type === "image/heif";
+
+    currentPhotoDateParts = getDatePartsFromDate(
+        new Date(originalFile.lastModified || Date.now())
+    );
+
+    // HEIC 读不到 EXIF 时，显示日期框，让用户确认/修改
+    showManualDateInput(isHeic);
+}
 
     const dateInput = document.getElementById('dateInput');
     if (dateInput) {
