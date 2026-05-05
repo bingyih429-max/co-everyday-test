@@ -1019,38 +1019,53 @@ topLogoBlack.src = './images/top-logo-black.png';
 
 
         fileInput.addEventListener('change', async function(e) {
-    let file = e.target.files[0];
-    if (!file) return;
+    const originalFile = e.target.files[0];
+    if (!originalFile) return;
 
-    file = await normalizeImageFile(file);
-    currentOriginalFile = file;
+    // 先读原始文件的日期
+    currentPhotoDateParts = await readPhotoDateParts(originalFile);
 
-// 先读取照片时间
-currentPhotoDateParts = await readPhotoDateParts(file);
+    if (!currentPhotoDateParts) {
+        currentPhotoDateParts = getDatePartsFromDate(new Date(originalFile.lastModified || Date.now()));
+        showManualDateInput(false);
+    }
 
-if (!currentPhotoDateParts) {
-    currentPhotoDateParts = getDatePartsFromDate(new Date());
-}
+    const dateInput = document.getElementById('dateInput');
+    if (dateInput) {
+        dateInput.value = `${currentPhotoDateParts.year}-${currentPhotoDateParts.month}-${currentPhotoDateParts.day}`;
+    }
+
+    // 再转换 HEIC，用于预览和绘制
+    const displayFile = await normalizeImageFile(originalFile);
+    currentOriginalFile = originalFile;
 
     console.log("照片时间：", currentPhotoDateParts);
 
     const reader = new FileReader();
+
     reader.onload = function(event) {
         uploadedImage = new Image();
+
         uploadedImage.onload = async () => {
             imagePreview.src = event.target.result;
             imagePreview.style.display = 'block';
             uploadPlaceholder.style.display = 'none';
+
             if (classifyMode === 'auto') {
-                selectedCategory = await classifyImage(file, uploadedImage);
-                catBtns.forEach(b => b.classList.toggle('active', b.dataset.type === selectedCategory));
+                selectedCategory = await classifyImage(displayFile, uploadedImage);
+                catBtns.forEach(b => {
+                    b.classList.toggle('active', b.dataset.type === selectedCategory);
+                });
                 updateDetectedCategoryUI(selectedCategory);
             }
+
             generateBtn.disabled = false;
         };
+
         uploadedImage.src = event.target.result;
     };
-    reader.readAsDataURL(file);
+
+    reader.readAsDataURL(displayFile);
 });
 
 function getLunarInfo(parts) {
@@ -1356,11 +1371,12 @@ async function ensureCustomFontsLoaded() {
 }
 
 async function readPhotoDateParts(file) {
-
     try {
-        const exifData = await exifr.parse(file, {
-            pick: ["DateTimeOriginal", "CreateDate", "ModifyDate"]
-        });
+        const exifData = await exifr.parse(file, [
+            "DateTimeOriginal",
+            "CreateDate",
+            "ModifyDate"
+        ]);
 
         const exifDate =
             exifData?.DateTimeOriginal ||
@@ -1368,10 +1384,7 @@ async function readPhotoDateParts(file) {
             exifData?.ModifyDate;
 
         if (exifDate instanceof Date && !isNaN(exifDate)) {
-
-            // 成功读取日期：隐藏手动输入框
             showManualDateInput(false);
-
             return getDatePartsFromDate(exifDate);
         }
 
@@ -1379,10 +1392,19 @@ async function readPhotoDateParts(file) {
         console.warn("EXIF读取失败", err);
     }
 
-    // 没读取到：显示输入框
-    showManualDateInput(true);
-
     return null;
+}
+
+function parseExifDateString(str) {
+    if (!str) return null;
+
+    // 常见 EXIF 格式：2024:04:23 15:30:12
+    const normalized = String(str)
+        .replace(/^(\d{4}):(\d{2}):(\d{2})/, "$1-$2-$3")
+        .replace(" ", "T");
+
+    const d = new Date(normalized);
+    return isNaN(d) ? null : d;
 }
 
 function formatEnglishDateFromParts(parts) {
