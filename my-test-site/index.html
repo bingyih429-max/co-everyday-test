@@ -942,14 +942,11 @@ body {
     <script src="https://cdn.jsdelivr.net/npm/heic2any/dist/heic2any.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/lunar-javascript/lunar.min.js"></script>
     <script type="module">
-        import {
-          FilesetResolver,
-          ImageSegmenter
-        } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@latest/vision_bundle.mjs";
+       
         const SUPABASE_URL = "https://paidklixbfridphomkwj.supabase.co";
-        const SUPABASE_KEY = "sb_publishable_H8FqLKJCbrHrhAVBViFeWw_hannKThG";
+const SUPABASE_KEY = "sb_publishable_H8FqLKJCbrHrhAVBViFeWw_hannKThG";
 
-        const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
         const TEMPLATES = {
     vertical: './images/竖版.png',
     horizontal: './images/横版.png',
@@ -1076,8 +1073,7 @@ const GENERATION_VERSION = "photo-to-poem-v1";
     minute: "00"
 };
 
-        let imageSegmenter = null;
-        let imageSegmenterReady = null;
+       
 
         let currentBasePosterState = null;
 let currentPaletteData = null;
@@ -1100,26 +1096,11 @@ let currentCleanLayoutCanvas = null;
 let currentUploadedImageRatio = 1;
 
 // 新增缓存
-let currentPersonCompositePath = null;
 let rerenderTimer = null;
 let recentPoemSignatures = [];
 
-        async function initImageSegmenter() {
-            const vision = await FilesetResolver.forVisionTasks(
-                "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@latest/wasm"
-            );
+       
 
-            imageSegmenter = await ImageSegmenter.createFromOptions(vision, {
-    baseOptions: {
-        modelAssetPath: "https://storage.googleapis.com/mediapipe-models/image_segmenter/selfie_segmenter/float16/latest/selfie_segmenter.tflite"
-    },
-    runningMode: "IMAGE",
-    outputCategoryMask: true,
-outputConfidenceMasks: true
-});
-        }
-
-imageSegmenterReady = initImageSegmenter();
 
         const fileInput = document.getElementById('fileInput');
         const imagePreview = document.getElementById('imagePreview');
@@ -1146,6 +1127,8 @@ const waitingImages = [
 
 let waitingTimer = null;
 let waitingIndex = 0;
+
+
 
 function showGenerateWaiting() {
     if (!generateWaiting || !generateWaitingImg) return;
@@ -1176,7 +1159,6 @@ function hideGenerateWaiting() {
         const modalImage = document.getElementById('modalImage');
         const saveImageBtn = document.getElementById('saveImageBtn');
         const reloadBtn = document.getElementById('reloadBtn');
-        const DEBUG_PERSON_MASK = false;
 
         const typeControls = document.getElementById('typeControls');
 
@@ -1620,51 +1602,54 @@ octx.fillText(monthDay, 140, 255);
 
         async function classifyImage(file, imageEl) {
     try {
-        await imageSegmenterReady;
         const tempCanvas = document.createElement('canvas');
         const maxSide = 256;
         const ratio = Math.min(maxSide / imageEl.width, maxSide / imageEl.height, 1);
+
         tempCanvas.width = Math.max(32, Math.round(imageEl.width * ratio));
         tempCanvas.height = Math.max(32, Math.round(imageEl.height * ratio));
+
         const tctx = tempCanvas.getContext('2d', { willReadFrequently: true });
         safeDrawImage(tctx, imageEl, 0, 0, tempCanvas.width, tempCanvas.height);
 
         const data = tctx.getImageData(0, 0, tempCanvas.width, tempCanvas.height).data;
-        let brightCount = 0, blueSkyLike = 0, highlightCount = 0, total = 0;
+
+        let brightCount = 0;
+        let blueSkyLike = 0;
+        let highlightCount = 0;
+        let total = 0;
+
         for (let i = 0; i < data.length; i += 4) {
-            const r = data[i], g = data[i+1], b = data[i+2], a = data[i+3];
+            const r = data[i];
+            const g = data[i + 1];
+            const b = data[i + 2];
+            const a = data[i + 3];
+
             if (a < 20) continue;
+
             total++;
+
             const lum = 0.299 * r + 0.587 * g + 0.114 * b;
+
             if (lum > 155) brightCount++;
             if (lum > 220) highlightCount++;
             if (b > r + 18 && b > g + 8 && lum > 120) blueSkyLike++;
-        }
-
-        let personCoverage = 0;
-        try {
-            const result = imageSegmenter.segment(tempCanvas);
-            if (result?.confidenceMasks?.length) {
-                const masks = result.confidenceMasks.map(m => m.getAsFloat32Array());
-                if (masks.length >= 2) {
-                    const avg0 = masks[0].reduce((a, b) => a + b, 0) / masks[0].length;
-                    const avg1 = masks[1].reduce((a, b) => a + b, 0) / masks[1].length;
-                    personCoverage = Math.min(avg0, avg1);
-                } else {
-                    personCoverage = masks[0].reduce((a, b) => a + b, 0) / masks[0].length;
-                }
-            }
-        } catch (segErr) {
-            console.warn('自动分类人物识别失败', segErr);
         }
 
         const brightRatio = total ? brightCount / total : 0;
         const skyRatio = total ? blueSkyLike / total : 0;
         const highlightRatio = total ? highlightCount / total : 0;
 
-        if (personCoverage > 0.08) return 'in_action';
-        if (brightRatio > 0.48 || skyRatio > 0.16 || highlightRatio > 0.08) return 'light_time';
+        if (
+            brightRatio > 0.48 ||
+            skyRatio > 0.16 ||
+            highlightRatio > 0.08
+        ) {
+            return 'light_time';
+        }
+
         return 'daily_object';
+
     } catch (err) {
         console.warn('自动分类失败，使用默认分类', err);
         return 'daily_object';
@@ -2339,16 +2324,7 @@ function getResolvedTypeMode() {
     return FX.typeSystem.autoModeMap[selectedCategory] || "string";
 }
 
-async function preparePersonCompositePathCache() {
-    if (!currentWorkingCanvas || !currentImageRegion) return null;
 
-    currentPersonCompositePath = await buildAutoCompositePersonContourPathPoints(
-        currentWorkingCanvas,
-        currentImageRegion
-    );
-
-    return currentPersonCompositePath;
-}
 
 function updateTypeControlLabels() {
     const mode = getResolvedTypeMode();
@@ -3337,11 +3313,9 @@ function applyDailyObjectHorizontalMask(ctx, imageRect, imageRatio) {
 
         const isMobile = window.innerWidth <= 768;
 
-const finalDataUrl = isMobile
-    ? canvas.toDataURL('image/jpeg', 0.88)
-    : canvas.toDataURL('image/png');
-        finalImage.src = finalDataUrl;
-        modalImage.src = finalDataUrl;
+const finalDataUrl = canvas.toDataURL('image/png');
+finalImage.src = finalDataUrl;
+modalImage.src = finalDataUrl;
     };
 }
 
@@ -3852,10 +3826,7 @@ async function drawStringTypeLayer(ctx, rect, palette, text) {
     else layerMode = "all";
 
     // 自动选左 / 右轮廓后的缓存路径
-    let basePath = currentPersonCompositePath;
-    if (!basePath || basePath.length < 2) {
-        basePath = await preparePersonCompositePathCache();
-    }
+    
     if (!basePath || basePath.length < 2) return;
 
     const fontSize = 22 + (sliderB / 100) * 34;
@@ -3972,11 +3943,9 @@ async function rerenderPosterWithTypeLayer(userText) {
     drawDynamicText(ctx, currentLayoutType, canvas.width, canvas.height, userText, currentFragmentNumber, currentAiPoem, currentCategory);
     const isMobile = window.innerWidth <= 768;
 
-const finalDataUrl = isMobile
-    ? canvas.toDataURL('image/jpeg', 0.88)
-    : canvas.toDataURL('image/png');
-    finalImage.src = finalDataUrl;
-    modalImage.src = finalDataUrl;
+const finalDataUrl = canvas.toDataURL('image/png');
+finalImage.src = finalDataUrl;
+modalImage.src = finalDataUrl;
 }
 
 async function rerenderLightTimePosterLive() {
@@ -4079,11 +4048,9 @@ async function rerenderLightTimePosterLive() {
 
     const isMobile = window.innerWidth <= 768;
 
-const finalDataUrl = isMobile
-    ? canvas.toDataURL('image/jpeg', 0.88)
-    : canvas.toDataURL('image/png');
-    finalImage.src = finalDataUrl;
-    modalImage.src = finalDataUrl;
+const finalDataUrl = canvas.toDataURL('image/png');
+finalImage.src = finalDataUrl;
+modalImage.src = finalDataUrl;
 }
 
 async function rerenderDailyObjectPosterLive() {
@@ -4138,11 +4105,9 @@ ctx.drawImage(liveCanvas, 0, 0);
 
     const isMobile = window.innerWidth <= 768;
 
-const finalDataUrl = isMobile
-    ? canvas.toDataURL('image/jpeg', 0.88)
-    : canvas.toDataURL('image/png');
-    finalImage.src = finalDataUrl;
-    modalImage.src = finalDataUrl;
+const finalDataUrl = canvas.toDataURL('image/png');
+finalImage.src = finalDataUrl;
+modalImage.src = finalDataUrl;
 }
 
 async function rerenderInActionPosterLive() {
@@ -4211,65 +4176,12 @@ async function rerenderInActionPosterLive() {
 
     const isMobile = window.innerWidth <= 768;
 
-const finalDataUrl = isMobile
-    ? canvas.toDataURL('image/jpeg', 0.88)
-    : canvas.toDataURL('image/png');
-    finalImage.src = finalDataUrl;
-    modalImage.src = finalDataUrl;
+const finalDataUrl = canvas.toDataURL('image/png');
+finalImage.src = finalDataUrl;
+modalImage.src = finalDataUrl;
 }
 
-async function buildPersonCompositeGroupCanvas(sourceCanvas) {
-    const aw = sourceCanvas.width;
-    const ah = sourceCanvas.height;
 
-    const p = FX.person;
-
-    const { personCanvas } = await segmentPersonCutout(sourceCanvas);
-
-    const refinedPersonCanvas = createSmoothInsetCutout(personCanvas, 4, 5, 1.6);
-
-    const solidPersonCanvas = document.createElement('canvas');
-    const solidPersonCtx = solidPersonCanvas.getContext('2d', { willReadFrequently: true });
-    solidPersonCanvas.width = aw;
-    solidPersonCanvas.height = ah;
-    solidPersonCtx.drawImage(refinedPersonCanvas, 0, 0);
-    tintCanvasDark(solidPersonCtx, aw, ah, 0.10);
-
-    const groupCanvas = document.createElement('canvas');
-    const groupCtx = groupCanvas.getContext('2d', { willReadFrequently: true });
-    groupCanvas.width = aw;
-    groupCanvas.height = ah;
-
-    const anchorX = aw * 0.52;
-    const anchorY = ah * 0.96;
-
-    const pathType = pickPathType();
-    const pts = buildCopyPathPoints(pathType, anchorX, anchorY, p.stepBase, p.copiesPerTrail);
-
-    // 后景复制层
-    for (let i = pts.length - 1; i >= Math.ceil(pts.length * 0.55); i--) {
-        const pt = pts[i];
-        drawAnchoredPerson(groupCtx, solidPersonCanvas, pt.x, pt.y, 1);
-    }
-
-    // 主体
-    drawAnchoredPerson(groupCtx, refinedPersonCanvas, anchorX, anchorY, 1);
-
-    // 前景复制层
-    for (let i = Math.ceil(pts.length * 0.55) - 1; i >= 0; i--) {
-        const pt = pts[i];
-        drawAnchoredPerson(groupCtx, solidPersonCanvas, pt.x, pt.y, 1);
-    }
-
-    return {
-        groupCanvas,
-        refinedPersonCanvas,
-        solidPersonCanvas,
-        anchorX,
-        anchorY,
-        pts
-    };
-}
 
 function splitTextForStack(text) {
     const clean = (text || "").trim();
@@ -4489,126 +4401,7 @@ function drawThinStrokeWord(ctx, text, x, y, fontSize, scaleX = 1, alpha = 1) {
             return regions;
         }
 
-        async function segmentPersonCutout(sourceCanvas) {
-    await imageSegmenterReady;
-
-    const result = imageSegmenter.segment(sourceCanvas);
-
-    if (!result) {
-        throw new Error("分割失败：没有返回结果");
-    }
-
-    const width = sourceCanvas.width;
-    const height = sourceCanvas.height;
-
-    const srcCtx = sourceCanvas.getContext('2d', { willReadFrequently: true });
-    const srcImage = srcCtx.getImageData(0, 0, width, height);
-
-    const personCanvas = document.createElement('canvas');
-    const personCtx = personCanvas.getContext('2d', { willReadFrequently: true });
-    personCanvas.width = width;
-    personCanvas.height = height;
-
-    const personImage = personCtx.createImageData(width, height);
-
-    // 额外做一个调试画布：把识别到的人物涂成红色
-    const debugCanvas = document.createElement('canvas');
-    const debugCtx = debugCanvas.getContext('2d', { willReadFrequently: true });
-    debugCanvas.width = width;
-    debugCanvas.height = height;
-    const debugImage = debugCtx.createImageData(width, height);
-
-    let personMask = null;
-
-    // ---------- 优先走 confidenceMasks，并且自动判断哪张才是“人” ----------
-    if (result.confidenceMasks && result.confidenceMasks.length > 0) {
-        const masks = result.confidenceMasks.map(m => m.getAsFloat32Array());
-
-        // 如果有两张 mask，就选“平均覆盖面积更小”的那张作为人物
-        // 因为背景一般占更大面积，人物一般占更小面积
-        if (masks.length >= 2) {
-            const avg0 = masks[0].reduce((a, b) => a + b, 0) / masks[0].length;
-            const avg1 = masks[1].reduce((a, b) => a + b, 0) / masks[1].length;
-            personMask = avg0 < avg1 ? masks[0] : masks[1];
-            console.log("confidence avg0:", avg0, "avg1:", avg1, "=> 选中较小覆盖率的 mask 作为人物");
-        } else {
-            personMask = masks[0];
-            console.log("只有一张 confidence mask，直接使用");
-        }
-    }
-
-    // ---------- 如果 confidenceMasks 不可用，再退回 categoryMask ----------
-    if (!personMask && result.categoryMask) {
-        const catMask = result.categoryMask.getAsUint8Array();
-
-        // 统计每个类别像素数，选“非最大类”作为人物
-        const countMap = new Map();
-        for (let i = 0; i < catMask.length; i++) {
-            const v = catMask[i];
-            countMap.set(v, (countMap.get(v) || 0) + 1);
-        }
-
-        let majorityClass = null;
-        let majorityCount = -1;
-        for (const [cls, count] of countMap.entries()) {
-            if (count > majorityCount) {
-                majorityCount = count;
-                majorityClass = cls;
-            }
-        }
-
-        console.log("categoryMask classes:", [...countMap.entries()], "majorityClass:", majorityClass);
-
-        // 把非最大类当作人物
-        personMask = new Float32Array(catMask.length);
-        for (let i = 0; i < catMask.length; i++) {
-            personMask[i] = catMask[i] === majorityClass ? 0 : 1;
-        }
-    }
-
-    if (!personMask) {
-        throw new Error("分割失败：没有拿到可用的 person mask");
-    }
-
-    const threshold = 0.22;
-    const feather = 0.12;
-
-    let keptPixels = 0;
-
-    for (let i = 0; i < personMask.length; i++) {
-        const conf = personMask[i];
-        const p = i * 4;
-
-        let alpha = 0;
-        if (conf > threshold) {
-            alpha = Math.round(
-                Math.max(0, Math.min(1, (conf - threshold) / feather)) * 255
-            );
-        }
-
-        if (alpha > 8) keptPixels++;
-
-        // 正常人物抠图
-        personImage.data[p] = srcImage.data[p];
-        personImage.data[p + 1] = srcImage.data[p + 1];
-        personImage.data[p + 2] = srcImage.data[p + 2];
-        personImage.data[p + 3] = alpha;
-
-        // 红色调试图
-        debugImage.data[p] = 255;
-        debugImage.data[p + 1] = 0;
-        debugImage.data[p + 2] = 0;
-        debugImage.data[p + 3] = alpha;
-    }
-
-    personCtx.putImageData(personImage, 0, 0);
-    debugCtx.putImageData(debugImage, 0, 0);
-
-    const coverage = keptPixels / personMask.length;
-    console.log("person coverage:", coverage);
-
-    return { personCanvas, debugCanvas, coverage };
-}
+        
 
 function addFilmGrainToCanvas(targetCtx, width, height, amount) {
     const imgData = targetCtx.getImageData(0, 0, width, height);
@@ -4935,19 +4728,32 @@ function darkenCanvasAlphaOnly(targetCtx, width, height, alpha = 0.12) {
     targetCtx.restore();
 }
 
-        function wrapText(ctx, text, x, y, maxWidth, lineHeight) {
+    function wrapText(ctx, text, x, y, maxWidth, lineHeight) {
     const safeText = String(text ?? "");
     const chars = safeText.split('');
     let line = '';
     let cursorY = y;
 
+    // 禁止出现在行首的标点
+    const forbiddenStart = "，。！？；：、,.!?;:)]）】》〉」』’”";
+
     for (let i = 0; i < chars.length; i++) {
-        const testLine = line + chars[i];
+        const char = chars[i];
+        const testLine = line + char;
         const metrics = ctx.measureText(testLine);
+
         if ((metrics.width > maxWidth || testLine.length > 7) && line !== "") {
+
+            // 如果当前字符是标点，不换到下一行，而是接在上一行末尾
+            if (forbiddenStart.includes(char)) {
+                line += char;
+                continue;
+            }
+
             ctx.fillText(line, x, cursorY);
-            line = chars[i];
+            line = char;
             cursorY += lineHeight;
+
         } else {
             line = testLine;
         }
@@ -4977,19 +4783,19 @@ function darkenCanvasAlphaOnly(targetCtx, width, height, alpha = 0.12) {
 
         // 1. 上传最终生成图
         const generatedBlob = await new Promise(resolve => {
-            canvas.toBlob(resolve, "image/jpeg", 0.82);
+            canvas.toBlob(resolve, "image/png");
         });
 
         const safeNo = String(fragmentNumber).padStart(5, "0");
         const now = Date.now();
 
-        const generatedFileName = `generated/fragment-${safeNo}-${now}.jpg`;
+        const generatedFileName = `generated/fragment-${safeNo}-${now}.png`;
 
         const { error: generatedUploadError } = await supabaseClient
             .storage
             .from("generated-images")
             .upload(generatedFileName, generatedBlob, {
-                contentType: "image/jpeg",
+                contentType: "image/png",
                 upsert: true
             });
 
@@ -5002,26 +4808,7 @@ function darkenCanvasAlphaOnly(targetCtx, width, height, alpha = 0.12) {
 
         const generatedImageUrl = generatedPublicData.publicUrl;
 
-        // 2. 上传原始图片
-        const originalExt = currentOriginalFile.name.split(".").pop() || "jpg";
-        const originalFileName = `original/original-${safeNo}-${now}.${originalExt}`;
-
-        const { error: originalUploadError } = await supabaseClient
-            .storage
-            .from("original-uploads")
-            .upload(originalFileName, currentOriginalFile, {
-                contentType: currentOriginalFile.type || "image/jpeg",
-                upsert: true
-            });
-
-        if (originalUploadError) throw originalUploadError;
-
-        const { data: originalPublicData } = supabaseClient
-            .storage
-            .from("original-uploads")
-            .getPublicUrl(originalFileName);
-
-        const originalImageUrl = originalPublicData.publicUrl;
+        
 
         // 3. 写入数据库
         const location = document.getElementById("locationInput").value.trim();
@@ -5047,7 +4834,6 @@ function darkenCanvasAlphaOnly(targetCtx, width, height, alpha = 0.12) {
 
                     // 新增：双图保存
                     generated_image_url: generatedImageUrl,
-                    original_image_url: originalImageUrl,
 
                     location: location,
                     daily_tag: (CATEGORY_META[selectedCategory] || {}).posterTag || selectedCategory,
@@ -9116,190 +8902,8 @@ ctx.restore();
     return { drawX, drawY, drawW, drawH };
 }
 
-async function buildCompositePersonContourPathPoints(sourceCanvas, rect, side = "left") {
-    const { groupCanvas } = await buildPersonCompositeGroupCanvas(sourceCanvas);
 
-    const w = groupCanvas.width;
-    const h = groupCanvas.height;
-    const gCtx = groupCanvas.getContext('2d', { willReadFrequently: true });
-    const imgData = gCtx.getImageData(0, 0, w, h).data;
 
-    const { drawX, drawY, drawW, drawH } = getImageFitRectInRegion(sourceCanvas, rect);
-
-    // ===== 关键：算出“真正显示在 rect 里的 source 范围” =====
-    const visibleSrcX = Math.max(0, Math.round(((rect.x - drawX) / drawW) * w));
-    const visibleSrcY = Math.max(0, Math.round(((rect.y - drawY) / drawH) * h));
-    const visibleSrcW = Math.min(w - visibleSrcX, Math.round((rect.w / drawW) * w));
-    const visibleSrcH = Math.min(h - visibleSrcY, Math.round((rect.h / drawH) * h));
-
-    const srcXMin = visibleSrcX;
-    const srcXMax = visibleSrcX + visibleSrcW - 1;
-    const srcYMin = visibleSrcY;
-    const srcYMax = visibleSrcY + visibleSrcH - 1;
-
-    const pts = [];
-    const yStep = Math.max(2, Math.floor(h / 150));
-
-    for (let y = srcYMin; y <= srcYMax; y += yStep) {
-        let foundX = -1;
-
-        if (side === "left") {
-            for (let x = srcXMin; x <= srcXMax; x++) {
-                const alpha = imgData[(y * w + x) * 4 + 3];
-                if (alpha > 20) {
-                    foundX = x;
-                    break;
-                }
-            }
-        } else {
-            for (let x = srcXMax; x >= srcXMin; x--) {
-                const alpha = imgData[(y * w + x) * 4 + 3];
-                if (alpha > 20) {
-                    foundX = x;
-                    break;
-                }
-            }
-        }
-
-        if (foundX !== -1) {
-            // 映射回最终海报坐标
-            const px = drawX + (foundX / w) * drawW;
-            const py = drawY + (y / h) * drawH;
-
-            // 再确保点真的落在 rect 内部
-            if (
-                px >= rect.x + 4 &&
-                px <= rect.x + rect.w - 4 &&
-                py >= rect.y + 4 &&
-                py <= rect.y + rect.h - 4
-            ) {
-                pts.push({ x: px, y: py });
-            }
-        }
-    }
-
-    if (pts.length < 2) return pts;
-
-    // 平滑
-    const smoothPts = pts.map((pt, i) => {
-        let sumX = 0;
-        let sumY = 0;
-        let count = 0;
-
-        for (let k = -4; k <= 4; k++) {
-            const idx = i + k;
-            if (idx >= 0 && idx < pts.length) {
-                sumX += pts[idx].x;
-                sumY += pts[idx].y;
-                count++;
-            }
-        }
-
-        return {
-            x: sumX / count,
-            y: sumY / count
-        };
-    });
-
-    // 向外偏移一点，避免压在主体边缘上
-    const offset = Math.max(16, Math.min(30, rect.w * 0.025));
-
-    const offsetPts = smoothPts.map((pt, i) => {
-        const dir = getPathDirection(smoothPts, i);
-        const nx = side === "left" ? -dir.y : dir.y;
-        const ny = side === "left" ? dir.x : -dir.x;
-
-        return {
-            x: pt.x + nx * offset,
-            y: pt.y + ny * offset
-        };
-    });
-
-    return offsetPts;
-}
-
-async function buildPersonSideContourPathPoints(sourceCanvas, rect, side = "left") {
-    const { personCanvas } = await segmentPersonCutout(sourceCanvas);
-
-    const w = personCanvas.width;
-    const h = personCanvas.height;
-    const pCtx = personCanvas.getContext('2d', { willReadFrequently: true });
-    const imgData = pCtx.getImageData(0, 0, w, h).data;
-
-    const { drawX, drawY, drawW, drawH } = getImageFitRectInRegion(sourceCanvas, rect);
-
-    const pts = [];
-    const yStart = Math.floor(h * 0.10);
-    const yEnd = Math.floor(h * 0.90);
-    const yStep = Math.max(2, Math.floor(h / 140));
-
-    for (let y = yStart; y <= yEnd; y += yStep) {
-        let foundX = -1;
-
-        if (side === "left") {
-            for (let x = 0; x < w; x++) {
-                const alpha = imgData[(y * w + x) * 4 + 3];
-                if (alpha > 20) {
-                    foundX = x;
-                    break;
-                }
-            }
-        } else {
-            for (let x = w - 1; x >= 0; x--) {
-                const alpha = imgData[(y * w + x) * 4 + 3];
-                if (alpha > 20) {
-                    foundX = x;
-                    break;
-                }
-            }
-        }
-
-        if (foundX !== -1) {
-            const px = drawX + (foundX / w) * drawW;
-            const py = drawY + (y / h) * drawH;
-            pts.push({ x: px, y: py });
-        }
-    }
-
-    // 平滑
-    const smoothPts = pts.map((pt, i) => {
-        let sumX = 0;
-        let sumY = 0;
-        let count = 0;
-
-        for (let k = -3; k <= 3; k++) {
-            const idx = i + k;
-            if (idx >= 0 && idx < pts.length) {
-                sumX += pts[idx].x;
-                sumY += pts[idx].y;
-                count++;
-            }
-        }
-
-        return {
-            x: sumX / count,
-            y: sumY / count
-        };
-    });
-
-    // 向外偏移一点，避免压在人物边缘上
-    const offset = Math.max(14, Math.min(28, drawW * 0.025));
-
-    const offsetPts = smoothPts.map((pt, i) => {
-        const dir = getPathDirection(smoothPts, i);
-
-        // 左轮廓往左外扩；右轮廓往右外扩
-        const nx = side === "left" ? -dir.y : dir.y;
-        const ny = side === "left" ? dir.x : -dir.x;
-
-        return {
-            x: pt.x + nx * offset,
-            y: pt.y + ny * offset
-        };
-    });
-
-    return offsetPts;
-}
 
 function getPolylineLength(pts) {
     if (!pts || pts.length < 2) return 0;
@@ -9935,44 +9539,7 @@ const stretchLen = (fineMinLen + Math.random() * (fineMaxLen - fineMinLen)) * ma
             
 
             } else if (type === 'in_action') {
-    const p = FX.person;
-
-    // 先铺原图背景
     ctx.drawImage(workingCanvas, drawX, drawY, drawW, drawH);
-
-    const srcCanvas = document.createElement('canvas');
-    const srcCtx = srcCanvas.getContext('2d', { willReadFrequently: true });
-    srcCanvas.width = workingCanvas.width;
-    srcCanvas.height = workingCanvas.height;
-    srcCtx.drawImage(workingCanvas, 0, 0);
-
-    const aw = srcCanvas.width;
-const ah = srcCanvas.height;
-
-const { personCanvas, debugCanvas, coverage } = await segmentPersonCutout(srcCanvas);
-
-const refinedPersonCanvas = createSmoothInsetCutout(personCanvas, 4, 5, 1.6);
-
-console.log("最终 coverage =", coverage);
-
-if (DEBUG_PERSON_MASK) {
-    ctx.save();
-    ctx.globalAlpha = 0.35;
-    ctx.fillStyle = "#000";
-    ctx.fillRect(drawX, drawY, drawW, drawH);
-    ctx.globalAlpha = 1;
-    ctx.drawImage(debugCanvas, drawX, drawY, drawW, drawH);
-    ctx.restore();
-    return;
-}
-
-const { groupCanvas } = await buildPersonCompositeGroupCanvas(srcCanvas);
-
-// 最终统一加一点颗粒
-const groupCtx = groupCanvas.getContext('2d', { willReadFrequently: true });
-addFilmGrainToCanvas(groupCtx, aw, ah, p.grainAmount);
-
-ctx.drawImage(groupCanvas, drawX, drawY, drawW, drawH);
 
 
 
@@ -10042,17 +9609,6 @@ ctx.drawImage(groupCanvas, drawX, drawY, drawW, drawH);
             console.log('生成按钮重新执行了');
     if (!uploadedImage) return;
 
-    const dateWrap = document.getElementById('dateInputWrap');
-    const dateInput = document.getElementById('dateInput');
-
-if (dateInput) {
-    dateInput.addEventListener('change', function() {
-        const manualParts = getDatePartsFromDateInputValue(this.value);
-        if (manualParts) {
-            currentPhotoDateParts = manualParts;
-        }
-    });
-}
 
     loadingMsg.style.display = 'block';
     generateBtn.disabled = true;
@@ -10071,7 +9627,7 @@ if (dateInput) {
 
 let workingCanvas = await createMobileSafeImageCanvas(
     uploadedImage,
-    isMobile ? 1200 : 2400
+    isMobile ? 800 : 1600
 );
 
 let workW = workingCanvas.width;
@@ -10424,8 +9980,6 @@ drawLightTimeHorizontalOverflowStrips(ctx, photoLayer, imageRegion, baseW, baseH
 // 先保存“纯底图”，不要把动态文字烤进去
 currentBaseCanvas = cloneCanvas(canvas);
 
-await ensureCustomFontsLoaded();
-
 if (
     layoutType === 'horizontal' &&
     (processedCategory === 'light_time_moment' || processedCategory === 'light_time')
@@ -10459,10 +10013,9 @@ function drawTemplateLayer(ctx, templateImg, layoutType, baseW, baseH, verticalL
 }
 
 templateImg.onload = async function() {
-    
-    const finalDataUrl = isMobile
-    ? canvas.toDataURL('image/jpeg', 0.82)
-    : canvas.toDataURL('image/png');
+
+    const finalDataUrl = canvas.toDataURL("image/png");
+
     finalImage.src = finalDataUrl;
     modalImage.src = finalDataUrl;
 
@@ -10505,10 +10058,6 @@ typeControlsToggle.textContent = '收起';
 
 updateTypeControlLabels();
 
-    currentPersonCompositePath = null;
-    if (selectedCategory === "person") {
-        await preparePersonCompositePathCache();
-    }
 
     
 
