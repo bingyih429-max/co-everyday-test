@@ -6131,7 +6131,7 @@ async function generateChinesePoem(userText) {
 
     try {
         const controller = new AbortController();
-        const timer = setTimeout(() => controller.abort(), 8000);
+        const timer = setTimeout(() => controller.abort(), 20000);
 
         const res = await fetch("/api/generate-poem", {
             method: "POST",
