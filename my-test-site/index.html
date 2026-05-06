@@ -8652,11 +8652,59 @@ async function waitForImageReady(img) {
 }
 
 async function preloadCanvasAssets() {
-    await Promise.all([
-        waitForImageReady(topLogoWhite),
-        waitForImageReady(topLogoBlack),
-        waitForImageReady(inActionLogoBold)
-    ]);
+    console.log("preloadCanvasAssets：开始");
+
+    const assetUrls = [
+        "./images/竖版.png",
+        "./images/横版.png",
+        "./images/waiting-01.png",
+        "./images/top-logo-white.png",
+        "./images/top-logo-black.png",
+        "./images/logo-bold.png",
+
+        "./images/masks/daily-h-3x2-01.png",
+        "./images/masks/daily-h-3x2-02.png",
+        "./images/masks/daily-h-3x2-03.png",
+        "./images/masks/daily-h-3x2-04.png",
+        "./images/masks/daily-h-3x2-05.png",
+
+        "./images/masks/daily-h-4x3-01.png",
+        "./images/masks/daily-h-4x3-02.png",
+        "./images/masks/daily-h-4x3-03.png",
+        "./images/masks/daily-h-4x3-04.png",
+        "./images/masks/daily-h-4x3-05.png"
+    ];
+
+    const timeout = 2500;
+
+    const loadOne = (url) => {
+        return new Promise((resolve) => {
+            const img = new Image();
+
+            const timer = setTimeout(() => {
+                console.warn("资源预加载超时，跳过：", url);
+                resolve(null);
+            }, timeout);
+
+            img.onload = () => {
+                clearTimeout(timer);
+                console.log("资源预加载成功：", url);
+                resolve(img);
+            };
+
+            img.onerror = () => {
+                clearTimeout(timer);
+                console.warn("资源预加载失败，跳过：", url);
+                resolve(null);
+            };
+
+            img.src = url;
+        });
+    };
+
+    await Promise.all(assetUrls.map(loadOne));
+
+    console.log("preloadCanvasAssets：完成");
 }
 
 function drawExpandedLogoMask(ctx, img, x, y, w, h, expandPx = 0) {
