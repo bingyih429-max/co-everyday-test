@@ -2,9 +2,21 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
     <title> 历历/在幕 | Scenes of Days </title>
     <style>
+
+        html, body {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: hidden;
+    overscroll-behavior: none;
+    -webkit-text-size-adjust: 100%;
+}
+
+body {
+    touch-action: pan-y;
+}
 
 body {
     animation: pageFadeIn 0.55s ease both;
@@ -165,6 +177,8 @@ body {
     position: fixed;
     inset: 0;
     z-index: 10001;
+    width: 100vw;
+    height: 100dvh;
     background: rgba(255,255,255,0.86);
     backdrop-filter: blur(8px);
     -webkit-backdrop-filter: blur(8px);
@@ -172,11 +186,16 @@ body {
     display: flex;
     align-items: center;
     justify-content: center;
+
+    overflow: hidden;
+    touch-action: none;
 }
 
 .generate-waiting-img {
     width: min(76vw, 560px);
+    max-width: 86vw;
     height: auto;
+    display: block;
     opacity: 0;
     animation: waitingFade 1.2s ease-in-out infinite;
 }
@@ -1246,7 +1265,10 @@ try {
 });
 
 function isImageReady(img) {
-    return img && img.complete && img.naturalWidth > 0 && img.naturalHeight > 0;
+    return img &&
+        img.complete &&
+        img.naturalWidth > 0 &&
+        img.naturalHeight > 0;
 }
 
 function assertImageReady(img, label = "图片") {
@@ -6766,7 +6788,7 @@ ctx.fillRect(
 );
 
 // 直接铺满顶部区域，不再缩放计算
-if (topLogoBlack.complete) {
+if (isImageReady(topLogoBlack)) {
 
     ctx.save();
 
@@ -8662,8 +8684,25 @@ function drawTextAsSolidDotMatrix(ctx, text, x, y, options = {}) {
     ctx.restore();
 }
 
+async function waitForImageReady(img) {
+    if (isImageReady(img)) return true;
+
+    return new Promise(resolve => {
+        img.onload = () => resolve(true);
+        img.onerror = () => resolve(false);
+    });
+}
+
+async function preloadCanvasAssets() {
+    await Promise.all([
+        waitForImageReady(topLogoWhite),
+        waitForImageReady(topLogoBlack),
+        waitForImageReady(inActionLogoBold)
+    ]);
+}
+
 function drawExpandedLogoMask(ctx, img, x, y, w, h, expandPx = 0) {
-    if (!img || !img.complete) return;
+    if (!isImageReady(img)) return;
 
     if (expandPx <= 0.5) {
         ctx.drawImage(img, x, y, w, h);
@@ -9856,6 +9895,7 @@ if (dateInput) {
     showGenerateWaiting();
 
     try {
+        await preloadCanvasAssets();
         await ensureCustomFontsLoaded();
         if (classifyMode === 'auto' && uploadedImage) {
             selectedCategory = await classifyImage(fileInput.files?.[0], uploadedImage);
@@ -10254,6 +10294,26 @@ templateImg.onload = async function() {
     finalImage.src = finalDataUrl;
     modalImage.src = finalDataUrl;
 
+    setTimeout(() => {
+
+    const resultSection = document.querySelector('.result-section');
+
+    if (resultSection) {
+        resultSection.scrollIntoView({
+            behavior: 'smooth',
+            block: 'start'
+        });
+    } else {
+
+        window.scrollTo({
+            top: 0,
+            behavior: 'smooth'
+        });
+
+    }
+
+}, 120);
+
     // 再单独做模板层
     currentTemplateCanvas = document.createElement('canvas');
     currentTemplateCanvas.width = baseW;
@@ -10332,6 +10392,7 @@ templateImg.onerror = function() {
         const fragmentNumber = currentFragmentNumber;
 
         try {
+            await preloadCanvasAssets();
             await uploadToSupabase(canvas, fragmentNumber);
         } catch (err) {
             console.error(err);
@@ -10370,6 +10431,22 @@ setTimeout(() => {
 }, 450);
     });
 }
+
+history.scrollRestoration = 'manual';
+
+window.addEventListener('load', () => {
+
+    setTimeout(() => {
+
+        window.scrollTo({
+            top: 0,
+            left: 0,
+            behavior: 'instant'
+        });
+
+    }, 80);
+
+});
 
     </script>
 </body>
