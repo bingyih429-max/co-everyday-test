@@ -9981,8 +9981,12 @@ updateTypeControlLabels();
                 ctx.fillStyle = palette.dominant;
 ctx.fillRect(blueRect.x, blueRect.y, blueRect.w, blueRect.h);
 
-ctx.fillStyle = '#1a1a1a';
-ctx.fillRect(blackRect.x, blackRect.y, blackRect.w, blackRect.h);
+if (processedCategory !== 'daily_object') {
+    ctx.fillStyle = '#1a1a1a';
+    ctx.fillRect(blackRect.x, blackRect.y, blackRect.w, blackRect.h);
+} else {
+    ctx.clearRect(blackRect.x, blackRect.y, blackRect.w, blackRect.h);
+}
 
 ctx.fillStyle = palette.secondary;
 ctx.fillRect(redRect.x, redRect.y, redRect.w, redRect.h);
