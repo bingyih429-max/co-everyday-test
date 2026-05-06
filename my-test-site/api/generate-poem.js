@@ -14,22 +14,22 @@ export default async function handler(req, res) {
     }
 
     const prompt = `
-根据用户的日常照片感想，生成一首中文现代短诗。
+根据用户输入生成一首中文短诗。
 
 要求：
-- 只输出诗句，不要标题和解释。
-- 2行，总字数8到24个汉字。
-- 克制、日常、自然、有微小仪式感。
-- 不要鸡汤，不要宏大词。
-- 不要直接复述用户原话。
+- 2到3行
+- 总字数8到24字
+- 日常、克制、自然
+- 不要鸡汤
+- 不要解释
+- 不要标题
 
-地点：${location || "未填写"}
-分类：${category || "未指定"}
-感想：${userText || "未填写"}
+用户输入：
+${userText}
 `.trim();
 
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 18000);
+    const timer = setTimeout(() => controller.abort(), 20000);
 
     const response = await fetch("https://ark.cn-beijing.volces.com/api/v3/chat/completions", {
       method: "POST",
