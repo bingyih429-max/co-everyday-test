@@ -161,6 +161,45 @@ body {
     transition: opacity 0.35s ease;
 }
 
+.generate-waiting {
+    position: fixed;
+    inset: 0;
+    z-index: 10001;
+    background: rgba(255,255,255,0.86);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.generate-waiting-img {
+    width: min(76vw, 560px);
+    height: auto;
+    opacity: 0;
+    animation: waitingFade 1.2s ease-in-out infinite;
+}
+
+@keyframes waitingFade {
+    0% {
+        opacity: 0;
+        transform: scale(0.985);
+    }
+    35% {
+        opacity: 1;
+        transform: scale(1);
+    }
+    70% {
+        opacity: 1;
+        transform: scale(1.01);
+    }
+    100% {
+        opacity: 0;
+        transform: scale(0.985);
+    }
+}
+
 @keyframes loadingBreath {
     0% {
         opacity: 0.25;
@@ -678,6 +717,10 @@ body {
     <img src="images/loading.png" class="submit-loading-img" alt="loading">
 </div>
 
+<div id="generateWaiting" class="generate-waiting" style="display:none;">
+    <img id="generateWaitingImg" src="images/waiting-01.png" class="generate-waiting-img" alt="waiting">
+</div>
+
     <div class="container">
         <header>
             <img src="images/chinese-title.png" class="main-title-logo" alt="历历/在幕">
@@ -978,6 +1021,44 @@ imageSegmenterReady = initImageSegmenter();
         const detectedCategoryDesc = document.getElementById('detectedCategoryDesc');
         const loadingMsg = document.getElementById('loadingMsg');
         const finalCanvas = document.getElementById('finalCanvas');
+
+        const generateWaiting = document.getElementById('generateWaiting');
+const generateWaitingImg = document.getElementById('generateWaitingImg');
+
+const waitingImages = [
+    './images/waiting-01.png',
+    './images/waiting-02.png',
+    './images/waiting-03.png',
+    './images/waiting-04.png'
+];
+
+let waitingTimer = null;
+let waitingIndex = 0;
+
+function showGenerateWaiting() {
+    if (!generateWaiting || !generateWaitingImg) return;
+
+    waitingIndex = 0;
+    generateWaitingImg.src = waitingImages[waitingIndex];
+    generateWaiting.style.display = 'flex';
+
+    clearInterval(waitingTimer);
+
+    waitingTimer = setInterval(() => {
+        waitingIndex = (waitingIndex + 1) % waitingImages.length;
+        generateWaitingImg.src = waitingImages[waitingIndex];
+    }, 1200);
+}
+
+function hideGenerateWaiting() {
+    if (!generateWaiting) return;
+
+    generateWaiting.style.display = 'none';
+
+    clearInterval(waitingTimer);
+    waitingTimer = null;
+}
+
         const finalImage = document.getElementById('finalImage');
         const imageModal = document.getElementById('imageModal');
         const modalImage = document.getElementById('modalImage');
@@ -6130,7 +6211,9 @@ async function generateChinesePoem(userText) {
     console.log("准备调用AI写诗接口");
 
     try {
-        const res = await fetch("/api/generate-poem", {
+        const response = await fetch(
+  'https://sd7tkdl3fo4ufka34jik0.apigateway-cn-shanghai.volceapi.com/',
+{
             method: "POST",
             headers: {
                 "Content-Type": "application/json"
@@ -9725,6 +9808,7 @@ if (dateInput) {
 
     loadingMsg.style.display = 'block';
     generateBtn.disabled = true;
+    showGenerateWaiting();
 
     try {
         await ensureCustomFontsLoaded();
@@ -10172,16 +10256,19 @@ templateImg.onerror = function() {
     alert("模板图片加载失败：" + templateUrl);
     loadingMsg.style.display = 'none';
     generateBtn.disabled = false;
+    
 };
 
                 templateImg.src = templateUrl;
 
             } catch (err) {
-                console.error(err);
-                alert('生成失败：' + err.message);
-                loadingMsg.style.display = 'none';
-                generateBtn.disabled = false;
-            }
+    console.error(err);
+    alert('生成失败：' + err.message);
+} finally {
+    loadingMsg.style.display = 'none';
+    generateBtn.disabled = false;
+    hideGenerateWaiting();
+}
         });
 
         document.addEventListener("click", async function(e){
