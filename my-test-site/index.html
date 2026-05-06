@@ -4820,13 +4820,13 @@ function darkenCanvasAlphaOnly(targetCtx, width, height, alpha = 0.12) {
         const safeNo = String(fragmentNumber).padStart(5, "0");
         const now = Date.now();
 
-        const generatedFileName = `generated/fragment-${safeNo}-${now}.png`;
+        const generatedFileName = `generated/fragment-${safeNo}-${now}.jpg`;
 
         const { error: generatedUploadError } = await supabaseClient
             .storage
             .from("generated-images")
             .upload(generatedFileName, generatedBlob, {
-                contentType: "image/png",
+                contentType: "image/jpeg",
                 upsert: true
             });
 
@@ -4900,6 +4900,10 @@ function darkenCanvasAlphaOnly(targetCtx, width, height, alpha = 0.12) {
 
         if (insertError) throw insertError;
         
+        await supabaseClient.rpc('mark_fragment_submitted', {
+    p_number: String(fragmentNumber).padStart(5, '0')
+});
+
         //投递成功提示语
         alert("投稿成功！");
 
