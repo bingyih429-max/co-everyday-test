@@ -1245,6 +1245,16 @@ try {
     reader.readAsDataURL(displayFile);
 });
 
+function isImageReady(img) {
+    return img && img.complete && img.naturalWidth > 0 && img.naturalHeight > 0;
+}
+
+function assertImageReady(img, label = "图片") {
+    if (!isImageReady(img)) {
+        throw new Error(`${label}未加载成功`);
+    }
+}
+
 function getLunarInfo(parts) {
     try {
         const solar = Solar.fromYmd(
@@ -1452,7 +1462,7 @@ octx.fillText(monthDay, 140, 255);
         tempCanvas.width = Math.max(32, Math.round(imageEl.width * ratio));
         tempCanvas.height = Math.max(32, Math.round(imageEl.height * ratio));
         const tctx = tempCanvas.getContext('2d', { willReadFrequently: true });
-        tctx.drawImage(imageEl, 0, 0, tempCanvas.width, tempCanvas.height);
+        safeDrawImage(tctx, imageEl, 0, 0, tempCanvas.width, tempCanvas.height);
 
         const data = tctx.getImageData(0, 0, tempCanvas.width, tempCanvas.height).data;
         let brightCount = 0, blueSkyLike = 0, highlightCount = 0, total = 0;
@@ -3155,7 +3165,7 @@ function applyDailyObjectHorizontalMask(ctx, imageRect, imageRatio) {
 
         // 只裁切整张横构图区域
         tctx.globalCompositeOperation = 'destination-in';
-        tctx.drawImage(maskImg, 0, 0, canvas.width, canvas.height);
+        safeDrawImage(tctx, maskImg, 0, 0, canvas.width, canvas.height);
 
         mainCtx.clearRect(0, 0, canvas.width, canvas.height);
         mainCtx.drawImage(temp, 0, 0);
@@ -9842,7 +9852,7 @@ if (dateInput) {
 
         workingCanvas.width = workW;
         workingCanvas.height = workH;
-        wCtx.drawImage(uploadedImage, 0, 0, workW, workH);
+        safeDrawImage(wCtx, uploadedImage, 0, 0, workW, workH);
 
         const palette = extractExtendedPalette(workingCanvas);
         const userText = getUserTextValue();
