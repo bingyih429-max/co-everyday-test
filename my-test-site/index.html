@@ -1348,6 +1348,28 @@ function showManualDateInput(show = true) {
 
         updateDetectedCategoryUI(selectedCategory);
 
+        function safeDrawImage(ctx, img, ...args) {
+    if (!img) {
+        console.warn("safeDrawImage：图片对象不存在");
+        return false;
+    }
+
+    const isCanvasLike =
+        img instanceof HTMLCanvasElement ||
+        img instanceof OffscreenCanvas ||
+        img instanceof ImageBitmap;
+
+    if (!isCanvasLike) {
+        if (!img.complete || img.naturalWidth === 0 || img.naturalHeight === 0) {
+            console.warn("safeDrawImage：图片未加载成功，跳过绘制", img.src || img);
+            return false;
+        }
+    }
+
+    ctx.drawImage(img, ...args);
+    return true;
+}
+
         function getContrastTextColor(colorStr, threshold = 150) {
     const { r, g, b } = rgbStringToObj(colorStr || 'rgb(255,255,255)');
     const lum = 0.299 * r + 0.587 * g + 0.114 * b;
