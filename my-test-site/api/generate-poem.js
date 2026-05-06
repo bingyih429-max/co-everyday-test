@@ -14,30 +14,22 @@ export default async function handler(req, res) {
     }
 
     const prompt = `
-你需要根据用户上传日常照片时填写的文字，生成一首中文现代短诗。
+根据用户的日常照片感想，生成一首中文现代短诗。
 
-项目主题：
-“寻找日常仪式感的最大公约数”。
+要求：
+- 只输出诗句，不要标题和解释。
+- 2行，总字数8到24个汉字。
+- 克制、日常、自然、有微小仪式感。
+- 不要鸡汤，不要宏大词。
+- 不要直接复述用户原话。
 
-生成要求：
-1. 只输出诗句本身，不要标题、解释、引号。
-2. 2行或3行。
-3. 总字数控制在8到28个汉字之间。
-4. 语言自然、克制、日常、有微小仪式感。
-5. 不要鸡汤，不要说教，不要宏大叙事。
-6. 不要直接复述用户原话。
-7. 不要使用“人生、宇宙、命运、灵魂、永恒”等过大的词。
-8. 不要出现英文。
-9. 尽量保留用户文字中的真实物象或情绪，但不要生硬拼接。
-10. 诗句要适合放在视觉海报上。
-
-拍摄地点：${location || "未填写"}
-图像分类：${category || "未指定"}
-用户感想：${userText || "未填写"}
+地点：${location || "未填写"}
+分类：${category || "未指定"}
+感想：${userText || "未填写"}
 `.trim();
 
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 7000);
+    const timer = setTimeout(() => controller.abort(), 18000);
 
     const response = await fetch("https://ark.cn-beijing.volces.com/api/v3/chat/completions", {
       method: "POST",
