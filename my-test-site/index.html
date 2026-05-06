@@ -6124,7 +6124,89 @@ function debugPoemExtraction(userText = "") {
 }
 
 async function generateChinesePoem(userText) {
-    return generatePoemFromText(userText);
+    const safeText = String(userText || "").trim();
+    const location = document.getElementById("locationInput")?.value?.trim() || "";
+
+    console.log("准备调用AI写诗接口");
+
+    try {
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), 8000);
+
+        const res = await fetch("/api/generate-poem", {
+            method: "POST",
+            signal: controller.signal,
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                userText: safeText,
+                location,
+                category: selectedCategory || ""
+            })
+        });
+
+        clearTimeout(timer);
+
+        console.log("AI接口状态：", res.status);
+
+        if (!res.ok) {
+            const errText = await res.text();
+            console.warn("AI接口返回错误：", errText);
+            throw new Error("AI poem request failed");
+        }
+
+        const data = await res.json();
+        console.log("AI接口返回内容：", data);
+
+        if (data.poem && isFrontendPoemValid(data.poem)) {
+            console.log("AI诗歌生成成功：", data.poem);
+            return data.poem;
+        }
+
+        throw new Error("AI poem invalid");
+
+    } catch (err) {
+        console.warn("AI生成失败，使用本地兜底：", err);
+
+        if (typeof generatePoemFromText === "function") {
+            return generatePoemFromText(safeText);
+        }
+
+        if (typeof buildPoemFromMaterials === "function") {
+            return buildPoemFromMaterials(
+                safeText,
+                selectedCategory || "light_time",
+                currentPhotoDateParts
+            );
+        }
+
+        return "这一刻被留下\n风从心里经过";
+    }
+}
+
+function isFrontendPoemValid(poem) {
+    const clean = String(poem || "").trim();
+    const chineseCount = (clean.match(/[\u4e00-\u9fa5]/g) || []).length;
+
+    if (chineseCount < 8 || chineseCount > 28) return false;
+    if (clean.split(/\n+/).length > 3) return false;
+    if (/标题|解释|以下|这首诗|我为你/.test(clean)) return false;
+    if (/[A-Za-z]/.test(clean)) return false;
+
+    return true;
+}
+
+function isFrontendPoemValid(poem) {
+    const clean = String(poem || "").trim();
+    const chineseCount = (clean.match(/[\u4e00-\u9fa5]/g) || []).length;
+
+    if (chineseCount < 8 || chineseCount > 28) return false;
+    if (clean.split(/\n+/).length > 3) return false;
+    if (/标题|解释|以下|这首诗|我为你/.test(clean)) return false;
+    if (/[A-Za-z]/.test(clean)) return false;
+
+    return true;
 }
 
 function wrapPoemTextEven(ctx, text, x, y, maxWidth, lineHeight) {
@@ -6642,7 +6724,7 @@ ctx.font = '500 14px "ABC Favorit Expanded", "Source Han Sans SC", sans-serif';
 const metaLabelX = imageRect.x + 18;
 const metaBodyX = imageRect.x + 83;
 const metaStartY = dateBlockY + 115;
-const metaMaxWidth = 280;
+const metaMaxWidth = 200;
 const metaLineHeight = 15;
 const metaBlockGap = 5;
 
@@ -7038,7 +7120,7 @@ drawUnifiedVerticalMiniCalendar(ctx, imageRect);
     const metaLabelX = imageRect.x + 18;
     const metaBodyX = imageRect.x + 83;
     const metaStartY = dateBlockY + 130;
-    const metaMaxWidth = 280;
+    const metaMaxWidth = 200;
     const metaLineHeight = 15;
     const metaBlockGap = 5;
 
