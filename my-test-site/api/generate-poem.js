@@ -28,8 +28,8 @@ export default async function handler(req, res) {
 ${userText}
 `.trim();
 
-    //const controller = new AbortController();
-    //const timer = setTimeout(() => controller.abort(), 30000);
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 30000);
 
     const response = await fetch("https://ark.cn-beijing.volces.com/api/v3/chat/completions", {
       method: "POST",
