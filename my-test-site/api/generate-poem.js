@@ -1,3 +1,8 @@
+export const config = {
+  maxDuration: 30,
+  regions: ["hkg1"]
+};
+
 export default async function handler(req, res) {
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Method not allowed" });
@@ -17,19 +22,23 @@ export default async function handler(req, res) {
 根据用户输入生成一首中文短诗。
 
 要求：
-- 2到3行
-- 总字数8到24字
-- 日常、克制、自然
-- 不要鸡汤
-- 不要解释
+- 只输出诗句
 - 不要标题
+- 不要解释
+- 2行
+- 总字数8到24字
+- 日常、克制、自然、有微小仪式感
+- 不要鸡汤
+- 不要宏大词
+- 不要直接复述用户原话
 
-用户输入：
-${userText}
+地点：${location || "未填写"}
+分类：${category || "未指定"}
+感想：${userText || "未填写"}
 `.trim();
 
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 30000);
+    const timer = setTimeout(() => controller.abort(), 25000);
 
     const response = await fetch("https://ark.cn-beijing.volces.com/api/v3/chat/completions", {
       method: "POST",
@@ -43,27 +52,31 @@ ${userText}
         messages: [
           {
             role: "system",
-            content: "你是一个中文短诗生成器，风格克制、日常、清澈、不过度抒情。"
+            content: "你只生成中文短诗，克制、日常、自然。"
           },
           {
             role: "user",
             content: prompt
           }
         ],
-        temperature: 0.85,
-        max_tokens: 80,
+        temperature: 0.7,
+        max_tokens: 60,
         stream: false
       })
     });
 
     clearTimeout(timer);
 
+    const rawText = await response.text();
+
     if (!response.ok) {
-      const errText = await response.text();
-      return res.status(response.status).json({ error: errText });
+      return res.status(response.status).json({
+        error: "Ark API error",
+        detail: rawText
+      });
     }
 
-    const data = await response.json();
+    const data = JSON.parse(rawText);
     let poem = data?.choices?.[0]?.message?.content || "";
 
     poem = cleanPoem(poem);
@@ -92,12 +105,11 @@ function cleanPoem(text) {
     .replace(/```[\s\S]*?```/g, "")
     .replace(/^诗[:：]/g, "")
     .replace(/^短诗[:：]/g, "")
-    .replace(/^《.*?》/g, "")
     .replace(/[“”"']/g, "")
     .split("\n")
     .map(s => s.trim())
     .filter(Boolean)
-    .slice(0, 3)
+    .slice(0, 2)
     .join("\n");
 }
 
@@ -108,11 +120,9 @@ function countChineseChars(text) {
 
 function isValidPoem(poem) {
   const count = countChineseChars(poem);
-
   if (count < 8 || count > 28) return false;
   if (poem.split(/\n+/).length > 3) return false;
   if (/标题|解释|以下|这首诗|我为你/.test(poem)) return false;
   if (/[A-Za-z]/.test(poem)) return false;
-
   return true;
 }
