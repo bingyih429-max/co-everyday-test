@@ -2,20 +2,21 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
-    <title> 历历/在幕 | Scenes of Days </title>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">    <title> 历历/在幕 | Scenes of Days </title>
     <style>
 
         html, body {
     width: 100%;
     max-width: 100%;
     overflow-x: hidden;
-    overscroll-behavior: none;
+overflow-y: auto;
+overscroll-behavior-x: none;
+overscroll-behavior-y: auto;
     -webkit-text-size-adjust: 100%;
 }
 
 body {
-    touch-action: pan-y;
+    touch-action: auto;
 }
 
 body {
@@ -99,24 +100,13 @@ body {
         
 
         .container {
-    width: 100%;
     max-width: 600px;
-
-    margin: 0 auto;
-
+    width: 100%;
     background: var(--card-bg);
-
     padding: 30px;
-
     border-radius: 12px;
-
     box-shadow: 0 4px 20px rgba(0,0,0,0.05);
-
     box-sizing: border-box;
-
-    overflow: hidden;
-
-    position: relative;
 }
 
         /* 首页 */
@@ -213,22 +203,10 @@ body {
 }
 
 @keyframes waitingFade {
-    0% {
-        opacity: 0;
-        transform: scale(0.985);
-    }
-    35% {
-        opacity: 1;
-        transform: scale(1);
-    }
-    70% {
-        opacity: 1;
-        transform: scale(1.01);
-    }
-    100% {
-        opacity: 0;
-        transform: scale(0.985);
-    }
+    0% { opacity: 0; }
+    35% { opacity: 1; }
+    70% { opacity: 1; }
+    100% { opacity: 0; }
 }
 
 @keyframes loadingBreath {
@@ -761,6 +739,83 @@ body {
             }
 
         }
+
+        *,
+*::before,
+*::after {
+    box-sizing: border-box;
+}
+
+html,
+body {
+    width: 100%;
+    max-width: 100%;
+    margin: 0;
+    padding: 0;
+    overflow-x: hidden !important;
+}
+
+body {
+    position: relative;
+    touch-action: auto;
+}
+
+.classification-mode-row,
+.category-group {
+    width: 100%;
+    max-width: 100%;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+}
+
+.mode-btn,
+.cat-btn,
+.action-btn {
+    min-width: 0;
+    max-width: 100%;
+}
+
+@media (max-width: 640px) {
+    html,
+    body {
+        width: 100%;
+        max-width: 100%;
+        margin: 0;
+        padding: 0;
+        overflow-x: hidden !important;
+    }
+
+    body {
+        background: #fff;
+        touch-action: auto;
+    }
+
+    .container {
+        width: 100% !important;
+        max-width: 520px !important;
+        min-height: 100dvh;
+        margin: 0 auto !important;
+        padding: 18px 24px 120px !important;
+        border-radius: 0;
+        box-shadow: none;
+        box-sizing: border-box;
+        overflow-x: hidden;
+        background: #fff;
+    }
+
+    #finalCanvas,
+    #finalImage {
+        max-width: calc(100vw - 48px) !important;
+        height: auto !important;
+    }
+
+    .type-controls {
+        left: 50% !important;
+        width: calc(100vw - 48px) !important;
+        max-width: calc(100vw - 48px) !important;
+        transform: translateX(-50%) !important;
+    }
+}
+
     </style>
 </head>
 <body>
@@ -1104,7 +1159,7 @@ function showGenerateWaiting() {
     waitingTimer = setInterval(() => {
         waitingIndex = (waitingIndex + 1) % waitingImages.length;
         generateWaitingImg.src = waitingImages[waitingIndex];
-    }, 1200);
+    }, 2200);
 }
 
 function hideGenerateWaiting() {
@@ -1301,6 +1356,34 @@ try {
 
     reader.readAsDataURL(displayFile);
 });
+
+async function createMobileSafeImageCanvas(img, maxSide = 1800) {
+    const ratio = img.width / img.height;
+
+    let w = img.width;
+    let h = img.height;
+
+    if (Math.max(w, h) > maxSide) {
+        if (w >= h) {
+            w = maxSide;
+            h = Math.round(maxSide / ratio);
+        } else {
+            h = maxSide;
+            w = Math.round(maxSide * ratio);
+        }
+    }
+
+    const c = document.createElement('canvas');
+    c.width = w;
+    c.height = h;
+
+    const cctx = c.getContext('2d');
+    cctx.imageSmoothingEnabled = true;
+    cctx.imageSmoothingQuality = 'high';
+    cctx.drawImage(img, 0, 0, w, h);
+
+    return c;
+}
 
 function isImageReady(img) {
     return img &&
@@ -3252,7 +3335,11 @@ function applyDailyObjectHorizontalMask(ctx, imageRect, imageRatio) {
         mainCtx.clearRect(0, 0, canvas.width, canvas.height);
         mainCtx.drawImage(temp, 0, 0);
 
-        const finalDataUrl = canvas.toDataURL('image/png');
+        const isMobile = window.innerWidth <= 768;
+
+const finalDataUrl = isMobile
+    ? canvas.toDataURL('image/jpeg', 0.88)
+    : canvas.toDataURL('image/png');
         finalImage.src = finalDataUrl;
         modalImage.src = finalDataUrl;
     };
@@ -3883,7 +3970,11 @@ async function rerenderPosterWithTypeLayer(userText) {
     await drawGeneratedTypeLayer(ctx, currentImageRegion, currentPaletteData, currentCategory);
     if (currentTemplateCanvas) ctx.drawImage(currentTemplateCanvas, 0, 0);
     drawDynamicText(ctx, currentLayoutType, canvas.width, canvas.height, userText, currentFragmentNumber, currentAiPoem, currentCategory);
-    const finalDataUrl = canvas.toDataURL('image/png');
+    const isMobile = window.innerWidth <= 768;
+
+const finalDataUrl = isMobile
+    ? canvas.toDataURL('image/jpeg', 0.88)
+    : canvas.toDataURL('image/png');
     finalImage.src = finalDataUrl;
     modalImage.src = finalDataUrl;
 }
@@ -3986,7 +4077,11 @@ async function rerenderLightTimePosterLive() {
 
     currentBaseCanvas = oldBase;
 
-    const finalDataUrl = canvas.toDataURL('image/png');
+    const isMobile = window.innerWidth <= 768;
+
+const finalDataUrl = isMobile
+    ? canvas.toDataURL('image/jpeg', 0.88)
+    : canvas.toDataURL('image/png');
     finalImage.src = finalDataUrl;
     modalImage.src = finalDataUrl;
 }
@@ -4041,7 +4136,11 @@ ctx.drawImage(liveCanvas, 0, 0);
 
     currentBaseCanvas = oldBase;
 
-    const finalDataUrl = canvas.toDataURL('image/png');
+    const isMobile = window.innerWidth <= 768;
+
+const finalDataUrl = isMobile
+    ? canvas.toDataURL('image/jpeg', 0.88)
+    : canvas.toDataURL('image/png');
     finalImage.src = finalDataUrl;
     modalImage.src = finalDataUrl;
 }
@@ -4110,7 +4209,11 @@ async function rerenderInActionPosterLive() {
 
     currentBaseCanvas = oldBase;
 
-    const finalDataUrl = canvas.toDataURL('image/png');
+    const isMobile = window.innerWidth <= 768;
+
+const finalDataUrl = isMobile
+    ? canvas.toDataURL('image/jpeg', 0.88)
+    : canvas.toDataURL('image/png');
     finalImage.src = finalDataUrl;
     modalImage.src = finalDataUrl;
 }
@@ -9964,11 +10067,17 @@ if (dateInput) {
             catBtns.forEach(b => b.classList.toggle('active', b.dataset.type === selectedCategory));
         }
 
-        const workingCanvas = document.createElement('canvas');
-        const wCtx = workingCanvas.getContext('2d');
+        const isMobile = window.innerWidth <= 768;
 
-        let workW = uploadedImage.width;
-        let workH = uploadedImage.height;
+let workingCanvas = await createMobileSafeImageCanvas(
+    uploadedImage,
+    isMobile ? 1600 : 2400
+);
+
+let workW = workingCanvas.width;
+let workH = workingCanvas.height;
+const wCtx = workingCanvas.getContext('2d');
+
         const maxWorkDim = 800;
 
         if (workW > maxWorkDim || workH > maxWorkDim) {
