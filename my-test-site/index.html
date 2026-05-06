@@ -1156,10 +1156,10 @@ function showGenerateWaiting() {
 
     clearInterval(waitingTimer);
 
-    waitingTimer = setInterval(() => {
-        waitingIndex = (waitingIndex + 1) % waitingImages.length;
-        generateWaitingImg.src = waitingImages[waitingIndex];
-    }, 2200);
+    //waitingTimer = setInterval(() => {
+        //waitingIndex = (waitingIndex + 1) % waitingImages.length;
+        //generateWaitingImg.src = waitingImages[waitingIndex];
+    //}, 2200);
 }
 
 function hideGenerateWaiting() {
@@ -10071,7 +10071,7 @@ if (dateInput) {
 
 let workingCanvas = await createMobileSafeImageCanvas(
     uploadedImage,
-    isMobile ? 1600 : 2400
+    isMobile ? 1200 : 2400
 );
 
 let workW = workingCanvas.width;
@@ -10460,7 +10460,9 @@ function drawTemplateLayer(ctx, templateImg, layoutType, baseW, baseH, verticalL
 
 templateImg.onload = async function() {
     
-    const finalDataUrl = canvas.toDataURL("image/png");
+    const finalDataUrl = isMobile
+    ? canvas.toDataURL('image/jpeg', 0.82)
+    : canvas.toDataURL('image/png');
     finalImage.src = finalDataUrl;
     modalImage.src = finalDataUrl;
 
