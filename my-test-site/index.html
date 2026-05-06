@@ -942,6 +942,8 @@ body {
     <script src="https://cdn.jsdelivr.net/npm/heic2any/dist/heic2any.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/lunar-javascript/lunar.min.js"></script>
     <script type="module">
+
+        console.log("当前版本：2026-05-07-test-01");
        
         const SUPABASE_URL = "https://paidklixbfridphomkwj.supabase.co";
 const SUPABASE_KEY = "sb_publishable_H8FqLKJCbrHrhAVBViFeWw_hannKThG";
@@ -6196,10 +6198,14 @@ async function generateChinesePoem(userText) {
     console.log("准备调用国内AI写诗接口");
 
     try {
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), 15000);
+
         const res = await fetch(
             "https://sd7tkdl3fo4ufka34jik0.apigateway-cn-shanghai.volceapi.com/",
             {
                 method: "POST",
+                signal: controller.signal,
                 headers: {
                     "Content-Type": "application/json"
                 },
@@ -6210,6 +6216,8 @@ async function generateChinesePoem(userText) {
                 })
             }
         );
+
+        clearTimeout(timer);
 
         console.log("国内AI接口状态：", res.status);
 
@@ -9607,6 +9615,7 @@ const stretchLen = (fineMinLen + Math.random() * (fineMaxLen - fineMinLen)) * ma
 
         generateBtn.addEventListener('click', async function() {
             console.log('生成按钮重新执行了');
+            console.time("整次生成耗时");
     if (!uploadedImage) return;
 
 
@@ -9615,20 +9624,30 @@ const stretchLen = (fineMinLen + Math.random() * (fineMaxLen - fineMinLen)) * ma
     showGenerateWaiting();
 
     try {
-        await preloadCanvasAssets();
-        await ensureCustomFontsLoaded();
+        console.log("STEP 1：开始 preloadCanvasAssets");
+await preloadCanvasAssets();
+console.log("STEP 1 完成");
+
+        console.log("STEP 2：开始字体加载");
+await ensureCustomFontsLoaded();
+console.log("STEP 2 完成");
+
         if (classifyMode === 'auto' && uploadedImage) {
+            console.log("STEP 3：开始 classifyImage");
             selectedCategory = await classifyImage(fileInput.files?.[0], uploadedImage);
+            console.log("STEP 3 完成", selectedCategory);
             updateDetectedCategoryUI(selectedCategory);
             catBtns.forEach(b => b.classList.toggle('active', b.dataset.type === selectedCategory));
         }
 
         const isMobile = window.innerWidth <= 768;
-
+        
+console.log("STEP 4：开始 createMobileSafeImageCanvas");
 let workingCanvas = await createMobileSafeImageCanvas(
     uploadedImage,
     isMobile ? 800 : 1600
 );
+console.log("STEP 4 完成");
 
 let workW = workingCanvas.width;
 let workH = workingCanvas.height;
@@ -9649,7 +9668,10 @@ const wCtx = workingCanvas.getContext('2d');
         const palette = extractExtendedPalette(workingCanvas);
         const userText = getUserTextValue();
 
+        console.log("STEP 5：开始 reserveFragmentNumber");
         currentFragmentNumber = await reserveFragmentNumber();
+        console.log("STEP 5：开始 reserveFragmentNumber");
+
 const indexNumber = currentFragmentNumber;
 
                 const canvas = document.getElementById('finalCanvas');
@@ -9693,7 +9715,17 @@ if (selectedCategory === 'light_time') {
 let verticalLayout = null;
 
 // 提前生成 AI 诗，因为竖版高度要靠它来算
+console.log("STEP 6：开始 AI 写诗");
+
+const poemStart = performance.now();
+
 currentAiPoem = await generateChinesePoem(userText);
+
+console.log(
+    "STEP 6 完成，用时：",
+    performance.now() - poemStart,
+    currentAiPoem
+);
 
 // 先统一得到当前处理分类
 const processedCategory = selectedCategory === "light_time" ? "light_time_moment" : selectedCategory;
@@ -9970,7 +10002,17 @@ drawLightTimeHorizontalOverflowStrips(ctx, photoLayer, imageRegion, baseW, baseH
     ctx.restore();
 
     } else {
-        await processImage(ctx, workingCanvas, imageRegion, processedCategory, palette);
+        console.log("STEP 7：开始 processImage");
+
+await processImage(
+    ctx,
+    workingCanvas,
+    imageRegion,
+    processedCategory,
+    palette
+);
+
+console.log("STEP 7 完成");
     }
 
 }
@@ -10013,6 +10055,7 @@ function drawTemplateLayer(ctx, templateImg, layoutType, baseW, baseH, verticalL
 }
 
 templateImg.onload = async function() {
+    console.log("STEP 8：templateImg.onload 触发");
 
     const finalDataUrl = canvas.toDataURL("image/png");
 
@@ -10075,6 +10118,8 @@ updateTypeControlLabels();
     document.getElementById('resultArea').style.display = 'block';
     loadingMsg.style.display = 'none';
     window.scrollTo(0, 0);
+    console.timeEnd("整次生成耗时");
+console.log("STEP FINAL：全部完成");
 };
 
 templateImg.onerror = function() {
