@@ -6130,8 +6130,8 @@ async function generateChinesePoem(userText) {
     console.log("准备调用AI写诗接口");
 
     try {
-        const controller = new AbortController();
-        const timer = setTimeout(() => controller.abort(), 20000);
+        //const controller = new AbortController();
+        //const timer = setTimeout(() => controller.abort(), 30000);
 
         const res = await fetch("/api/generate-poem", {
             method: "POST",
