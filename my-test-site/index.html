@@ -6208,36 +6208,37 @@ async function generateChinesePoem(userText) {
     const safeText = String(userText || "").trim();
     const location = document.getElementById("locationInput")?.value?.trim() || "";
 
-    console.log("准备调用AI写诗接口");
+    console.log("准备调用国内AI写诗接口");
 
     try {
-        const response = await fetch(
-  'https://sd7tkdl3fo4ufka34jik0.apigateway-cn-shanghai.volceapi.com/',
-{
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json"
-            },
-            body: JSON.stringify({
-                userText: safeText,
-                location,
-                category: selectedCategory || ""
-            })
-        });
+        const res = await fetch(
+            "https://sd7tkdl3fo4ufka34jik0.apigateway-cn-shanghai.volceapi.com/",
+            {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                    userText: safeText,
+                    location,
+                    category: selectedCategory || ""
+                })
+            }
+        );
 
-        console.log("AI接口状态：", res.status);
+        console.log("国内AI接口状态：", res.status);
 
         if (!res.ok) {
             const errText = await res.text();
-            console.warn("AI接口返回错误：", errText);
+            console.warn("国内AI接口返回错误：", errText);
             throw new Error("AI poem request failed");
         }
 
         const data = await res.json();
-        console.log("AI接口返回内容：", data);
+        console.log("国内AI接口返回内容：", data);
 
         if (data.poem && isFrontendPoemValid(data.poem)) {
-            console.log("AI诗歌生成成功：", data.poem);
+            console.log("国内AI诗歌生成成功：", data.poem);
             return data.poem;
         }
 
@@ -7232,85 +7233,93 @@ drawUnifiedVerticalMiniCalendar(ctx, imageRect);
     ctx.restore();
 
     // 诗歌区域：点阵字，自动换行，限制在底部区域
-    const poemInk = getInkByRectLuminance(ctx.canvas, poemRect);
-    const fragmentInk = poemInk;
+const poemInk = getInkByRectLuminance(ctx.canvas, poemRect);
+const fragmentInk = poemInk;
 
-    ctx.save();
-    ctx.beginPath();
-    ctx.rect(poemRect.x, poemRect.y, poemRect.w, poemRect.h);
-    ctx.clip();
+// 1. 诗歌文字：不要差值
+ctx.save();
 
-    ctx.fillStyle = poemInk;
-    ctx.textAlign = 'left';
-    ctx.textBaseline = 'top';
-    ctx.font = '900 96px "FZ CuHei Traditional", sans-serif';
+ctx.globalCompositeOperation = 'source-over';
+ctx.filter = 'none';
+ctx.globalAlpha = 1;
 
-    if (String(aiPoem || '').trim()) {
-        const poemLines = breakPoemBySentenceAndCharCount(
-    aiPoem,
-    7
-).join('\n');
+ctx.beginPath();
+ctx.rect(poemRect.x, poemRect.y, poemRect.w, poemRect.h);
+ctx.clip();
 
-        drawTextAsDotMatrix(
-    ctx,
-    poemLines,
-    poemRect.x - 5,
-    poemRect.y + 10,
-    {
-        font: '900 110px "FZ CuHei Traditional", sans-serif',
-        color: poemInk,
+if (String(aiPoem || '').trim()) {
+    const poemLines = breakPoemBySentenceAndCharCount(
+        aiPoem,
+        7
+    ).join('\n');
 
-        dotR: 5,
-        gap: 9,
-        strokeWidth: 6,
-        textStrokeWidth: 1,
-
-        lineHeight: vLayout.poemLineHeight * 1.15,
-        maxWidth: poemRect.w
-    }
-);
-    }
-
-    ctx.restore();
-
-    // Fragment 方框与编号
-    const fragmentBoxW = 275;
-    const fragmentBoxH = 90;
-    const fragmentRightGap = 18;
-    const fragmentBottomGap = 18;
-
-    const fragmentBoxX = poemRect.x + poemRect.w - fragmentBoxW - fragmentRightGap;
-    const fragmentBoxY = poemRect.y + poemRect.h - fragmentBoxH - fragmentBottomGap;
-
-    drawFragmentBox(
+    drawTextAsDotMatrix(
         ctx,
-        fragmentBoxX,
-        fragmentBoxY,
-        fragmentBoxW,
-        fragmentBoxH,
-        fragmentInk
+        poemLines,
+        poemRect.x - 5,
+        poemRect.y + 10,
+        {
+            font: '900 110px "FZ CuHei Traditional", sans-serif',
+            color: poemInk,
+
+            dotR: 5,
+            gap: 9,
+            strokeWidth: 6,
+            textStrokeWidth: 1,
+
+            lineHeight: vLayout.poemLineHeight * 1.15,
+            maxWidth: poemRect.w
+        }
     );
+}
 
-    ctx.save();
-    ctx.textAlign = 'right';
-    ctx.textBaseline = 'alphabetic';
-    ctx.fillStyle = fragmentInk;
+ctx.restore();
 
-    ctx.font = '500 20px "ABC Favorit Expanded", sans-serif';
-    ctx.fillText(
-        '#Fragment',
-        fragmentBoxX + fragmentBoxW - 2,
-        fragmentBoxY + fragmentBoxH - 32
-    );
+// 2. Fragment 方框与编号：也不要差值
+const fragmentBoxW = 275;
+const fragmentBoxH = 90;
+const fragmentRightGap = 18;
+const fragmentBottomGap = 18;
 
-    ctx.font = '600 28px "ABC Favorit Expanded", sans-serif';
-    ctx.fillText(
-        fragmentNo,
-        fragmentBoxX + fragmentBoxW - 2,
-        fragmentBoxY + fragmentBoxH - 7
-    );
+const fragmentBoxX = poemRect.x + poemRect.w - fragmentBoxW - fragmentRightGap;
+const fragmentBoxY = poemRect.y + poemRect.h - fragmentBoxH - fragmentBottomGap;
 
-    ctx.restore();
+ctx.save();
+
+ctx.globalCompositeOperation = 'source-over';
+ctx.filter = 'none';
+ctx.globalAlpha = 1;
+
+// 方框
+drawFragmentBox(
+    ctx,
+    fragmentBoxX,
+    fragmentBoxY,
+    fragmentBoxW,
+    fragmentBoxH,
+    fragmentInk
+);
+
+// 编号文字
+ctx.textAlign = 'right';
+ctx.textBaseline = 'alphabetic';
+ctx.fillStyle = fragmentInk;
+
+ctx.font = '500 20px "ABC Favorit Expanded", sans-serif';
+ctx.fillText(
+    '#Fragment',
+    fragmentBoxX + fragmentBoxW - 2,
+    fragmentBoxY + fragmentBoxH - 32
+);
+
+ctx.font = '600 28px "ABC Favorit Expanded", sans-serif';
+ctx.fillText(
+    fragmentNo,
+    fragmentBoxX + fragmentBoxW - 2,
+    fragmentBoxY + fragmentBoxH - 7
+);
+
+ctx.restore();
 }
 
 function drawDailyObjectHorizontalShapeDecoration(ctx, baseW, baseH, leftRect, imageRect, rightRect) {
