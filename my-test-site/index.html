@@ -6197,18 +6197,6 @@ function isFrontendPoemValid(poem) {
     return true;
 }
 
-function isFrontendPoemValid(poem) {
-    const clean = String(poem || "").trim();
-    const chineseCount = (clean.match(/[\u4e00-\u9fa5]/g) || []).length;
-
-    if (chineseCount < 8 || chineseCount > 28) return false;
-    if (clean.split(/\n+/).length > 3) return false;
-    if (/标题|解释|以下|这首诗|我为你/.test(clean)) return false;
-    if (/[A-Za-z]/.test(clean)) return false;
-
-    return true;
-}
-
 function wrapPoemTextEven(ctx, text, x, y, maxWidth, lineHeight) {
     const paragraphs = String(text || '')
         .split(/\n+/)
