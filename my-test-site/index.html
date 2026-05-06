@@ -99,13 +99,25 @@ body {
         
 
         .container {
-            max-width: 600px;
-            width: 100%;
-            background: var(--card-bg);
-            padding: 30px;
-            border-radius: 12px;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.05);
-        }
+    width: 100%;
+    max-width: 600px;
+
+    margin: 0 auto;
+
+    background: var(--card-bg);
+
+    padding: 30px;
+
+    border-radius: 12px;
+
+    box-shadow: 0 4px 20px rgba(0,0,0,0.05);
+
+    box-sizing: border-box;
+
+    overflow: hidden;
+
+    position: relative;
+}
 
         /* 首页 */
         .home-page {
@@ -668,18 +680,44 @@ body {
 
         @media (max-width: 640px) {
             body {
-                padding: 0;
-                background: #fff;
-            }
+
+    margin: 0;
+
+    padding: 0;
+
+    background: #f5f5f5;
+
+    display: flex;
+
+    justify-content: center;
+
+    overflow-x: hidden;
+
+    min-height: 100dvh;
+}
 
             .container {
-    width: calc(100% - 48px);
+
+    width: 100%;
     max-width: 520px;
-    min-height: 100vh;
+
+    min-height: 100dvh;
+
     margin: 0 auto;
+
     border-radius: 0;
+
     box-shadow: none;
-    padding: 18px 0 120px;
+
+    padding: 18px 24px 120px;
+
+    box-sizing: border-box;
+
+    overflow-x: hidden;
+
+    position: relative;
+
+    background: #fff;
 }
 
             header {
@@ -6643,7 +6681,7 @@ function breakPoemBySentenceAndCharCount(text, maxChars = 7) {
         if (current) lines.push(current);
     });
 
-    return lines;
+    return avoidLineStartPunctuation(lines);
 }
 
 function breakTextIntoLines(ctx, text, maxWidth, lineHeight) {
@@ -6662,6 +6700,29 @@ function breakTextIntoLines(ctx, text, maxWidth, lineHeight) {
     }
 
     if (line) lines.push(line);
+    return lines;
+}
+
+const FORBIDDEN_LINE_START =
+'，。、！？：；）】》〉」』〕”’,.!?;:)]}>';
+
+function avoidLineStartPunctuation(lines) {
+
+    for (let i = 1; i < lines.length; i++) {
+
+        while (
+            lines[i] &&
+            FORBIDDEN_LINE_START.includes(lines[i][0])
+        ) {
+
+            const moveChar = lines[i][0];
+
+            lines[i - 1] += moveChar;
+
+            lines[i] = lines[i].slice(1);
+        }
+    }
+
     return lines;
 }
 
