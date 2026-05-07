@@ -8293,43 +8293,6 @@ function drawInActionHorizontalImageOverlayCutouts(ctx, baseW, baseH, imageRect)
 }
 }
 
-function makeSoftMaskNoFilter(maskCanvas, blurPx = 4, sharpAlpha = 0) {
-    const result = document.createElement("canvas");
-    result.width = maskCanvas.width;
-    result.height = maskCanvas.height;
-
-    const rctx = result.getContext("2d");
-    const r = Math.max(1, blurPx);
-
-    const offsets = [
-        [0, 0, 0.22],
-        [r, 0, 0.10],
-        [-r, 0, 0.10],
-        [0, r, 0.10],
-        [0, -r, 0.10],
-        [r * 0.7, r * 0.7, 0.07],
-        [-r * 0.7, r * 0.7, 0.07],
-        [r * 0.7, -r * 0.7, 0.07],
-        [-r * 0.7, -r * 0.7, 0.07],
-        [r * 1.4, 0, 0.04],
-        [-r * 1.4, 0, 0.04],
-        [0, r * 1.4, 0.04],
-        [0, -r * 1.4, 0.04]
-    ];
-
-    offsets.forEach(([dx, dy, alpha]) => {
-        rctx.globalAlpha = alpha;
-        rctx.drawImage(maskCanvas, dx, dy);
-    });
-
-    if (sharpAlpha > 0) {
-        rctx.globalAlpha = sharpAlpha;
-        rctx.drawImage(maskCanvas, 0, 0);
-    }
-
-    rctx.globalAlpha = 1;
-    return result;
-}
 
     function blurMask(maskCanvas, blurPx, sharpAlpha = 0) {
     return makeSoftMaskNoFilter(maskCanvas, blurPx, sharpAlpha);
