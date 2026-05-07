@@ -1052,10 +1052,10 @@ typeSystem: {
     enabled: true,
     defaultText: "",
     autoModeMap: {
-        light_time: "danger",
-        daily_object: "construct",
-        in_action: "string"
-    }
+    light_time: "none",
+    daily_object: "construct",
+    in_action: "none"
+}
 }
         };
 
@@ -1495,6 +1495,70 @@ function showManualDateInput(show = true) {
 
     ctx.drawImage(img, ...args);
     return true;
+}
+
+function drawSoftCanvas(mainCtx, srcCanvas, x = 0, y = 0, blurPx = 3, composite = "source-over") {
+    const r = Math.max(1, blurPx);
+    const offsets = [
+        [0, 0, 0.28],
+        [r, 0, 0.10],
+        [-r, 0, 0.10],
+        [0, r, 0.10],
+        [0, -r, 0.10],
+        [r * 0.7, r * 0.7, 0.07],
+        [-r * 0.7, r * 0.7, 0.07],
+        [r * 0.7, -r * 0.7, 0.07],
+        [-r * 0.7, -r * 0.7, 0.07]
+    ];
+
+    mainCtx.save();
+    mainCtx.globalCompositeOperation = composite;
+
+    offsets.forEach(([dx, dy, alpha]) => {
+        mainCtx.globalAlpha = alpha;
+        mainCtx.drawImage(srcCanvas, x + dx, y + dy);
+    });
+
+    mainCtx.globalAlpha = 1;
+    mainCtx.restore();
+}
+
+function makeSoftMaskNoFilter(maskCanvas, blurPx = 4, sharpAlpha = 0) {
+    const result = document.createElement("canvas");
+    result.width = maskCanvas.width;
+    result.height = maskCanvas.height;
+
+    const rctx = result.getContext("2d");
+    const r = Math.max(1, blurPx);
+
+    const offsets = [
+        [0, 0, 0.22],
+        [r, 0, 0.10],
+        [-r, 0, 0.10],
+        [0, r, 0.10],
+        [0, -r, 0.10],
+        [r * 0.7, r * 0.7, 0.07],
+        [-r * 0.7, r * 0.7, 0.07],
+        [r * 0.7, -r * 0.7, 0.07],
+        [-r * 0.7, -r * 0.7, 0.07],
+        [r * 1.4, 0, 0.04],
+        [-r * 1.4, 0, 0.04],
+        [0, r * 1.4, 0.04],
+        [0, -r * 1.4, 0.04]
+    ];
+
+    offsets.forEach(([dx, dy, alpha]) => {
+        rctx.globalAlpha = alpha;
+        rctx.drawImage(maskCanvas, dx, dy);
+    });
+
+    if (sharpAlpha > 0) {
+        rctx.globalAlpha = sharpAlpha;
+        rctx.drawImage(maskCanvas, 0, 0);
+    }
+
+    rctx.globalAlpha = 1;
+    return result;
 }
 
         function getContrastTextColor(colorStr, threshold = 150) {
@@ -3408,40 +3472,7 @@ ctx.restore();
 }
 
 async function drawGeneratedTypeLayer(ctx, rect, palette, category) {
-    // light_time 跳过图片区文字叠加
-    if (category === 'light_time' || category === 'light_time_moment') {
-        return;
-    }
-
-    // 图像区域优先使用程序生成的诗句，但不能因为诗句为空就整层不画
-    const poemText = String(currentAiPoem || "").trim();
-    const mode = getResolvedTypeMode();
-
-    ctx.save();
-    ctx.beginPath();
-    ctx.rect(rect.x, rect.y, rect.w, rect.h);
-    ctx.clip();
-
-    if (mode === "string") {
-        await drawStringTypeLayer(ctx, rect, palette, poemText);
-    } else if (mode === "danger") {
-        if (poemText) drawDangerTypeLayer(ctx, rect, palette, poemText, category);
-    } else if (mode === "morisawa") {
-        if (poemText) drawMorisawaTypeLayer(ctx, rect, palette, poemText);
-    } else if (mode === "pow") {
-        if (poemText) drawShineTypeLayer(ctx, rect, palette, poemText);
-    } else {
-        if (poemText) {
-            ctx.globalAlpha = 0.14;
-            ctx.fillStyle = palette.white || "#ffffff";
-            ctx.textAlign = "center";
-            ctx.textBaseline = "middle";
-            ctx.font = `500 72px ${TYPE_FONT_STACK}`;
-            ctx.fillText(poemText.slice(0, 8), rect.x + rect.w / 2, rect.y + rect.h / 2);
-        }
-    }
-
-    ctx.restore();
+    return;
 }
 
 function drawDangerTypeLayer(ctx, rect, palette, text, category) {
@@ -6920,11 +6951,7 @@ if (safeAiPoem.trim()) {
         pctx.restore();
     });
 
-    ctx.save();
-    ctx.filter = `blur(${POEM_BLUR_PX}px)`;
-    ctx.drawImage(poemCanvas, 0, 0);
-    ctx.filter = 'none';
-    ctx.restore();
+    drawSoftCanvas(ctx, poemCanvas, 0, 0, POEM_BLUR_PX, "source-over");
 }
 
 // Fragment 方框与编号：相对诗歌底部固定，并与诗歌文字同色
@@ -8264,38 +8291,50 @@ function drawInActionHorizontalImageOverlayCutouts(ctx, baseW, baseH, imageRect)
         logoExpandPx
     );
 }
+}
 
-    function blurMask(maskCanvas, blurPx, sharpAlpha = 0) {
-        const result = document.createElement('canvas');
-        result.width = baseW;
-        result.height = baseH;
+function makeSoftMaskNoFilter(maskCanvas, blurPx = 4, sharpAlpha = 0) {
+    const result = document.createElement("canvas");
+    result.width = maskCanvas.width;
+    result.height = maskCanvas.height;
 
-        const rctx = result.getContext('2d');
+    const rctx = result.getContext("2d");
+    const r = Math.max(1, blurPx);
 
-        rctx.filter = `blur(${blurPx}px)`;
+    const offsets = [
+        [0, 0, 0.22],
+        [r, 0, 0.10],
+        [-r, 0, 0.10],
+        [0, r, 0.10],
+        [0, -r, 0.10],
+        [r * 0.7, r * 0.7, 0.07],
+        [-r * 0.7, r * 0.7, 0.07],
+        [r * 0.7, -r * 0.7, 0.07],
+        [-r * 0.7, -r * 0.7, 0.07],
+        [r * 1.4, 0, 0.04],
+        [-r * 1.4, 0, 0.04],
+        [0, r * 1.4, 0.04],
+        [0, -r * 1.4, 0.04]
+    ];
+
+    offsets.forEach(([dx, dy, alpha]) => {
+        rctx.globalAlpha = alpha;
+        rctx.drawImage(maskCanvas, dx, dy);
+    });
+
+    if (sharpAlpha > 0) {
+        rctx.globalAlpha = sharpAlpha;
         rctx.drawImage(maskCanvas, 0, 0);
-        rctx.filter = 'none';
-
-        if (sharpAlpha > 0) {
-            rctx.globalAlpha = sharpAlpha;
-            rctx.drawImage(maskCanvas, 0, 0);
-            rctx.globalAlpha = 1;
-        }
-
-        return result;
     }
 
-    const heavyBlurCut = blurMask(cut, 5, 0);
-
-    octx.save();
-    octx.globalCompositeOperation = 'destination-out';
-    octx.drawImage(heavyBlurCut, 0, 0);
-    octx.restore();
-
-    ctx.save();
-    ctx.drawImage(overlay, 0, 0);
-    ctx.restore();
+    rctx.globalAlpha = 1;
+    return result;
 }
+
+    function blurMask(maskCanvas, blurPx, sharpAlpha = 0) {
+    return makeSoftMaskNoFilter(maskCanvas, blurPx, sharpAlpha);
+}
+
 
 function drawInActionHorizontalSideBlackMarks(ctx, baseW, baseH, leftRect, imageRect, rightRect) {
     const expandValue = Number(typeSliderA.value) / 100;
@@ -8483,22 +8522,7 @@ drawInActionDotCalendarMask(
 // 4. 分层羽化：日期/logo 重羽化，月历轻羽化
 // =====================
 function blurMask(maskCanvas, blurPx, sharpAlpha = 0) {
-    const result = document.createElement('canvas');
-    result.width = baseW;
-    result.height = baseH;
-
-    const rctx = result.getContext('2d');
-    rctx.filter = `blur(${blurPx}px)`;
-    rctx.drawImage(maskCanvas, 0, 0);
-    rctx.filter = 'none';
-
-    if (sharpAlpha > 0) {
-        rctx.globalAlpha = sharpAlpha;
-        rctx.drawImage(maskCanvas, 0, 0);
-        rctx.globalAlpha = 1;
-    }
-
-    return result;
+    return makeSoftMaskNoFilter(maskCanvas, blurPx, sharpAlpha);
 }
 
 const heavyBlurCut = blurMask(cut, 4, 0);  // 日期大字 + logo 羽化
@@ -8937,9 +8961,7 @@ if (String(aiPoem || '').trim()) {
         pctx.fillText(line.text, line.x, line.y);
     });
 
-    ctx.filter = `blur(${POEM_BLUR_PX}px)`;
-    ctx.drawImage(poemCanvas, 0, 0);
-    ctx.filter = 'none';
+    drawSoftCanvas(ctx, poemCanvas, 0, 0, POEM_BLUR_PX, "source-over");
 }
 
 ctx.restore();
