@@ -1566,9 +1566,19 @@ octx.fillText(monthDay, 140, 255);
 
         ctx.save();
         ctx.globalCompositeOperation = useDifference ? 'difference' : 'source-over';
-        ctx.filter = `blur(${DATE_BLUR_PX}px)`;
-        ctx.drawImage(off, 0, 0);
-        ctx.filter = 'none';
+        const blurred = document.createElement("canvas");
+blurred.width = off.width;
+blurred.height = off.height;
+
+const bctx = blurred.getContext("2d");
+bctx.filter = `blur(${DATE_BLUR_PX}px)`;
+bctx.drawImage(off, 0, 0);
+bctx.filter = "none";
+
+ctx.save();
+ctx.globalCompositeOperation = useDifference ? "difference" : "source-over";
+ctx.drawImage(blurred, 0, 0);
+ctx.restore();
         ctx.restore();
         return;
     }
@@ -9262,6 +9272,64 @@ function drawRibbonGradientTube(ctx, pts, options = {}) {
     });
 
     ctx.restore();
+}
+
+function drawBlurredTextLayer(mainCtx, options) {
+    const {
+        text,
+        x,
+        y,
+        font,
+        fillStyle = "#ffffff",
+        strokeStyle = null,
+        lineWidth = 0,
+        blur = 3,
+        composite = "source-over",
+        textAlign = "left",
+        textBaseline = "top"
+    } = options;
+
+    const canvas = mainCtx.canvas;
+
+    const off = document.createElement("canvas");
+    off.width = canvas.width;
+    off.height = canvas.height;
+
+    const octx = off.getContext("2d");
+
+    octx.clearRect(0, 0, off.width, off.height);
+    octx.font = font;
+    octx.textAlign = textAlign;
+    octx.textBaseline = textBaseline;
+    octx.fillStyle = fillStyle;
+
+    if (strokeStyle && lineWidth > 0) {
+        octx.strokeStyle = strokeStyle;
+        octx.lineWidth = lineWidth;
+        octx.lineJoin = "round";
+        octx.strokeText(text, x, y);
+    }
+
+    octx.fillText(text, x, y);
+
+    if (blur > 0) {
+        const copy = document.createElement("canvas");
+        copy.width = off.width;
+        copy.height = off.height;
+
+        const copyCtx = copy.getContext("2d");
+        copyCtx.drawImage(off, 0, 0);
+
+        octx.clearRect(0, 0, off.width, off.height);
+        octx.filter = `blur(${blur}px)`;
+        octx.drawImage(copy, 0, 0);
+        octx.filter = "none";
+    }
+
+    mainCtx.save();
+    mainCtx.globalCompositeOperation = composite;
+    mainCtx.drawImage(off, 0, 0);
+    mainCtx.restore();
 }
 
         async function processImage(ctx, workingCanvas, rect, type, palette) {
