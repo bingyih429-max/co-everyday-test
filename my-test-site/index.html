@@ -10036,22 +10036,47 @@ drawLightTimeHorizontalOverflowStrips(ctx, photoLayer, imageRegion, baseW, baseH
     // 最大只到 10px，初始 sliderB=0 时就是完全不模糊
     const imageBlurPx = blurValue * 5;
 
-    ctx.save();
+    const tempCanvas = document.createElement('canvas');
+tempCanvas.width = imageRegion.w;
+tempCanvas.height = imageRegion.h;
 
-    ctx.beginPath();
-    ctx.rect(imageRegion.x, imageRegion.y, imageRegion.w, imageRegion.h);
-    ctx.clip();
+const tctx = tempCanvas.getContext('2d');
 
-    if (imageBlurPx > 0.01) {
-        ctx.filter = `blur(${imageBlurPx}px)`;
-    } else {
-        ctx.filter = 'none';
+// 在离屏 canvas 里先画图
+drawImageCoverToRect(
+    tctx,
+    uploadedImage,
+    {
+        x: 0,
+        y: 0,
+        w: imageRegion.w,
+        h: imageRegion.h
     }
+);
 
-    drawImageCoverToRect(ctx, uploadedImage, imageRegion);
+// 再模糊
+if (imageBlurPx > 0.01) {
+    tctx.filter = `blur(${imageBlurPx}px)`;
 
-    ctx.filter = 'none';
-    ctx.restore();
+    const copyCanvas = document.createElement('canvas');
+    copyCanvas.width = tempCanvas.width;
+    copyCanvas.height = tempCanvas.height;
+
+    const copyCtx = copyCanvas.getContext('2d');
+    copyCtx.drawImage(tempCanvas, 0, 0);
+
+    tctx.clearRect(0, 0, tempCanvas.width, tempCanvas.height);
+    tctx.drawImage(copyCanvas, 0, 0);
+
+    tctx.filter = 'none';
+}
+
+// 最后贴回主 canvas
+ctx.drawImage(
+    tempCanvas,
+    imageRegion.x,
+    imageRegion.y
+);
 
     } else {
         console.log("STEP 7：开始 processImage");
