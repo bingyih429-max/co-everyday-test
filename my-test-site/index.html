@@ -1497,32 +1497,6 @@ function showManualDateInput(show = true) {
     return true;
 }
 
-function drawSoftCanvas(mainCtx, srcCanvas, x = 0, y = 0, blurPx = 3, composite = "source-over") {
-    const r = Math.max(1, blurPx);
-    const offsets = [
-        [0, 0, 0.28],
-        [r, 0, 0.10],
-        [-r, 0, 0.10],
-        [0, r, 0.10],
-        [0, -r, 0.10],
-        [r * 0.7, r * 0.7, 0.07],
-        [-r * 0.7, r * 0.7, 0.07],
-        [r * 0.7, -r * 0.7, 0.07],
-        [-r * 0.7, -r * 0.7, 0.07]
-    ];
-
-    mainCtx.save();
-    mainCtx.globalCompositeOperation = composite;
-
-    offsets.forEach(([dx, dy, alpha]) => {
-        mainCtx.globalAlpha = alpha;
-        mainCtx.drawImage(srcCanvas, x + dx, y + dy);
-    });
-
-    mainCtx.globalAlpha = 1;
-    mainCtx.restore();
-}
-
 function makeSoftMaskNoFilter(maskCanvas, blurPx = 4, sharpAlpha = 0) {
     const result = document.createElement("canvas");
     result.width = maskCanvas.width;
@@ -1560,6 +1534,33 @@ function makeSoftMaskNoFilter(maskCanvas, blurPx = 4, sharpAlpha = 0) {
     rctx.globalAlpha = 1;
     return result;
 }
+
+function drawSoftCanvas(mainCtx, srcCanvas, x = 0, y = 0, blurPx = 3, composite = "source-over") {
+    const r = Math.max(1, blurPx);
+    const offsets = [
+        [0, 0, 0.28],
+        [r, 0, 0.10],
+        [-r, 0, 0.10],
+        [0, r, 0.10],
+        [0, -r, 0.10],
+        [r * 0.7, r * 0.7, 0.07],
+        [-r * 0.7, r * 0.7, 0.07],
+        [r * 0.7, -r * 0.7, 0.07],
+        [-r * 0.7, -r * 0.7, 0.07]
+    ];
+
+    mainCtx.save();
+    mainCtx.globalCompositeOperation = composite;
+
+    offsets.forEach(([dx, dy, alpha]) => {
+        mainCtx.globalAlpha = alpha;
+        mainCtx.drawImage(srcCanvas, x + dx, y + dy);
+    });
+
+    mainCtx.globalAlpha = 1;
+    mainCtx.restore();
+}
+
 
         function getContrastTextColor(colorStr, threshold = 150) {
     const { r, g, b } = rgbStringToObj(colorStr || 'rgb(255,255,255)');
@@ -6665,7 +6666,13 @@ function avoidLineStartPunctuation(lines) {
 }
 
         function drawDynamicText(ctx, layoutType, baseW, baseH, userText, indexNumber, aiPoem, category){
-    ctx.save();
+    console.log("drawDynamicText category/layout =", category, layoutType);
+
+    if (category === "person") {
+    category = "in_action";
+}
+            ctx.save();
+    
 
 const locationText = document.getElementById('locationInput').value.trim() || 'Unknown';
 const englishTime = formatEnglishTimeFromParts(currentPhotoDateParts);
@@ -6691,6 +6698,26 @@ if (
     ctx.restore();
     return;
 }
+
+if (
+    layoutType === 'horizontal' &&
+    category === 'in_action'
+) {
+    drawInActionHorizontalTexts(
+        ctx,
+        baseW,
+        baseH,
+        String(userText ?? ''),
+        fragmentNo,
+        String(aiPoem ?? ''),
+        locationText,
+        englishDate,
+        englishTime
+    );
+    ctx.restore();
+    return;
+}
+
     const safeUserText = String(userText ?? '');
     const safeAiPoem = String(aiPoem ?? '');
     const themeLine = '寻找日常仪式感的最大公约数';
@@ -8229,70 +8256,85 @@ drawMiniCalendarAsDifference(
 }
 
 function drawInActionHorizontalImageOverlayCutouts(ctx, baseW, baseH, imageRect) {
-    const expandValue = Number(typeSliderA.value) / 100;
-    const opacityValue = Number(typeSliderC.value) / 100;
+    console.log("进入 drawInActionHorizontalImageOverlayCutouts", imageRect);
+
+    const expandValue = Number(typeSliderA.value || 0) / 100;
+    const opacityValue = Number(typeSliderC.value || 50) / 100;
 
     const cutoutExpand = 1.18 + expandValue * 0.42;
-    const overlayAlpha = 0.70 + opacityValue * 0.20;
+    const overlayAlpha = 0.72 + opacityValue * 0.18;
 
-    const overlay = document.createElement('canvas');
+    const overlay = document.createElement("canvas");
     overlay.width = baseW;
     overlay.height = baseH;
 
-    const octx = overlay.getContext('2d');
+    const octx = overlay.getContext("2d");
 
-    // 白色半透明膜
-    octx.fillStyle = `rgba(255, 255, 255, ${overlayAlpha})`;
+    // 1. 先只在图片区铺白膜
+    octx.save();
+    octx.globalAlpha = 1;
+    octx.globalCompositeOperation = "source-over";
+    octx.fillStyle = `rgba(255,255,255,${overlayAlpha})`;
     octx.fillRect(imageRect.x, imageRect.y, imageRect.w, imageRect.h);
+    octx.restore();
 
-    // 日期 + logo cut mask
-    const mark = getInActionHorizontalMarkLayout(imageRect);
-    const cut = document.createElement('canvas');
+    // 2. 制作日期/logo 镂空 mask
+    const cut = document.createElement("canvas");
     cut.width = baseW;
     cut.height = baseH;
 
-    const cctx = cut.getContext('2d');
+    const cctx = cut.getContext("2d");
 
-    // 行为之中日期大字：相对底部
-    const monthDay = getMonthDayString(currentPhotoDateParts);
-
-    const dateFontSize = 270;  //日期大字字号
-    const dateBottomGap = imageRect.h * 0.72;  // 离图片区底部距离，越小越靠下
-
-    const dateCutX = imageRect.x - imageRect.w * 0.18;  // 左右
-    const dateCutY = imageRect.y + imageRect.h - dateBottomGap - dateFontSize;
+    const mark = getInActionHorizontalMarkLayout(imageRect);
 
     drawTextAsSolidDotMatrix(
-    cctx,
-    mark.monthDay,
-    mark.dateCutX,
-    mark.dateCutY,
-    {
-        font: `900 ${mark.dateFontSize}px "ABC Favorit Expanded", sans-serif`,
-        color: '#000',
-        dotR: 16 * cutoutExpand,
-        gap: 18,
-        lineHeight: 290,
-        maxWidth: imageRect.w
-    }
-);
-
-    // 行为之中logo：相对顶部
-    if (inActionLogoBold.complete) {
-    const logoExpandPx = expandValue * 10;
-
-    drawExpandedLogoMask(
         cctx,
-        inActionLogoBold,
-        mark.logoX,
-        mark.logoY,
-        mark.logoW,
-        mark.logoH,
-        logoExpandPx
+        mark.monthDay,
+        mark.dateCutX,
+        mark.dateCutY,
+        {
+            font: `900 ${mark.dateFontSize}px "ABC Favorit Expanded", sans-serif`,
+            color: "#000",
+            dotR: 16 * cutoutExpand,
+            gap: 18,
+            lineHeight: 290,
+            maxWidth: imageRect.w
+        }
     );
-}
-}
 
+    if (inActionLogoBold && inActionLogoBold.complete && inActionLogoBold.naturalWidth > 0) {
+        const logoExpandPx = expandValue * 10;
+
+        drawExpandedLogoMask(
+            cctx,
+            inActionLogoBold,
+            mark.logoX,
+            mark.logoY,
+            mark.logoW,
+            mark.logoH,
+            logoExpandPx
+        );
+    } else {
+        console.warn("行为之中 logo-bold 未加载，跳过 logo 透图");
+    }
+
+    // 3. 不使用 ctx.filter，改用多层偏移模拟羽化
+    const softCut = makeSoftMaskNoFilter(cut, 5, 0.18);
+
+    // 4. 用 mask 从白膜里扣掉，形成“透图文字”
+    octx.save();
+    octx.globalCompositeOperation = "destination-out";
+    octx.drawImage(softCut, 0, 0);
+    octx.restore();
+
+    // 5. 强制以正常模式贴回主画布，避免被前面的 difference / alpha 状态污染
+    ctx.save();
+    ctx.globalAlpha = 1;
+    ctx.globalCompositeOperation = "source-over";
+    ctx.filter = "none";
+    ctx.drawImage(overlay, 0, 0);
+    ctx.restore();
+}
 
     function blurMask(maskCanvas, blurPx, sharpAlpha = 0) {
     return makeSoftMaskNoFilter(maskCanvas, blurPx, sharpAlpha);
