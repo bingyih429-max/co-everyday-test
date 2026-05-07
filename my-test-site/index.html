@@ -1680,7 +1680,7 @@ ctx.restore();
         async function classifyImage(file, imageEl) {
     try {
         const tempCanvas = document.createElement('canvas');
-        const maxSide = 256;
+        const maxSide = 192;
         const ratio = Math.min(maxSide / imageEl.width, maxSide / imageEl.height, 1);
 
         tempCanvas.width = Math.max(32, Math.round(imageEl.width * ratio));
@@ -1689,47 +1689,119 @@ ctx.restore();
         const tctx = tempCanvas.getContext('2d', { willReadFrequently: true });
         safeDrawImage(tctx, imageEl, 0, 0, tempCanvas.width, tempCanvas.height);
 
-        const data = tctx.getImageData(0, 0, tempCanvas.width, tempCanvas.height).data;
+        const imgData = tctx.getImageData(0, 0, tempCanvas.width, tempCanvas.height);
+        const data = imgData.data;
+        const w = tempCanvas.width;
+        const h = tempCanvas.height;
 
         let brightCount = 0;
         let blueSkyLike = 0;
         let highlightCount = 0;
+        let skinLikeCount = 0;
         let total = 0;
 
-        for (let i = 0; i < data.length; i += 4) {
-            const r = data[i];
-            const g = data[i + 1];
-            const b = data[i + 2];
-            const a = data[i + 3];
+        let edgeSum = 0;
+        let edgeCount = 0;
 
-            if (a < 20) continue;
+        let centerWeightSum = 0;
+        let centerSkinWeightSum = 0;
 
-            total++;
+        for (let y = 1; y < h - 1; y += 2) {
+            for (let x = 1; x < w - 1; x += 2) {
+                const i = (y * w + x) * 4;
+                const r = data[i];
+                const g = data[i + 1];
+                const b = data[i + 2];
+                const a = data[i + 3];
 
-            const lum = 0.299 * r + 0.587 * g + 0.114 * b;
+                if (a < 20) continue;
 
-            if (lum > 155) brightCount++;
-            if (lum > 220) highlightCount++;
-            if (b > r + 18 && b > g + 8 && lum > 120) blueSkyLike++;
+                total++;
+
+                const lum = 0.299 * r + 0.587 * g + 0.114 * b;
+
+                if (lum > 155) brightCount++;
+                if (lum > 220) highlightCount++;
+                if (b > r + 18 && b > g + 8 && lum > 120) blueSkyLike++;
+
+                // 肤色/人体色块粗略判断：不等于识别人脸，只是提高行为类概率
+                const isSkinLike =
+                    r > 80 &&
+                    g > 45 &&
+                    b > 25 &&
+                    r > g + 12 &&
+                    g > b + 6 &&
+                    r - b > 35 &&
+                    lum > 55 &&
+                    lum < 235;
+
+                if (isSkinLike) skinLikeCount++;
+
+                // 简单边缘复杂度：和右下相邻像素亮度差
+                const i2 = ((y + 1) * w + (x + 1)) * 4;
+                const r2 = data[i2];
+                const g2 = data[i2 + 1];
+                const b2 = data[i2 + 2];
+                const lum2 = 0.299 * r2 + 0.587 * g2 + 0.114 * b2;
+
+                edgeSum += Math.abs(lum - lum2);
+                edgeCount++;
+
+                // 中心权重：人物/动作通常更容易出现在画面中部
+                const nx = (x / w - 0.5);
+                const ny = (y / h - 0.5);
+                const centerWeight = Math.max(0, 1 - Math.sqrt(nx * nx + ny * ny) * 2);
+
+                centerWeightSum += centerWeight;
+                if (isSkinLike) centerSkinWeightSum += centerWeight;
+            }
         }
 
         const brightRatio = total ? brightCount / total : 0;
         const skyRatio = total ? blueSkyLike / total : 0;
         const highlightRatio = total ? highlightCount / total : 0;
+        const skinRatio = total ? skinLikeCount / total : 0;
+        const edgeScore = edgeCount ? edgeSum / edgeCount : 0;
+        const centerSkinScore = centerWeightSum ? centerSkinWeightSum / centerWeightSum : 0;
 
+        console.log("自动分类指标：", {
+            brightRatio,
+            skyRatio,
+            highlightRatio,
+            skinRatio,
+            edgeScore,
+            centerSkinScore
+        });
+
+        /*
+          行为之中判断：
+          - 画面中有较多人体/肤色倾向
+          - 或中心有明显人体色块
+          - 或画面边缘复杂度较高且不是天空/纯光影
+        */
+        const looksLikeAction =
+            skinRatio > 0.035 ||
+            centerSkinScore > 0.055 ||
+            (edgeScore > 34 && brightRatio < 0.55 && skyRatio < 0.12);
+
+        if (looksLikeAction) {
+            return "in_action";
+        }
+
+        // 光与时刻：亮度、天空、高光优先
         if (
             brightRatio > 0.48 ||
             skyRatio > 0.16 ||
             highlightRatio > 0.08
         ) {
-            return 'light_time';
+            return "light_time";
         }
 
-        return 'daily_object';
+        return "daily_object";
 
     } catch (err) {
-        console.warn('自动分类失败，使用默认分类', err);
-        return 'daily_object';
+        console.warn("自动分类失败，使用默认分类", err);
+        return "daily_object";
     }
 }
 
