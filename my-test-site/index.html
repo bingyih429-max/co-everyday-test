@@ -290,85 +290,143 @@ body {
             border-radius: 4px;
         }
 
-        .category-group {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 10px;
-        }
-
-        .cat-btn {
-            padding: 12px;
-            border: 1px solid #ddd;
-            background: white;
-            border-radius: 6px;
-            cursor: pointer;
-            font-size: 14px;
-            transition: all 0.2s;
-        }
-
-        .cat-btn.active {
-            background: var(--primary-color);
-            color: white;
-            border-color: var(--primary-color);
-        }
-
         .classification-panel {
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
-        }
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
 
-        .classification-mode-row {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 10px;
-        }
+.classify-hint {
+    font-size: 12px;
+    line-height: 1.5;
+    color: #888;
+    margin-top: -2px;
+    margin-bottom: 8px;
+}
 
-        .mode-btn {
-            border: 1px solid #ddd;
-            background: #fff;
-            border-radius: 999px;
-            padding: 11px 14px;
-            font-size: 14px;
-            cursor: pointer;
-        }
+.classify-waiting {
+    width: 100%;
+    min-height: 56px;
+    border: 1px solid rgba(0,0,0,0.08);
+    border-radius: 999px;
+    background: rgba(0,0,0,0.035);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+}
 
-        .mode-btn.active {
-            background: #111;
-            color: #fff;
-            border-color: #111;
-        }
+.classify-waiting-img {
+    width: min(46vw, 220px);
+    height: auto;
+    display: block;
+    opacity: 0;
+    animation: classifyBreath 1.15s ease-in-out infinite;
+}
 
-        .detected-category-card {
-            border: 1px solid #e6e6e6;
-            border-radius: 12px;
-            padding: 14px;
-            background: #fafafa;
-        }
+@keyframes classifyBreath {
+    0% {
+        opacity: 0.18;
+        transform: scale(0.985);
+    }
+    45% {
+        opacity: 1;
+        transform: scale(1.015);
+    }
+    100% {
+        opacity: 0.18;
+        transform: scale(0.985);
+    }
+}
 
-        .detected-category-label {
-            font-size: 12px;
-            color: #777;
-            margin-bottom: 6px;
-            letter-spacing: 0.04em;
-        }
+.category-group,
+.category-card-group {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 8px;
+    width: 100%;
+}
 
-        .detected-category-name {
-            font-size: 20px;
-            font-weight: 700;
-            color: #111;
-            margin-bottom: 4px;
-        }
+.cat-btn,
+.ritual-card {
+    width: 100%;
+    min-height: 58px;
+    padding: 9px 16px;
+    border: 1.3px solid #999;
+    background: #fff;
+    color: #111;
+    border-radius: 999px;
+    cursor: pointer;
+    transition:
+        background 0.28s ease,
+        color 0.28s ease,
+        border-color 0.28s ease,
+        transform 0.28s ease,
+        opacity 0.28s ease;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    text-align: center;
+}
 
-        .detected-category-desc {
-            font-size: 13px;
-            color: #666;
-            line-height: 1.55;
-        }
+.ritual-card-title {
+    display: block;
+    font-size: 17px;
+    line-height: 1.15;
+    font-weight: 500;
+    letter-spacing: 0.02em;
+}
 
-        .manual-hidden {
-            display: none;
-        }
+.ritual-card-desc {
+    display: block;
+    font-size: 12px;
+    line-height: 1.35;
+    color: rgba(0,0,0,0.48);
+}
+
+.cat-btn.active,
+
+.cat-btn.active .ritual-card-desc,
+.ritual-card.active .ritual-card-desc {
+    color: rgba(255,255,255,0.68);
+}
+
+.category-card-group.is-detecting .ritual-card {
+    opacity: 0.38;
+    transform: scale(0.99);
+}
+
+.category-card-group.is-detecting .ritual-card.active {
+    background: #fff;
+    color: #111;
+    border-color: #999;
+}
+
+.category-card-group.is-detecting .ritual-card.active .ritual-card-desc {
+    color: rgba(0,0,0,0.48);
+}
+
+.ritual-card.auto-picked {
+    animation: categorySettle 0.58s ease both;
+}
+
+@keyframes categorySettle {
+    0% {
+        transform: scale(0.985);
+    }
+    60% {
+        transform: scale(1.025);
+    }
+    100% {
+        transform: scale(1.012);
+    }
+}
+
+.manual-hidden {
+    display: none;
+}
 
         textarea {
             width: 100%;
@@ -816,6 +874,40 @@ body {
     }
 }
 
+/* 分类按钮：默认未选中 */
+.ritual-card {
+    background: #fff !important;
+    color: #111 !important;
+    border: 1.2px solid rgba(0,0,0,0.38) !important;
+}
+
+/* 未选中标题 */
+.ritual-card .ritual-card-title {
+    color: #111 !important;
+}
+
+/* 未选中说明 */
+.ritual-card .ritual-card-desc {
+    color: rgba(0,0,0,0.48) !important;
+}
+
+/* 当前选中 */
+.ritual-card.active {
+    background: #000 !important;
+    color: #fff !important;
+    border-color: #000 !important;
+}
+
+/* 当前选中标题 */
+.ritual-card.active .ritual-card-title {
+    color: #fff !important;
+}
+
+/* 当前选中说明 */
+.ritual-card.active .ritual-card-desc {
+    color: rgba(255,255,255,0.68) !important;
+}
+
     </style>
 </head>
 <body>
@@ -849,25 +941,36 @@ body {
                 </div>
             </div>
 
-            <div class="input-group">
-                <label>分类方式</label>
-                <div class="classification-panel">
-                    <div class="classification-mode-row">
-                        <button type="button" id="autoClassifyBtn" class="mode-btn active">自动识别</button>
-                        <button type="button" id="manualClassifyBtn" class="mode-btn">手动指定</button>
-                    </div>
-                    <div id="detectedCategoryCard" class="detected-category-card">
-                        <div class="detected-category-label">当前分类</div>
-                        <div id="detectedCategoryName" class="detected-category-name">待识别</div>
-                        <div id="detectedCategoryDesc" class="detected-category-desc">上传图片后自动判断：光与时刻 / 日常之物 / 行为之中</div>
-                    </div>
-                    <div id="manualCategoryGroup" class="category-group manual-hidden">
-                        <button class="cat-btn active" data-type="light_time">光与时刻</button>
-                        <button class="cat-btn" data-type="daily_object">日常之物</button>
-                        <button class="cat-btn" data-type="in_action">行为之中</button>
-                    </div>
-                </div>
-            </div>
+            <div class="input-group" id="classificationSection" style="display:none;">
+                <label>这一刻更接近于……</label>
+
+    <div class="classification-panel">
+        <div id="classifyHint" class="classify-hint">
+            系统会根据图片自动识别分类，你也可以手动调整
+        </div>
+
+        <div id="classifyWaiting" class="classify-waiting" style="display:none;">
+            <img src="./images/shibie.png" class="classify-waiting-img" alt="正在感知这一刻">
+        </div>
+
+        <div id="manualCategoryGroup" class="category-group category-card-group">
+            <button class="cat-btn ritual-card active" data-type="light_time" type="button">
+                <span class="ritual-card-title">世界的变化</span>
+                <span class="ritual-card-desc">光线、天气、时间与瞬间变化带来的感知</span>
+            </button>
+
+            <button class="cat-btn ritual-card" data-type="daily_object" type="button">
+                <span class="ritual-card-title">生活的停留</span>
+                <span class="ritual-card-desc">物件、陪伴与日常痕迹留下的感知</span>
+            </button>
+
+            <button class="cat-btn ritual-card" data-type="in_action" type="button">
+                <span class="ritual-card-title">人与关系的流动</span>
+                <span class="ritual-card-desc">行动、相遇与人与人之间流动的感知</span>
+            </button>
+        </div>
+    </div>
+</div>
 
             <div class="input-group" id="dateInputWrap" style="display:none;">
     <label>拍摄日期（已自动填入，请确认或修改）</label>
@@ -978,22 +1081,22 @@ const DAILY_MASKS_4x3 = [
 ];
 
         const CATEGORY_META = {
-            light_time: {
-                name: '光与时刻',
-                desc: '光线、天空、时间氛围、昼夜变化、灯光与瞬时感。',
-                posterTag: '光与时刻'
-            },
-            daily_object: {
-                name: '日常之物',
-                desc: '静物、器物、食物、植物、桌面与局部物件。',
-                posterTag: '日常之物'
-            },
-            in_action: {
-                name: '行为之中',
-                desc: '人物、动作、互动、行走、运动或事件现场。',
-                posterTag: '行为之中'
-            }
-        };
+    light_time: {
+        name: '世界的变化',
+        desc: '光线、天气、时间与瞬间变化带来的感知',
+        posterTag: '世界的变化'
+    },
+    daily_object: {
+        name: '生活的停留',
+        desc: '物件、陪伴与日常痕迹留下的感知',
+        posterTag: '生活的停留'
+    },
+    in_action: {
+        name: '人与关系的流动',
+        desc: '行动、相遇与人与人之间流动的感知',
+        posterTag: '人与关系的流动'
+    }
+};
 
         const FX = {
             space: {
@@ -1109,11 +1212,39 @@ let recentPoemSignatures = [];
         const uploadPlaceholder = document.getElementById('uploadPlaceholder');
         const generateBtn = document.getElementById('generateBtn');
         const catBtns = document.querySelectorAll('.cat-btn');
-        const autoClassifyBtn = document.getElementById('autoClassifyBtn');
-        const manualClassifyBtn = document.getElementById('manualClassifyBtn');
         const manualCategoryGroup = document.getElementById('manualCategoryGroup');
-        const detectedCategoryName = document.getElementById('detectedCategoryName');
-        const detectedCategoryDesc = document.getElementById('detectedCategoryDesc');
+const classifyHint = document.getElementById('classifyHint');
+const classifyWaiting = document.getElementById('classifyWaiting');
+if (manualCategoryGroup) {
+    manualCategoryGroup.addEventListener('click', function(e) {
+
+        const btn = e.target.closest('.ritual-card');
+        if (!btn) return;
+
+        classifyMode = 'manual';
+        selectedCategory = btn.dataset.type;
+
+        document.querySelectorAll('.ritual-card').forEach(item => {
+            item.classList.toggle(
+                'active',
+                item.dataset.type === selectedCategory
+            );
+        });
+
+        const meta =
+            CATEGORY_META[selectedCategory] ||
+            CATEGORY_META.light_time;
+
+        if (classifyHint) {
+            classifyHint.textContent =
+                `你已手动选择：${meta.name}`;
+        }
+
+        console.log("手动切换分类：", selectedCategory);
+    });
+}
+
+const classificationSection = document.getElementById('classificationSection');
         const loadingMsg = document.getElementById('loadingMsg');
         const finalCanvas = document.getElementById('finalCanvas');
 
@@ -1320,19 +1451,24 @@ try {
         uploadedImage = new Image();
 
         uploadedImage.onload = async () => {
+            if (classificationSection) {
+    classificationSection.style.display = 'block';
+}
             imagePreview.src = event.target.result;
             imagePreview.style.display = 'block';
             uploadPlaceholder.style.display = 'none';
 
             if (classifyMode === 'auto') {
-                selectedCategory = await classifyImage(displayFile, uploadedImage);
-                catBtns.forEach(b => {
-                    b.classList.toggle('active', b.dataset.type === selectedCategory);
-                });
-                updateDetectedCategoryUI(selectedCategory);
-            }
+    await showClassifyWaiting();
 
-            generateBtn.disabled = false;
+    selectedCategory = await classifyImage(displayFile, uploadedImage);
+    updateDetectedCategoryUI(selectedCategory, { autoPicked: true });
+    document.querySelectorAll('.ritual-card').forEach(item => {
+    item.classList.toggle('active', item.dataset.type === selectedCategory);
+});
+}
+
+generateBtn.disabled = false;
         };
 
         uploadedImage.src = event.target.result;
@@ -1447,54 +1583,49 @@ function showManualDateInput(show = true) {
     wrap.style.display = show ? 'block' : 'none';
 }
 
-        function updateDetectedCategoryUI(type) {
-            const meta = CATEGORY_META[type] || CATEGORY_META.light_time;
-            detectedCategoryName.textContent = meta.name;
-            detectedCategoryDesc.textContent = meta.desc;
-        }
+        function updateDetectedCategoryUI(type, options = {}) {
+    selectedCategory = type;
 
-        function setClassificationMode(mode) {
-            classifyMode = mode;
-            const isAuto = mode === 'auto';
-            autoClassifyBtn.classList.toggle('active', isAuto);
-            manualClassifyBtn.classList.toggle('active', !isAuto);
-            manualCategoryGroup.classList.toggle('manual-hidden', isAuto);
-        }
+    const meta = CATEGORY_META[type] || CATEGORY_META.light_time;
 
-        autoClassifyBtn.addEventListener('click', () => setClassificationMode('auto'));
-        manualClassifyBtn.addEventListener('click', () => setClassificationMode('manual'));
 
-        catBtns.forEach(btn => {
-            btn.addEventListener('click', () => {
-                catBtns.forEach(b => b.classList.remove('active'));
-                btn.classList.add('active');
-                selectedCategory = btn.dataset.type;
-                updateDetectedCategoryUI(selectedCategory);
-            });
-        });
+    if (classifyHint) {
+        classifyHint.textContent = options.manual
+            ? `你已手动选择：${meta.name}`
+            : `系统已自动识别为：${meta.name}。你也可以手动调整`;
+    }
+}
 
-        updateDetectedCategoryUI(selectedCategory);
+function sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
 
-        function safeDrawImage(ctx, img, ...args) {
-    if (!img) {
-        console.warn("safeDrawImage：图片对象不存在");
-        return false;
+async function showClassifyWaiting() {
+    if (classifyWaiting) {
+        classifyWaiting.style.display = 'flex';
     }
 
-    const isCanvasLike =
-        img instanceof HTMLCanvasElement ||
-        img instanceof OffscreenCanvas ||
-        img instanceof ImageBitmap;
-
-    if (!isCanvasLike) {
-        if (!img.complete || img.naturalWidth === 0 || img.naturalHeight === 0) {
-            console.warn("safeDrawImage：图片未加载成功，跳过绘制", img.src || img);
-            return false;
-        }
+    if (manualCategoryGroup) {
+        manualCategoryGroup.classList.add('is-detecting');
     }
 
-    ctx.drawImage(img, ...args);
-    return true;
+    if (classifyHint) {
+        classifyHint.textContent = '正在感知这一刻……';
+    }
+
+    await sleep(1100);
+
+    if (classifyWaiting) {
+        classifyWaiting.style.display = 'none';
+    }
+
+    if (manualCategoryGroup) {
+        manualCategoryGroup.classList.remove('is-detecting');
+    }
+}
+
+function setClassificationMode(mode) {
+    classifyMode = mode;
 }
 
 function makeSoftMaskNoFilter(maskCanvas, blurPx = 4, sharpAlpha = 0) {
@@ -1674,6 +1805,28 @@ ctx.restore();
     }
 
     ctx.restore();
+}
+
+function safeDrawImage(ctx, img, ...args) {
+    if (!img) {
+        console.warn("safeDrawImage：图片对象不存在");
+        return false;
+    }
+
+    const isCanvasLike =
+        img instanceof HTMLCanvasElement ||
+        (typeof OffscreenCanvas !== "undefined" && img instanceof OffscreenCanvas) ||
+        (typeof ImageBitmap !== "undefined" && img instanceof ImageBitmap);
+
+    if (!isCanvasLike) {
+        if (!img.complete || img.naturalWidth === 0 || img.naturalHeight === 0) {
+            console.warn("safeDrawImage：图片未加载成功，跳过绘制", img.src || img);
+            return false;
+        }
+    }
+
+    ctx.drawImage(img, ...args);
+    return true;
 }
 
 
@@ -10426,7 +10579,7 @@ reloadBtn.addEventListener("click", function() {
 });
 
 setClassificationMode("auto");
-updateDetectedCategoryUI(selectedCategory);
+updateDetectedCategoryUI(selectedCategory, { manual: false });
 
 const homePage = document.getElementById('homePage');
 const enterBtn = document.getElementById('enterBtn');
