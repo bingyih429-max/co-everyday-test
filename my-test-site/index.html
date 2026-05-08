@@ -6464,63 +6464,44 @@ async function generateChinesePoem(userText) {
 
     console.log("准备调用国内AI写诗接口");
 
-    try {
-        const controller = new AbortController();
-        const timer = setTimeout(() => controller.abort(), 30000);
-
-        const res = await fetch(
-            "https://sd7tkdl3fo4ufka34jik0.apigateway-cn-shanghai.volceapi.com/",
-            {
-                method: "POST",
-                signal: controller.signal,
-                headers: {
-                    "Content-Type": "application/json"
-                },
-                body: JSON.stringify({
-                    userText: safeText,
-                    location,
-                    category: selectedCategory || ""
-                })
-            }
-        );
-
-        clearTimeout(timer);
-
-        console.log("国内AI接口状态：", res.status);
-
-        if (!res.ok) {
-            const errText = await res.text();
-            console.warn("国内AI接口返回错误：", errText);
-            throw new Error("AI poem request failed");
+try {
+    const res = await fetch(
+        "https://sd7tkdl3fo4ufka34jik0.apigateway-cn-shanghai.volceapi.com/",
+        {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                userText: safeText,
+                location,
+                category: selectedCategory || ""
+            })
         }
+    );
 
-        const data = await res.json();
-        console.log("国内AI接口返回内容：", data);
+    console.log("国内AI接口状态：", res.status);
 
-        if (data.poem && isFrontendPoemValid(data.poem)) {
-            console.log("国内AI诗歌生成成功：", data.poem);
-            return data.poem;
-        }
+    const raw = await res.text();
+    console.log("国内AI接口返回：", raw);
 
-        throw new Error("AI poem invalid");
-
-    } catch (err) {
-        console.warn("AI生成失败，使用本地兜底：", err);
-
-        if (typeof generatePoemFromText === "function") {
-            return generatePoemFromText(safeText);
-        }
-
-        if (typeof buildPoemFromMaterials === "function") {
-            return buildPoemFromMaterials(
-                safeText,
-                selectedCategory || "light_time",
-                currentPhotoDateParts
-            );
-        }
-
-        return "这一刻被留下\n风从心里经过";
+    if (!res.ok) {
+        throw new Error("AI poem request failed: " + raw);
     }
+
+    const data = JSON.parse(raw);
+    const aiPoem = data.poem;
+
+    if (!aiPoem) {
+        throw new Error("AI poem empty");
+    }
+
+    return aiPoem;
+
+} catch (err) {
+    console.warn("AI生成失败，使用本地兜底：", err);
+    return localFallbackPoem(safeText);
+}
 }
 
 function isFrontendPoemValid(poem) {
