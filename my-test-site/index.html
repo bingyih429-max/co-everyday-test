@@ -477,6 +477,8 @@ body {
     width: auto;
     max-width: min(78vw, 360px);
     max-height: 68vh;
+    height: auto;
+    object-fit: contain;
     margin: 0 auto;
 }
 
@@ -979,12 +981,12 @@ body {
 
             <div class="input-group">
                 <label>拍摄地点</label>
-                <input id="locationInput" type="text" placeholder="例如：杭州西湖">
+                <input id="locationInput" type="text" maxlength="20" placeholder="例如：杭州西湖，20字以内">
             </div>
 
             <div class="input-group">
                 <label>拍摄感想</label>
-               <textarea id="userText" placeholder="这张照片的仪式感来自于……"></textarea>
+               <textarea id="userText" maxlength="50" placeholder="这张照片的仪式感来自于……50字以内"></textarea>
             </div>
 
             <button id="generateBtn" disabled>生成我的专属日历</button>
@@ -995,11 +997,11 @@ body {
     <label>生成结果</label>
     <div class="poster-container" id="posterWrapper">
         <canvas id="finalCanvas" style="display:none;"></canvas>
-        <img id="finalImage" alt="生成结果" />
+<canvas id="previewCanvas" style="display:none;"></canvas>
+<img id="finalImage" alt="生成结果" style="display:none;" />
         <div id="templateOverlay" class="template-overlay"></div>
     </div>
 
-    <p style="font-size: 12px; color: #888; margin-top: 15px;">长按图片可保存，点击图片可查看大图</p>
 
     <!-- 新增：文字生成控制区 -->
     <div id="typeControls" class="type-controls floating-type-controls" style="display:none;">
@@ -1008,6 +1010,40 @@ body {
     点击此处收起面板
 </div>
     <div class="type-controls-title">图像个性化调整</div>
+    
+    <div class="type-control-row">
+    <label for="calendarStyleSelect">月历排版 Calendar Style</label>
+    <select id="calendarStyleSelect">
+        <option value="space_helix">空间螺旋</option>
+        <option value="tilted_orbit">倾斜椭圆</option>
+        <option value="border_wrap">方形绕排</option>
+        <option value="multi_loop">多段回环</option>
+    </select>
+</div>
+
+<div class="type-control-row">
+    <label for="effectStyleSelect">图像处理效果 Effect Style</label>
+    <select id="effectStyleSelect">
+        <option value="gradient_map">渐变映射 Gradient Map</option>
+        <option value="line_contour">线性等高线 Line Contour</option>
+        <option value="pattern_fill">图案填充 Pattern Fill</option>
+        <option value="pixel_stretch">像素拉伸 Pixel Stretch</option>
+    </select>
+</div>
+
+
+<div class="type-control-row">
+    <button id="rerollEffectPaletteBtn" type="button" class="action-btn" style="width:100%;">
+        重新取色
+    </button>
+</div>
+
+<div class="type-control-row">
+    <button id="rerollCalendarBtn" type="button" class="action-btn" style="width:100%;">
+        重新随机月历造型
+    </button>
+</div>
+
 
 
         <div class="type-control-row">
@@ -1199,6 +1235,50 @@ let currentDailyObjectRegions = [];
 let currentCleanLayoutCanvas = null;
 
 let currentUploadedImageRatio = 1;
+const NEW_POSTER_W = 750;
+const NEW_TOP_H = 200;
+const NEW_BOTTOM_MIN_H = 400;
+
+let currentNewLayout = null;
+
+let currentCalendarPathStyle = null;
+let currentCalendarPathSeed = Math.random();
+
+let currentEffectType = "gradient_map";
+let currentEffectPaletteOffset = 0;
+
+const CALENDAR_PATH_CONFIG = {
+    fontSize: 16,
+    lineWidth: 1.2,
+    todayCircleR: 27,  //今日圆环大小
+    holidayCircleR: 15,  //假期圆环大小
+    color: "rgba(255,255,255,0.9)",
+
+    // 日期数字之间的安全距离
+    minGap: 40,
+
+    // 普通路径采样密度
+    rawPointCount: 460,
+
+    // 空间螺旋：远处密、近处疏的强度
+    perspectiveSpacingPower: 1.08
+};
+
+
+let currentEffectPalette = null;
+let currentPosterRects = null;
+
+let currentCropOffset = { x: 0.5, y: 0.5 };
+// x/y 范围 0-1，用来控制裁切中心点，0.5 是居中
+
+currentCalendarPathStyle = pickCalendarPathStyle();
+currentCalendarPathSeed = Math.random();
+
+
+let currentCropZoom = 1;
+
+let isDraggingCrop = false;
+let lastDragPoint = null;
 
 // 新增缓存
 let rerenderTimer = null;
@@ -1213,6 +1293,46 @@ let recentPoemSignatures = [];
         const generateBtn = document.getElementById('generateBtn');
         const catBtns = document.querySelectorAll('.cat-btn');
         const manualCategoryGroup = document.getElementById('manualCategoryGroup');
+        const rerollEffectPaletteBtn = document.getElementById("rerollEffectPaletteBtn");
+
+if (rerollEffectPaletteBtn) {
+    rerollEffectPaletteBtn.addEventListener("click", function () {
+        currentEffectPaletteOffset++;
+
+        clearTimeout(rerenderTimer);
+        rerenderTimer = setTimeout(() => {
+            rerenderUnifiedPosterLive();
+        }, 80);
+    });
+}
+
+const PRINT_TARGET_DPI = 300;
+const PRINT_TARGET_WIDTH_CM = 20;
+const BASE_POSTER_WIDTH = 750;
+
+const TARGET_PRINT_SCALE =
+    (PRINT_TARGET_DPI * (PRINT_TARGET_WIDTH_CM / 2.54)) / BASE_POSTER_WIDTH;
+// 约等于 3.15
+
+let currentRenderScale = 1;
+
+function getSafeRenderScale(baseW, baseH) {
+    const target = TARGET_PRINT_SCALE;
+
+    const isMobile = window.innerWidth <= 640;
+    const maxPixels = isMobile ? 18000000 : 32000000;
+
+    const targetPixels = baseW * baseH * target * target;
+
+    if (targetPixels <= maxPixels) {
+        return target;
+    }
+
+    const safeScale = Math.sqrt(maxPixels / (baseW * baseH));
+
+    return Math.max(2.2, Math.min(target, safeScale));
+}
+
 const classifyHint = document.getElementById('classifyHint');
 const classifyWaiting = document.getElementById('classifyWaiting');
 if (manualCategoryGroup) {
@@ -1247,6 +1367,8 @@ if (manualCategoryGroup) {
 const classificationSection = document.getElementById('classificationSection');
         const loadingMsg = document.getElementById('loadingMsg');
         const finalCanvas = document.getElementById('finalCanvas');
+        const previewCanvas = document.getElementById("previewCanvas");
+const previewCtx = previewCanvas.getContext("2d");
 
         const generateWaiting = document.getElementById('generateWaiting');
 const generateWaitingImg = document.getElementById('generateWaitingImg');
@@ -1288,10 +1410,73 @@ function hideGenerateWaiting() {
 }
 
         const finalImage = document.getElementById('finalImage');
+        
         const imageModal = document.getElementById('imageModal');
         const modalImage = document.getElementById('modalImage');
         const saveImageBtn = document.getElementById('saveImageBtn');
         const reloadBtn = document.getElementById('reloadBtn');
+        reloadBtn.onclick = function () {
+
+    console.log("点击重新制作");
+
+    // ========= 清空状态 =========
+    uploadedImage = null;
+    currentOriginalFile = null;
+    currentFragmentNumber = null;
+    currentImageRegion = null;
+    currentEffectPalette = null;
+    currentPosterRects = null;
+
+    currentCropOffset = { x: 0.5, y: 0.5 };
+    currentCropZoom = 1;
+
+    // ========= 清空上传 =========
+    fileInput.value = "";
+
+    imagePreview.removeAttribute("src");
+    imagePreview.style.display = "none";
+
+    if (uploadPlaceholder) {
+        uploadPlaceholder.style.display = "flex";
+    }
+
+    // ========= 清空文字 =========
+    document.getElementById("locationInput").value = "";
+    document.getElementById("userText").value = "";
+
+    // ========= 隐藏结果 =========
+    document.getElementById("resultArea").style.display = "none";
+    document.getElementById("typeControls").style.display = "none";
+
+    // ========= 显示上传页 =========
+    document.getElementById("inputPage").style.display = "block";
+
+    // ========= 清空画布 =========
+    previewCanvas.style.display = "none";
+    finalCanvas.style.display = "none";
+
+    const pctx = previewCanvas.getContext("2d");
+    pctx.clearRect(0, 0, previewCanvas.width, previewCanvas.height);
+
+    const fctx = finalCanvas.getContext("2d");
+    fctx.clearRect(0, 0, finalCanvas.width, finalCanvas.height);
+
+    // ========= 清空旧图 =========
+    if (finalImage) {
+        finalImage.style.display = "none";
+        finalImage.removeAttribute("src");
+    }
+
+    // ========= 禁止直接生成 =========
+    generateBtn.disabled = true;
+
+    // ========= 回顶部 =========
+    window.scrollTo({
+        top: 0,
+        behavior: "smooth"
+    });
+};
+        
 
         const typeControls = document.getElementById('typeControls');
 
@@ -1314,38 +1499,237 @@ typeControlsToggle.addEventListener('click', () => {
 const typeSliderA = document.getElementById('typeSliderA');
 const typeSliderB = document.getElementById('typeSliderB');
 const typeSliderC = document.getElementById('typeSliderC');
+
+const calendarStyleSelect = document.getElementById("calendarStyleSelect");
+const rerollCalendarBtn = document.getElementById("rerollCalendarBtn");
+const effectStyleSelect = document.getElementById("effectStyleSelect");
+
+
 [typeSliderA, typeSliderB, typeSliderC]
     .filter(Boolean)
     .forEach(slider => {
-        slider.addEventListener('input', function () {
-            if (!uploadedImage) return;
+        slider.addEventListener("input", function () {
+            if (!uploadedImage || !currentImageRegion || !currentCleanLayoutCanvas) return;
 
-            if (rerenderTimer) clearTimeout(rerenderTimer);
-
-            rerenderTimer = setTimeout(async () => {
-                const liveCategory = currentCategory || selectedCategory;
-
-                if (liveCategory === 'in_action') {
-                    await rerenderInActionPosterLive();
-                    return;
-                }
-
-                if (liveCategory === 'daily_object') {
-                    await rerenderDailyObjectPosterLive();
-                    return;
-                }
-
-                if (
-                    liveCategory === 'light_time' ||
-                    liveCategory === 'light_time_moment'
-                ) {
-                    applyLightTimeSlidersToFX();
-                    await rerenderLightTimePosterLive();
-                    return;
-                }
-            }, 60);
+            clearTimeout(rerenderTimer);
+            rerenderTimer = setTimeout(() => {
+                rerenderUnifiedPosterLive();
+            }, 70);
         });
     });
+
+    if (calendarStyleSelect) {
+    calendarStyleSelect.addEventListener("change", function () {
+        currentCalendarPathStyle = this.value;
+        currentCalendarPathSeed = Math.random();
+
+        console.log("手动切换月历样式：", currentCalendarPathStyle);
+
+        if (uploadedImage && currentImageRegion) {
+            rerenderUnifiedPosterLive();
+        }
+    });
+}
+
+if (effectStyleSelect) {
+    effectStyleSelect.addEventListener("change", function () {
+        currentEffectType = this.value;
+
+        console.log("手动切换图像处理效果：", currentEffectType);
+
+        updateTypeControlLabels();
+
+        clearTimeout(rerenderTimer);
+        rerenderTimer = setTimeout(() => {
+            rerenderUnifiedPosterLive();
+        }, 80);
+    });
+}
+
+if (rerollCalendarBtn) {
+    rerollCalendarBtn.addEventListener("click", function () {
+        currentCalendarPathSeed = Math.random();
+
+        if (uploadedImage && currentImageRegion) {
+            rerenderUnifiedPosterLive();
+        }
+    });
+}
+
+    async function rerenderUnifiedPosterLive() {
+    const canvas = document.getElementById("finalCanvas");
+    const ctx = canvas.getContext("2d");
+
+        // 关键：每次实时重绘前，先彻底清掉上一次残留的缩放坐标系
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+
+    if (!currentCleanLayoutCanvas || !currentNewLayout || !uploadedImage || !currentImageRegion) {
+        console.warn("实时重绘缺少必要数据", {
+            currentCleanLayoutCanvas,
+            currentNewLayout,
+            uploadedImage,
+            currentImageRegion
+        });
+        return;
+    }
+
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+// 先用当前滑杆重新计算一次图像处理色板
+const previewCroppedCanvas = createCroppedImageRegionCanvas(
+    uploadedImage,
+    currentImageRegion,
+    currentCropOffset,
+    currentCropZoom
+);
+
+await renderEffectCanvas(previewCroppedCanvas, currentEffectType);
+
+// 再重建上下色块
+const rebuiltBase = rebuildCleanLayoutCanvasWithEffectPalette();
+ctx.drawImage(rebuiltBase || currentCleanLayoutCanvas, 0, 0);
+
+ctx.save();
+ctx.scale(currentRenderScale, currentRenderScale);
+
+await renderSelectedEffectIntoPoster(
+    ctx,
+    uploadedImage,
+    currentImageRegion
+);
+
+    const liveUserText =
+        document.getElementById("userText")?.value.trim() || "";
+
+    // 重绘顶部、月历、底部文字
+    drawNewUnifiedCalendarTextLayer(
+        ctx,
+        currentNewLayout,
+        liveUserText,
+        currentFragmentNumber
+    );
+
+    ctx.restore();
+
+    updatePreviewCanvasFromFinalCanvas();
+}
+
+
+function updateFinalPreviewFromCanvas() {
+    updatePreviewCanvasFromFinalCanvas();
+    return Promise.resolve();
+}
+
+function updatePreviewCanvasFromFinalCanvas() {
+    const sourceCanvas = document.getElementById("finalCanvas");
+    const viewCanvas = document.getElementById("previewCanvas");
+    const finalImg = document.getElementById("finalImage");
+
+    if (!sourceCanvas || !viewCanvas || !currentNewLayout) return;
+
+    const viewW = currentNewLayout.baseW;
+    const viewH = currentNewLayout.baseH;
+
+    viewCanvas.width = viewW;
+    viewCanvas.height = viewH;
+
+    const vctx = viewCanvas.getContext("2d");
+    vctx.clearRect(0, 0, viewW, viewH);
+    vctx.imageSmoothingEnabled = true;
+    vctx.imageSmoothingQuality = "high";
+
+    vctx.drawImage(
+        sourceCanvas,
+        0,
+        0,
+        sourceCanvas.width,
+        sourceCanvas.height,
+        0,
+        0,
+        viewW,
+        viewH
+    );
+
+    // 显示低清预览层
+    viewCanvas.style.display = "block";
+    viewCanvas.style.width = "360px";
+    viewCanvas.style.maxWidth = "calc(100vw - 48px)";
+    viewCanvas.style.height = "auto";
+    viewCanvas.style.maxHeight = "68vh";
+
+    // 隐藏高清层和旧图片层
+    sourceCanvas.style.display = "none";
+    if (finalImg) {
+        finalImg.style.display = "none";
+        finalImg.removeAttribute("src");
+    }
+}
+
+
+function bindCropDragControl() {
+    const imgEl = document.getElementById("previewCanvas");
+    if (!imgEl) return;
+
+    imgEl.style.cursor = "grab";
+    imgEl.style.touchAction = "none";
+
+    imgEl.onwheel = function(e) {
+    e.preventDefault();
+
+    const delta = e.deltaY > 0 ? -0.08 : 0.08;
+    currentCropZoom = Math.max(1, Math.min(3, currentCropZoom + delta));
+
+    clearTimeout(rerenderTimer);
+    rerenderTimer = setTimeout(() => {
+        rerenderUnifiedPosterLive();
+    }, 16);
+};
+
+    imgEl.onpointerdown = function(e) {
+        if (!currentImageRegion) return;
+
+        isDraggingCrop = true;
+        lastDragPoint = { x: e.clientX, y: e.clientY };
+
+        imgEl.setPointerCapture?.(e.pointerId);
+        imgEl.style.cursor = "grabbing";
+    };
+
+    imgEl.onpointermove = function(e) {
+        if (!isDraggingCrop || !lastDragPoint) return;
+
+        const dx = e.clientX - lastDragPoint.x;
+        const dy = e.clientY - lastDragPoint.y;
+
+        lastDragPoint = { x: e.clientX, y: e.clientY };
+
+        const sensitivity = 0.0025;
+
+        currentCropOffset.x = Math.max(
+            0,
+            Math.min(1, currentCropOffset.x - dx * sensitivity)
+        );
+
+        currentCropOffset.y = Math.max(
+            0,
+            Math.min(1, currentCropOffset.y - dy * sensitivity)
+        );
+
+        clearTimeout(rerenderTimer);
+        rerenderTimer = setTimeout(() => {
+            rerenderUnifiedPosterLive();
+        }, 70);
+    };
+
+    imgEl.onpointerup = function(e) {
+        isDraggingCrop = false;
+        lastDragPoint = null;
+        imgEl.style.cursor = "grab";
+        imgEl.releasePointerCapture?.(e.pointerId);
+    };
+
+    imgEl.onpointercancel = imgEl.onpointerup;
+}
 
 const typeSliderALabel = document.getElementById('typeSliderALabel');
 const typeSliderBLabel = document.getElementById('typeSliderBLabel');
@@ -1451,31 +1835,37 @@ try {
         uploadedImage = new Image();
 
         uploadedImage.onload = async () => {
-            if (classificationSection) {
-    classificationSection.style.display = 'block';
-}
-            imagePreview.src = event.target.result;
-            imagePreview.style.display = 'block';
-            uploadPlaceholder.style.display = 'none';
+    imagePreview.src = event.target.result;
+    imagePreview.style.display = 'block';
+    uploadPlaceholder.style.display = 'none';
 
-            if (classifyMode === 'auto') {
-    await showClassifyWaiting();
+    // 新逻辑：不再分类，只判断使用哪一种图形处理风格
+    const analysisCanvas = await createMobileSafeImageCanvas(uploadedImage, 900);
+    currentEffectType = pickEffectTypeByImageAnalysis(analysisCanvas);
 
-    selectedCategory = await classifyImage(displayFile, uploadedImage);
-    updateDetectedCategoryUI(selectedCategory, { autoPicked: true });
-    document.querySelectorAll('.ritual-card').forEach(item => {
-    item.classList.toggle('active', item.dataset.type === selectedCategory);
-});
+    if (effectStyleSelect) {
+    effectStyleSelect.value = currentEffectType;
 }
 
-generateBtn.disabled = false;
-        };
+    // 统一使用旧版“生活的停留”竖版结构作为底版
+    selectedCategory = "daily_object";
+    classifyMode = "manual";
+
+    currentCropOffset = { x: 0.5, y: 0.5 };
+    currentCropZoom = 1;
+
+    console.log("自动选择图形处理风格：", currentEffectType);
+
+    generateBtn.disabled = false;
+};
 
         uploadedImage.src = event.target.result;
     };
 
     reader.readAsDataURL(displayFile);
 });
+
+
 
 async function createMobileSafeImageCanvas(img, maxSide = 1800) {
     const ratio = img.width / img.height;
@@ -1594,6 +1984,64 @@ function showManualDateInput(show = true) {
             ? `你已手动选择：${meta.name}`
             : `系统已自动识别为：${meta.name}。你也可以手动调整`;
     }
+}
+
+function getCalendarCompositeModeByImageArea(ctx, rect) {
+    const sampleSize = 32;
+
+    const samplePoints = [
+        [0.25, 0.25],
+        [0.50, 0.25],
+        [0.75, 0.25],
+        [0.25, 0.50],
+        [0.50, 0.50],
+        [0.75, 0.50],
+        [0.25, 0.75],
+        [0.50, 0.75],
+        [0.75, 0.75]
+    ];
+
+    let totalLuma = 0;
+    let darkCount = 0;
+    let count = 0;
+
+    for (const [px, py] of samplePoints) {
+        const sx = Math.round(rect.x + rect.w * px - sampleSize / 2);
+        const sy = Math.round(rect.y + rect.h * py - sampleSize / 2);
+
+        let data;
+
+        try {
+            data = ctx.getImageData(sx, sy, sampleSize, sampleSize).data;
+        } catch (e) {
+            continue;
+        }
+
+        for (let i = 0; i < data.length; i += 4) {
+            const r = data[i];
+            const g = data[i + 1];
+            const b = data[i + 2];
+
+            const luma = 0.299 * r + 0.587 * g + 0.114 * b;
+
+            totalLuma += luma;
+            count++;
+
+            if (luma < 115) {
+                darkCount++;
+            }
+        }
+    }
+
+    const avg = totalLuma / Math.max(1, count);
+    const darkRatio = darkCount / Math.max(1, count);
+
+    // 只要整体偏深，或者深色区域占比明显，就正常白色
+    if (avg < 145 || darkRatio > 0.25) {
+        return "source-over";
+    }
+
+    return "difference";
 }
 
 function sleep(ms) {
@@ -2447,9 +2895,6 @@ function mixRgb(c1, c2, t) {
     };
 }
 
-function rgbObjToCss(rgb) {
-    return `rgb(${rgb.r},${rgb.g},${rgb.b})`;
-}
 
 function sampleCanvasRegionLuminance(canvas, rect) {
     const ctx = canvas.getContext('2d', { willReadFrequently: true });
@@ -2504,11 +2949,11 @@ function getAdaptiveDangerInkColor(palette, baseCanvas, imageRect, textBlockHeig
     }
 
     return {
-        color: rgbObjToCss(rgb),
-        rgb,
-        luminance: lum,
-        sampleRect
-    };
+    color: `rgb(${clamp255(rgb.r)}, ${clamp255(rgb.g)}, ${clamp255(rgb.b)})`,
+    rgb,
+    luminance: lum,
+    sampleRect
+};
 }
 
 function dilateAlphaMask(alpha, w, h, radius = 2) {
@@ -2629,23 +3074,45 @@ function getResolvedTypeMode() {
 
 
 function updateTypeControlLabels() {
-    const mode = getResolvedTypeMode();
+    const a = document.getElementById("typeSliderALabel");
+    const b = document.getElementById("typeSliderBLabel");
+    const c = document.getElementById("typeSliderCLabel");
 
-    if (selectedCategory === "light_time") {
-    typeSliderALabel.textContent = "拉伸强度";
-    typeSliderBLabel.textContent = "条带密度";
-    typeSliderCLabel.textContent = "随机位置";
+    if (!a || !b || !c) return;
 
-    } else if (selectedCategory === "daily_object") {
-    typeSliderALabel.textContent = "容差";
-    typeSliderBLabel.textContent = "随机装饰";
-    typeSliderCLabel.textContent = "主体大小";
+    if (currentEffectType === "gradient_map") {
+    typeSliderALabel.textContent = "阈值 Threshold";
+    typeSliderBLabel.textContent = "色阶 Contrast";
+    typeSliderCLabel.textContent = "饱和 Saturation";
 
-} else if (selectedCategory === "in_action") {
-    typeSliderALabel.textContent = '文字缩放';
-typeSliderBLabel.textContent = '背景模糊';
-typeSliderCLabel.textContent = '不透明度';
+    return;
+}
 
+    if (currentEffectType === "pattern_fill") {
+        a.textContent = "区域范围 Area Range";
+        b.textContent = "图案密度 Pattern Density";
+        c.textContent = "填充对象 Fill Target";
+        typeSliderA.value = typeSliderA.value || 50;
+        typeSliderB.value = typeSliderB.value || 50;
+        typeSliderC.value = typeSliderC.value || 1;
+    }
+
+    if (currentEffectType === "gradient_map") {
+        a.textContent = "阈值 Threshold";
+        b.textContent = "色阶拉开 Contrast";
+        c.textContent = "饱和度 Saturation";
+    }
+
+    if (currentEffectType === "line_contour") {
+        a.textContent = "线条密度 Line Density";
+        b.textContent = "线条深浅 Line Depth";
+        c.textContent = "线条粗细 Line Width";
+    }
+
+    if (currentEffectType === "pixel_stretch") {
+        a.textContent = "拉伸区域 Stretch Area";
+        b.textContent = "最小区域 Area Size";
+        c.textContent = "色彩强度 Saturation";
     }
 }
 
@@ -2733,6 +3200,1685 @@ function drawImageCoverToRect(ctx, img, rect) {
     }
 
     ctx.drawImage(img, sx, sy, sw, sh, rect.x, rect.y, rect.w, rect.h);
+}
+
+function drawImageCoverToRectWithCrop(ctx, img, rect, crop = currentCropOffset, zoom = currentCropZoom) {
+    const imgW = img.naturalWidth || img.width;
+    const imgH = img.naturalHeight || img.height;
+
+    const imgRatio = imgW / imgH;
+    const rectRatio = rect.w / rect.h;
+
+    const safeZoom = Math.max(1, Math.min(3, Number(zoom) || 1));
+
+    let sw;
+    let sh;
+
+    // 先算出“刚好 cover 住目标区域”的原图裁切尺寸
+    if (imgRatio > rectRatio) {
+        sh = imgH;
+        sw = imgH * rectRatio;
+    } else {
+        sw = imgW;
+        sh = imgW / rectRatio;
+    }
+
+    // 关键：缩放只通过缩小 source 裁切区域实现
+    sw = sw / safeZoom;
+    sh = sh / safeZoom;
+
+    const cx = Math.max(0, Math.min(1, crop.x ?? 0.5));
+    const cy = Math.max(0, Math.min(1, crop.y ?? 0.5));
+
+    let sx = (imgW - sw) * cx;
+    let sy = (imgH - sh) * cy;
+
+    sx = Math.max(0, Math.min(imgW - sw, sx));
+    sy = Math.max(0, Math.min(imgH - sh, sy));
+
+    ctx.clearRect(rect.x, rect.y, rect.w, rect.h);
+
+    ctx.drawImage(
+        img,
+        sx,
+        sy,
+        sw,
+        sh,
+        rect.x,
+        rect.y,
+        rect.w,
+        rect.h
+    );
+}
+
+function createCroppedImageRegionCanvas(img, rect, crop = currentCropOffset, zoom = currentCropZoom) {
+    const c = document.createElement("canvas");
+    c.width = Math.round(rect.w);
+    c.height = Math.round(rect.h);
+
+    const cctx = c.getContext("2d", { willReadFrequently: true });
+    cctx.imageSmoothingEnabled = true;
+    cctx.imageSmoothingQuality = "high";
+
+    drawImageCoverToRectWithCrop(
+        cctx,
+        img,
+        {
+            x: 0,
+            y: 0,
+            w: c.width,
+            h: c.height
+        },
+        crop,
+        zoom
+    );
+
+    return c;
+}
+
+function pickEffectTypeByImageAnalysis(sourceCanvas) {
+    const info = analyzeImageForEffectType(sourceCanvas);
+
+    console.log("图像处理风格判定：", info);
+
+    // 有大面积相似色块 + 主体背景有一定区分度 → pattern_fill
+    if (
+        info.largeSimilarBlockRatio >= 0.18 &&
+        info.foregroundBackgroundContrast >= 0.10 &&
+        info.edgeScore < 42
+    ) {
+        return "pattern_fill";
+    }
+
+    // 图像复杂，不适合抠图 → 其他三种等概率随机
+    const fallbackEffects = [
+        "gradient_map",
+        "line_contour",
+        "pixel_stretch"
+    ];
+
+    return fallbackEffects[
+        Math.floor(Math.random() * fallbackEffects.length)
+    ];
+}
+
+function analyzeImageForEffectType(sourceCanvas) {
+    const small = document.createElement("canvas");
+    const maxSide = 180;
+
+    const scale = Math.min(
+        1,
+        maxSide / Math.max(sourceCanvas.width, sourceCanvas.height)
+    );
+
+    small.width = Math.max(40, Math.round(sourceCanvas.width * scale));
+    small.height = Math.max(40, Math.round(sourceCanvas.height * scale));
+
+    const sctx = small.getContext("2d", { willReadFrequently: true });
+    sctx.drawImage(sourceCanvas, 0, 0, small.width, small.height);
+
+    const img = sctx.getImageData(0, 0, small.width, small.height);
+    const data = img.data;
+
+    const buckets = new Map();
+
+    let leftLum = 0;
+    let rightLum = 0;
+    let leftCount = 0;
+    let rightCount = 0;
+
+    let edgeSum = 0;
+    let edgeCount = 0;
+
+    for (let y = 0; y < small.height; y++) {
+        for (let x = 0; x < small.width; x++) {
+            const i = (y * small.width + x) * 4;
+
+            const r = data[i];
+            const g = data[i + 1];
+            const b = data[i + 2];
+
+            // 色块统计：量化颜色，判断是否有大面积相似色
+            const rq = Math.round(r / 32);
+            const gq = Math.round(g / 32);
+            const bq = Math.round(b / 32);
+            const key = `${rq}-${gq}-${bq}`;
+
+            buckets.set(key, (buckets.get(key) || 0) + 1);
+
+            const lum = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+
+            if (x < small.width / 2) {
+                leftLum += lum;
+                leftCount++;
+            } else {
+                rightLum += lum;
+                rightCount++;
+            }
+
+            // 图像复杂度：相邻像素亮度差
+            if (x < small.width - 1 && y < small.height - 1) {
+                const j = ((y + 1) * small.width + (x + 1)) * 4;
+                const r2 = data[j];
+                const g2 = data[j + 1];
+                const b2 = data[j + 2];
+                const lum2 = (0.299 * r2 + 0.587 * g2 + 0.114 * b2) / 255;
+
+                edgeSum += Math.abs(lum - lum2);
+                edgeCount++;
+            }
+        }
+    }
+
+    const total = small.width * small.height;
+    const maxBucket = Math.max(...buckets.values());
+    const largeSimilarBlockRatio = maxBucket / total;
+
+    const l = leftLum / Math.max(1, leftCount);
+    const r = rightLum / Math.max(1, rightCount);
+
+    const foregroundBackgroundContrast = Math.abs(l - r);
+    const edgeScore = edgeSum / Math.max(1, edgeCount) * 100;
+
+    return {
+        largeSimilarBlockRatio,
+        foregroundBackgroundContrast,
+        edgeScore
+    };
+}
+
+function analyzeImageForPatternFill(sourceCanvas) {
+    const small = document.createElement("canvas");
+    const maxSide = 180;
+    const ratio = sourceCanvas.width / sourceCanvas.height;
+
+    if (ratio >= 1) {
+        small.width = maxSide;
+        small.height = Math.round(maxSide / ratio);
+    } else {
+        small.height = maxSide;
+        small.width = Math.round(maxSide * ratio);
+    }
+
+    const sctx = small.getContext("2d", { willReadFrequently: true });
+    sctx.drawImage(sourceCanvas, 0, 0, small.width, small.height);
+
+    const img = sctx.getImageData(0, 0, small.width, small.height);
+    const data = img.data;
+
+    const buckets = new Map();
+    let leftLum = 0;
+    let rightLum = 0;
+    let leftCount = 0;
+    let rightCount = 0;
+
+    for (let y = 0; y < small.height; y++) {
+        for (let x = 0; x < small.width; x++) {
+            const i = (y * small.width + x) * 4;
+            const r = data[i];
+            const g = data[i + 1];
+            const b = data[i + 2];
+
+            const rq = Math.round(r / 32);
+            const gq = Math.round(g / 32);
+            const bq = Math.round(b / 32);
+            const key = `${rq}-${gq}-${bq}`;
+
+            buckets.set(key, (buckets.get(key) || 0) + 1);
+
+            const lum = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+
+            if (x < small.width / 2) {
+                leftLum += lum;
+                leftCount++;
+            } else {
+                rightLum += lum;
+                rightCount++;
+            }
+        }
+    }
+
+    const total = small.width * small.height;
+    const maxBucket = Math.max(...buckets.values());
+    const largeSimilarBlockRatio = maxBucket / total;
+
+    const l = leftLum / Math.max(1, leftCount);
+    const r = rightLum / Math.max(1, rightCount);
+    const foregroundBackgroundContrast = Math.abs(l - r);
+
+    return {
+        largeSimilarBlockRatio,
+        foregroundBackgroundContrast
+    };
+}
+
+async function renderSelectedEffectIntoPoster(ctx, img, imageRegion) {
+    const croppedCanvas = createCroppedImageRegionCanvas(
+        img,
+        imageRegion,
+        currentCropOffset,
+        currentCropZoom
+    );
+
+    let processedCanvas = null;
+
+    try {
+        processedCanvas = await renderEffectCanvas(
+            croppedCanvas,
+            currentEffectType
+        );
+    } catch (err) {
+        console.error("图像处理失败，回退原图：", err);
+        processedCanvas = croppedCanvas;
+    }
+
+    // 如果处理函数没有返回有效 canvas，也回退原图
+    if (
+        !processedCanvas ||
+        !processedCanvas.width ||
+        !processedCanvas.height
+    ) {
+        console.warn("processedCanvas 无效，回退原图");
+        processedCanvas = croppedCanvas;
+    }
+
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(imageRegion.x, imageRegion.y, imageRegion.w, imageRegion.h);
+    ctx.clip();
+
+    ctx.drawImage(
+        processedCanvas,
+        imageRegion.x,
+        imageRegion.y,
+        imageRegion.w,
+        imageRegion.h
+    );
+
+    ctx.restore();
+}
+
+async function renderEffectCanvas(sourceCanvas, effectType) {
+    if (effectType === "gradient_map") {
+        return renderGradientMapCanvas(sourceCanvas);
+    }
+
+    if (effectType === "line_contour") {
+        return renderLineContourCanvas(sourceCanvas);
+    }
+
+    if (effectType === "pattern_fill") {
+        return renderPatternFillCanvas(sourceCanvas);
+    }
+
+    if (effectType === "pixel_stretch") {
+        return renderPixelStretchCanvas(sourceCanvas);
+    }
+
+    return cloneSourceCanvasForFallback(sourceCanvas);
+}
+
+function clamp255(v) {
+    return Math.max(0, Math.min(255, Math.round(Number(v) || 0)));
+}
+
+function getRgbLuma(c) {
+    return 0.299 * c.r + 0.587 * c.g + 0.114 * c.b;
+}
+
+function colorToCss(c) {
+    return `rgb(${clamp255(c.r)}, ${clamp255(c.g)}, ${clamp255(c.b)})`;
+}
+
+function rgbObjToCssSafe(c) {
+    return `rgb(${clamp255(c.r)}, ${clamp255(c.g)}, ${clamp255(c.b)})`;
+}
+
+
+function renderGradientMapCanvas(sourceCanvas) {
+    const w = sourceCanvas.width;
+    const h = sourceCanvas.height;
+
+    const outCanvas = document.createElement("canvas");
+    outCanvas.width = w;
+    outCanvas.height = h;
+
+    const outCtx = outCanvas.getContext("2d", { willReadFrequently: true });
+
+    const srcCtx = sourceCanvas.getContext("2d", { willReadFrequently: true });
+    const src = srcCtx.getImageData(0, 0, w, h);
+    const data = src.data;
+
+    const out = outCtx.createImageData(w, h);
+    const outData = out.data;
+
+    // A：阈值 40-210
+const threshold = 40 + Number(typeSliderA.value) * 1.7;
+
+// B：对比 0.8-2.2
+const contrast = 0.8 + Number(typeSliderB.value) / 100 * 1.4;
+
+// C：饱和度 0.8-2.6
+const saturation = 0.8 + Number(typeSliderC.value) / 100 * 1.8;
+
+    const palette = extractGradientMapTwoColorPalette(sourceCanvas);
+
+const darkColor = adjustGradientMapSaturation(palette.dark, saturation);
+const lightColor = adjustGradientMapSaturation(palette.light, saturation);
+
+// 关键：上下色块使用“处理后的颜色”，不是原始 palette 颜色
+
+const colorA = lightColor;
+const colorB = darkColor;
+
+const lighterColor = getRgbLuma(colorA) >= getRgbLuma(colorB)
+    ? colorA
+    : colorB;
+
+const darkerColor = getRgbLuma(colorA) < getRgbLuma(colorB)
+    ? colorA
+    : colorB;
+
+currentEffectPalette = {
+    top: colorToCss(lighterColor),
+    bottom: colorToCss(darkerColor),
+    raw: palette,
+    processed: {
+        light: lighterColor,
+        dark: darkerColor
+    }
+};
+
+    for (let i = 0; i < data.length; i += 4) {
+        const r = data[i];
+        const g = data[i + 1];
+        const b = data[i + 2];
+
+        let lum = getGradientMapLuminance255(r, g, b);
+
+        // 色阶拉开
+        lum = (lum - 128) * contrast + 128;
+
+        // PS 阈值逻辑：不是灰阶渐变，而是纯二色映射
+        const mapped = lum >= threshold ? lightColor : darkColor;
+
+        outData[i] = clamp255(mapped.r);
+outData[i + 1] = clamp255(mapped.g);
+outData[i + 2] = clamp255(mapped.b);
+        outData[i + 3] = 255;
+    }
+
+    outCtx.putImageData(out, 0, 0);
+
+    return outCanvas;
+}
+
+
+
+function cloneSourceCanvasForFallback(sourceCanvas) {
+    const c = document.createElement("canvas");
+    c.width = sourceCanvas.width;
+    c.height = sourceCanvas.height;
+
+    const ctx = c.getContext("2d");
+    ctx.drawImage(sourceCanvas, 0, 0);
+
+    return c;
+}
+
+function renderLineContourCanvas(sourceCanvas) {
+    const w = sourceCanvas.width;
+    const h = sourceCanvas.height;
+
+    const outCanvas = document.createElement("canvas");
+    outCanvas.width = w;
+    outCanvas.height = h;
+
+    const outCtx = outCanvas.getContext("2d", { willReadFrequently: true });
+
+    const levels = Math.round(2 + Number(typeSliderA.value) / 100 * 8);
+    const depth = Number(typeSliderB.value) / 100;
+    const lineWidth = Math.round(Number(typeSliderC.value) / 100 * 6);
+
+    const palette = lcExtractDominantDarkLightPalette(sourceCanvas);
+
+    const lightColor = palette.light;
+    const darkColor = palette.dark;
+
+    const lighterColor = getRgbLuma(lightColor) >= getRgbLuma(darkColor)
+        ? lightColor
+        : darkColor;
+
+    const darkerColor = getRgbLuma(lightColor) < getRgbLuma(darkColor)
+        ? lightColor
+        : darkColor;
+
+    currentEffectPalette = {
+        top: colorToCss(lighterColor),
+        bottom: colorToCss(darkerColor),
+        raw: palette,
+        processed: {
+            light: lighterColor,
+            dark: darkerColor
+        }
+    };
+
+    const simplifiedCanvas = lcCreateSimplifiedCanvas(sourceCanvas, w, h);
+    const sctx = simplifiedCanvas.getContext("2d", { willReadFrequently: true });
+    const src = sctx.getImageData(0, 0, w, h);
+    const data = src.data;
+
+    const lumMap = new Float32Array(w * h);
+
+    for (let y = 0; y < h; y++) {
+        for (let x = 0; x < w; x++) {
+            const p = y * w + x;
+            const i = p * 4;
+
+            lumMap[p] = lcLuminance01(
+                data[i],
+                data[i + 1],
+                data[i + 2]
+            );
+        }
+    }
+
+    const lineMask = new Uint8Array(w * h);
+    const interval = 1 / levels;
+
+    for (let y = 1; y < h - 1; y++) {
+        for (let x = 1; x < w - 1; x++) {
+            const p = y * w + x;
+
+            const current = lumMap[p];
+            const right = lumMap[p + 1];
+            const down = lumMap[p + w];
+
+            if (
+                lcCrossesContourLevel(current, right, interval) ||
+                lcCrossesContourLevel(current, down, interval)
+            ) {
+                lineMask[p] = 1;
+            }
+        }
+    }
+
+    const cleanedMask = lcRemoveSmallLineComponents(lineMask, w, h, 18);
+
+    const finalMask = lineWidth > 0
+        ? lcDilateLineMask(cleanedMask, w, h, lineWidth)
+        : cleanedMask;
+
+    const out = outCtx.createImageData(w, h);
+    const outData = out.data;
+
+    const bgColor = lighterColor;
+    const lineColor = darkerColor;
+
+    for (let p = 0; p < finalMask.length; p++) {
+        const i = p * 4;
+        const t = finalMask[p] ? depth : 0;
+        const c = lcMixColor(bgColor, lineColor, t);
+
+        outData[i] = clamp255(c.r);
+        outData[i + 1] = clamp255(c.g);
+        outData[i + 2] = clamp255(c.b);
+        outData[i + 3] = 255;
+    }
+
+    outCtx.putImageData(out, 0, 0);
+
+    outCtx.save();
+    outCtx.filter = "blur(0.35px)";
+    outCtx.drawImage(outCanvas, 0, 0);
+    outCtx.filter = "none";
+    outCtx.restore();
+
+    return outCanvas;
+}
+
+function lcCreateSimplifiedCanvas(sourceCanvas, w, h) {
+    const small = document.createElement("canvas");
+    const smallCtx = small.getContext("2d");
+
+    const scale = 0.32;
+
+    small.width = Math.max(20, Math.round(w * scale));
+    small.height = Math.max(20, Math.round(h * scale));
+
+    smallCtx.imageSmoothingEnabled = true;
+    smallCtx.imageSmoothingQuality = "high";
+    smallCtx.drawImage(sourceCanvas, 0, 0, small.width, small.height);
+
+    const result = document.createElement("canvas");
+    result.width = w;
+    result.height = h;
+
+    const rctx = result.getContext("2d", { willReadFrequently: true });
+    rctx.imageSmoothingEnabled = true;
+    rctx.imageSmoothingQuality = "high";
+    rctx.drawImage(small, 0, 0, w, h);
+
+    return result;
+}
+
+function lcCrossesContourLevel(a, b, interval) {
+    const diff = Math.abs(a - b);
+    if (diff < 0.018) return false;
+
+    const levelA = Math.floor(a / interval);
+    const levelB = Math.floor(b / interval);
+
+    return levelA !== levelB;
+}
+
+function lcDilateLineMask(mask, w, h, radius) {
+    const result = new Uint8Array(w * h);
+    const r = Math.max(1, Math.round(radius));
+
+    for (let y = 0; y < h; y++) {
+        for (let x = 0; x < w; x++) {
+            const p = y * w + x;
+            if (!mask[p]) continue;
+
+            for (let dy = -r; dy <= r; dy++) {
+                for (let dx = -r; dx <= r; dx++) {
+                    if (dx * dx + dy * dy > r * r) continue;
+
+                    const nx = x + dx;
+                    const ny = y + dy;
+
+                    if (nx < 0 || nx >= w || ny < 0 || ny >= h) continue;
+
+                    result[ny * w + nx] = 1;
+                }
+            }
+        }
+    }
+
+    return result;
+}
+
+function lcRemoveSmallLineComponents(mask, w, h, minPixels = 18) {
+    const visited = new Uint8Array(w * h);
+    const result = new Uint8Array(w * h);
+    const queue = [];
+
+    for (let y = 0; y < h; y++) {
+        for (let x = 0; x < w; x++) {
+            const start = y * w + x;
+
+            if (!mask[start] || visited[start]) continue;
+
+            queue.length = 0;
+            const pixels = [];
+
+            queue.push(start);
+            visited[start] = 1;
+
+            while (queue.length) {
+                const p = queue.pop();
+                pixels.push(p);
+
+                const px = p % w;
+                const py = Math.floor(p / w);
+
+                for (let dy = -1; dy <= 1; dy++) {
+                    for (let dx = -1; dx <= 1; dx++) {
+                        if (dx === 0 && dy === 0) continue;
+
+                        const nx = px + dx;
+                        const ny = py + dy;
+
+                        if (nx < 0 || nx >= w || ny < 0 || ny >= h) continue;
+
+                        const np = ny * w + nx;
+
+                        if (mask[np] && !visited[np]) {
+                            visited[np] = 1;
+                            queue.push(np);
+                        }
+                    }
+                }
+            }
+
+            if (pixels.length >= minPixels) {
+                pixels.forEach(p => {
+                    result[p] = 1;
+                });
+            }
+        }
+    }
+
+    return result;
+}
+
+function lcLuminance01(r, g, b) {
+    return (
+        0.2126 * (r / 255) +
+        0.7152 * (g / 255) +
+        0.0722 * (b / 255)
+    );
+}
+
+function lcExtractDominantDarkLightPalette(sourceCanvas) {
+    const w = sourceCanvas.width;
+    const h = sourceCanvas.height;
+    const ctx = sourceCanvas.getContext("2d", { willReadFrequently: true });
+    const imgData = ctx.getImageData(0, 0, w, h).data;
+
+    const bins = new Map();
+    const step = Math.max(4, Math.floor(Math.sqrt((w * h) / 6500)));
+
+    for (let y = 0; y < h; y += step) {
+        for (let x = 0; x < w; x += step) {
+            const i = (y * w + x) * 4;
+
+            const r = imgData[i];
+            const g = imgData[i + 1];
+            const b = imgData[i + 2];
+
+            const lum = lcLuminance01(r, g, b);
+
+            const qr = Math.round(r / 32) * 32;
+            const qg = Math.round(g / 32) * 32;
+            const qb = Math.round(b / 32) * 32;
+            const key = `${qr},${qg},${qb}`;
+
+            if (!bins.has(key)) {
+                bins.set(key, {
+                    r: 0,
+                    g: 0,
+                    b: 0,
+                    lum: 0,
+                    count: 0
+                });
+            }
+
+            const bin = bins.get(key);
+            bin.r += r;
+            bin.g += g;
+            bin.b += b;
+            bin.lum += lum;
+            bin.count++;
+        }
+    }
+
+    const colors = Array.from(bins.values())
+        .map(c => {
+            const count = c.count || 1;
+            return {
+                r: c.r / count,
+                g: c.g / count,
+                b: c.b / count,
+                lum: c.lum / count,
+                count
+            };
+        })
+        .filter(c => c.count > 3);
+
+    if (colors.length < 2) {
+        return {
+            dark: { r: 30, g: 80, b: 120 },
+            light: { r: 230, g: 220, b: 180 }
+        };
+    }
+
+    const darkCandidates = colors
+        .filter(c => c.lum > 0.08 && c.lum < 0.55)
+        .sort((a, b) => b.count - a.count);
+
+    const lightCandidates = colors
+        .filter(c => c.lum >= 0.48 && c.lum < 0.95)
+        .sort((a, b) => b.count - a.count);
+
+    const darkIndex = currentEffectPaletteOffset % Math.max(1, darkCandidates.length);
+const lightIndex = currentEffectPaletteOffset % Math.max(1, lightCandidates.length);
+
+const dark = darkCandidates[darkIndex] || colors[0];
+const light = lightCandidates[lightIndex] || colors[colors.length - 1];
+
+    return { dark, light };
+}
+
+function lcMixColor(a, b, t) {
+    return {
+        r: a.r + (b.r - a.r) * t,
+        g: a.g + (b.g - a.g) * t,
+        b: a.b + (b.b - a.b) * t
+    };
+}
+
+function renderPatternFillCanvas(sourceCanvas) {
+    const w = sourceCanvas.width;
+    const h = sourceCanvas.height;
+
+    const outCanvas = document.createElement("canvas");
+    outCanvas.width = w;
+    outCanvas.height = h;
+
+    const outCtx = outCanvas.getContext("2d", { willReadFrequently: true });
+    outCtx.drawImage(sourceCanvas, 0, 0);
+
+    const areaRange = Number(typeSliderA.value) / 100;   // 区域范围
+    const density = Number(typeSliderB.value) / 100;     // 图案密度
+    const targetMix = Number(typeSliderC.value) / 100;   // 填充对象：背景 ↔ 主体
+
+    const palette = pfExtractPatternPalette(sourceCanvas);
+
+    const lighterColor = getRgbLuma(palette.fill) >= getRgbLuma(palette.pattern)
+        ? palette.fill
+        : palette.pattern;
+
+    const darkerColor = getRgbLuma(palette.fill) < getRgbLuma(palette.pattern)
+        ? palette.fill
+        : palette.pattern;
+
+    currentEffectPalette = {
+        top: colorToCss(lighterColor),
+        bottom: colorToCss(darkerColor),
+        raw: palette,
+        processed: {
+            light: lighterColor,
+            dark: darkerColor
+        }
+    };
+
+    const analysis = pfCreateAnalysisCanvas(sourceCanvas, 220);
+    const cluster = pfCreateSimpleColorCluster(analysis.canvas, 4 + Math.round(areaRange * 3));
+    const subjectMaskSmall = pfCreateCenterSubjectMask(cluster, analysis.canvas.width, analysis.canvas.height);
+    const subjectMask = pfUpscaleMask(
+        subjectMaskSmall,
+        analysis.canvas.width,
+        analysis.canvas.height,
+        w,
+        h
+    );
+
+    const targetMask = pfBuildTargetMask(subjectMask, w, h, targetMix);
+
+    const img = outCtx.getImageData(0, 0, w, h);
+    const data = img.data;
+
+    pfApplySolidFill(data, targetMask, w, h, palette.fill, 1);
+    pfApplyDotPattern(data, targetMask, w, h, palette.pattern, density);
+
+    outCtx.putImageData(img, 0, 0);
+
+    return outCanvas;
+}
+
+function pfExtractPatternPalette(sourceCanvas) {
+    const w = sourceCanvas.width;
+    const h = sourceCanvas.height;
+    const ctx = sourceCanvas.getContext("2d", { willReadFrequently: true });
+    const data = ctx.getImageData(0, 0, w, h).data;
+
+    const bins = new Map();
+    const step = Math.max(4, Math.floor(Math.sqrt((w * h) / 7000)));
+
+    for (let y = 0; y < h; y += step) {
+        for (let x = 0; x < w; x += step) {
+            const i = (y * w + x) * 4;
+
+            const r = data[i];
+            const g = data[i + 1];
+            const b = data[i + 2];
+
+            const hsl = rgbToHsl(r, g, b);
+
+            if (hsl.l < 0.10 || hsl.l > 0.94) continue;
+
+            const qr = Math.round(r / 28) * 28;
+            const qg = Math.round(g / 28) * 28;
+            const qb = Math.round(b / 28) * 28;
+            const key = `${qr},${qg},${qb}`;
+
+            if (!bins.has(key)) {
+                bins.set(key, {
+                    r: 0,
+                    g: 0,
+                    b: 0,
+                    count: 0,
+                    s: 0,
+                    l: 0
+                });
+            }
+
+            const bin = bins.get(key);
+            bin.r += r;
+            bin.g += g;
+            bin.b += b;
+            bin.s += hsl.s;
+            bin.l += hsl.l;
+            bin.count++;
+        }
+    }
+
+    const colors = Array.from(bins.values())
+        .filter(c => c.count > 3)
+        .map(c => {
+            const count = c.count || 1;
+            const rgb = {
+                r: c.r / count,
+                g: c.g / count,
+                b: c.b / count
+            };
+            const hsl = rgbToHsl(rgb.r, rgb.g, rgb.b);
+
+            return {
+                ...rgb,
+                h: hsl.h,
+                s: hsl.s,
+                l: hsl.l,
+                count
+            };
+        })
+        .sort((a, b) => b.count - a.count);
+
+    if (!colors.length) {
+        return {
+            fill: { r: 210, g: 190, b: 160 },
+            pattern: { r: 255, g: 255, b: 255 }
+        };
+    }
+
+    const index = currentEffectPaletteOffset % Math.min(colors.length, 8);
+    const base = pfNormalizeFillColor(colors[index]);
+
+    return {
+        fill: base,
+        pattern: pfMixColor(base, { r: 255, g: 255, b: 255 }, 0.72)
+    };
+}
+
+function pfNormalizeFillColor(color) {
+    const hsl = rgbToHsl(color.r, color.g, color.b);
+
+    const s = Math.max(0.24, Math.min(0.72, hsl.s * 1.28));
+    const l = Math.max(0.46, Math.min(0.74, hsl.l * 1.08));
+
+    return hslToRgb(hsl.h, s, l);
+}
+
+function pfMixColor(a, b, t) {
+    return {
+        r: a.r + (b.r - a.r) * t,
+        g: a.g + (b.g - a.g) * t,
+        b: a.b + (b.b - a.b) * t
+    };
+}
+
+function pfCreateAnalysisCanvas(sourceCanvas, maxSide = 220) {
+    const ratio = sourceCanvas.width / sourceCanvas.height;
+    let w;
+    let h;
+
+    if (sourceCanvas.width >= sourceCanvas.height) {
+        w = maxSide;
+        h = Math.round(maxSide / ratio);
+    } else {
+        h = maxSide;
+        w = Math.round(maxSide * ratio);
+    }
+
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.max(40, w);
+    canvas.height = Math.max(40, h);
+
+    const ctx = canvas.getContext("2d", { willReadFrequently: true });
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = "high";
+    ctx.drawImage(sourceCanvas, 0, 0, canvas.width, canvas.height);
+
+    return { canvas, ctx };
+}
+
+function pfCreateSimpleColorCluster(canvas, k = 5) {
+    const w = canvas.width;
+    const h = canvas.height;
+    const ctx = canvas.getContext("2d", { willReadFrequently: true });
+    const data = ctx.getImageData(0, 0, w, h).data;
+
+    const map = new Uint8Array(w * h);
+    const centers = [];
+
+    for (let i = 0; i < k; i++) {
+        const x = Math.floor((i + 0.5) / k * w);
+        const y = Math.floor(h * (0.35 + 0.3 * randSeed(currentEffectPaletteOffset + i, i)));
+        const p = (y * w + x) * 4;
+
+        centers.push({
+            r: data[p],
+            g: data[p + 1],
+            b: data[p + 2],
+            count: 0
+        });
+    }
+
+    for (let iter = 0; iter < 5; iter++) {
+        const sums = centers.map(() => ({ r: 0, g: 0, b: 0, count: 0 }));
+
+        for (let p = 0; p < w * h; p++) {
+            const i = p * 4;
+            const r = data[i];
+            const g = data[i + 1];
+            const b = data[i + 2];
+
+            let best = 0;
+            let bestD = Infinity;
+
+            for (let c = 0; c < centers.length; c++) {
+                const center = centers[c];
+                const d =
+                    Math.abs(r - center.r) +
+                    Math.abs(g - center.g) +
+                    Math.abs(b - center.b);
+
+                if (d < bestD) {
+                    bestD = d;
+                    best = c;
+                }
+            }
+
+            map[p] = best;
+            sums[best].r += r;
+            sums[best].g += g;
+            sums[best].b += b;
+            sums[best].count++;
+        }
+
+        sums.forEach((s, i) => {
+            if (!s.count) return;
+            centers[i] = {
+                r: s.r / s.count,
+                g: s.g / s.count,
+                b: s.b / s.count,
+                count: s.count
+            };
+        });
+    }
+
+    return { map, centers };
+}
+
+function pfCreateCenterSubjectMask(cluster, w, h) {
+    const stats = cluster.centers.map((c, index) => ({
+        index,
+        count: 0,
+        centerScore: 0,
+        edgeCount: 0,
+        score: 0
+    }));
+
+    const edgeBand = Math.max(3, Math.round(Math.min(w, h) * 0.08));
+
+    for (let y = 0; y < h; y++) {
+        for (let x = 0; x < w; x++) {
+            const p = y * w + x;
+            const ci = cluster.map[p];
+
+            const nx = x / w - 0.5;
+            const ny = y / h - 0.5;
+            const centerWeight = Math.max(0, 1 - Math.sqrt(nx * nx + ny * ny) * 2);
+
+            const isEdge =
+                x < edgeBand ||
+                x >= w - edgeBand ||
+                y < edgeBand ||
+                y >= h - edgeBand;
+
+            stats[ci].count++;
+            stats[ci].centerScore += centerWeight;
+            if (isEdge) stats[ci].edgeCount++;
+        }
+    }
+
+    stats.forEach(s => {
+        const areaRatio = s.count / (w * h);
+        const centerAvg = s.centerScore / Math.max(1, s.count);
+        const edgeRatio = s.edgeCount / Math.max(1, s.count);
+
+        s.score = centerAvg * 2.4 + areaRatio * 0.6 - edgeRatio * 1.8;
+    });
+
+    stats.sort((a, b) => b.score - a.score);
+
+    const selected = new Set([stats[0]?.index]);
+
+    if (stats[1] && stats[1].score > stats[0].score * 0.72) {
+        selected.add(stats[1].index);
+    }
+
+    const mask = new Uint8Array(w * h);
+
+    for (let i = 0; i < cluster.map.length; i++) {
+        if (selected.has(cluster.map[i])) {
+            mask[i] = 1;
+        }
+    }
+
+    return pfDilateMask(pfErodeMask(mask, w, h, 1), w, h, 2);
+}
+
+function pfUpscaleMask(maskSmall, sw, sh, w, h) {
+    const result = new Uint8Array(w * h);
+
+    for (let y = 0; y < h; y++) {
+        const sy = Math.min(sh - 1, Math.floor(y / h * sh));
+
+        for (let x = 0; x < w; x++) {
+            const sx = Math.min(sw - 1, Math.floor(x / w * sw));
+            result[y * w + x] = maskSmall[sy * sw + sx];
+        }
+    }
+
+    return result;
+}
+
+function pfBuildTargetMask(subjectMask, w, h, targetMix) {
+    const fillSubject = targetMix > 0.5;
+    const mask = new Uint8Array(w * h);
+
+    for (let i = 0; i < mask.length; i++) {
+        mask[i] = fillSubject ? subjectMask[i] : subjectMask[i] ? 0 : 1;
+    }
+
+    return mask;
+}
+
+function pfApplySolidFill(data, mask, w, h, color, alpha = 1) {
+    for (let p = 0; p < mask.length; p++) {
+        if (!mask[p]) continue;
+
+        const i = p * 4;
+
+        data[i] = clamp255(color.r);
+        data[i + 1] = clamp255(color.g);
+        data[i + 2] = clamp255(color.b);
+        data[i + 3] = 255;
+    }
+}
+
+function pfApplyDotPattern(data, mask, w, h, color, density = 0.42) {
+    const cell = Math.round(15 - density * 9);
+    const r = Math.max(1.2, cell * (0.13 + density * 0.12));
+    const alpha = 1;
+
+    for (let y = 0; y < h; y++) {
+        for (let x = 0; x < w; x++) {
+            const p = y * w + x;
+            if (!mask[p]) continue;
+
+            const cx = Math.floor(x / cell) * cell + cell / 2;
+            const cy = Math.floor(y / cell) * cell + cell / 2;
+
+            const dx = x - cx;
+            const dy = y - cy;
+
+            if (dx * dx + dy * dy > r * r) continue;
+
+            const i = p * 4;
+
+            data[i] = clamp255(data[i] * (1 - alpha) + color.r * alpha);
+            data[i + 1] = clamp255(data[i + 1] * (1 - alpha) + color.g * alpha);
+            data[i + 2] = clamp255(data[i + 2] * (1 - alpha) + color.b * alpha);
+        }
+    }
+}
+
+function pfDilateMask(mask, w, h, radius = 1) {
+    const result = new Uint8Array(w * h);
+    const r = Math.max(1, radius);
+
+    for (let y = 0; y < h; y++) {
+        for (let x = 0; x < w; x++) {
+            const p = y * w + x;
+            if (!mask[p]) continue;
+
+            for (let dy = -r; dy <= r; dy++) {
+                for (let dx = -r; dx <= r; dx++) {
+                    const nx = x + dx;
+                    const ny = y + dy;
+
+                    if (nx < 0 || nx >= w || ny < 0 || ny >= h) continue;
+
+                    result[ny * w + nx] = 1;
+                }
+            }
+        }
+    }
+
+    return result;
+}
+
+function pfErodeMask(mask, w, h, radius = 1) {
+    const result = new Uint8Array(w * h);
+    const r = Math.max(1, radius);
+
+    for (let y = 0; y < h; y++) {
+        for (let x = 0; x < w; x++) {
+            let keep = true;
+
+            for (let dy = -r; dy <= r; dy++) {
+                for (let dx = -r; dx <= r; dx++) {
+                    const nx = x + dx;
+                    const ny = y + dy;
+
+                    if (nx < 0 || nx >= w || ny < 0 || ny >= h) {
+                        keep = false;
+                        break;
+                    }
+
+                    if (!mask[ny * w + nx]) {
+                        keep = false;
+                        break;
+                    }
+                }
+
+                if (!keep) break;
+            }
+
+            if (keep) result[y * w + x] = 1;
+        }
+    }
+
+    return result;
+}
+
+function renderPixelStretchCanvas(sourceCanvas) {
+    const w = sourceCanvas.width;
+    const h = sourceCanvas.height;
+
+    const outCanvas = document.createElement("canvas");
+    outCanvas.width = w;
+    outCanvas.height = h;
+
+    const ctx = outCanvas.getContext("2d", { willReadFrequently: true });
+
+    // A：拉伸区域，0 偏暗部，100 偏亮部
+    const stretchArea = Number(typeSliderA.value) / 100;
+
+    // B：最小区域面积，避免太碎
+    const minArea = 40 + Number(typeSliderB.value) * 5;
+
+    // C：色彩强度
+    const satValue = 100 + Number(typeSliderC.value) * 1.2;
+    const stripSaturation = satValue / 100;
+
+    const effectAmount = (satValue - 100) / 120;
+    const bgSaturation = Math.max(0, 1 - effectAmount);
+    const bgContrast = 1 + effectAmount * 0.55;
+
+    const bgCanvas = psCreateSaturatedContrastCanvas(
+        sourceCanvas,
+        bgSaturation,
+        bgContrast
+    );
+
+    ctx.drawImage(bgCanvas, 0, 0);
+
+    const sourceCtx = sourceCanvas.getContext("2d", { willReadFrequently: true });
+    const imgData = sourceCtx.getImageData(0, 0, w, h);
+    const data = imgData.data;
+
+    const centerLum = 55 + stretchArea * 145;
+    const rangeWidth = 70;
+
+    const minLum = Math.max(0, centerLum - rangeWidth / 2);
+    const maxLum = Math.min(255, centerLum + rangeWidth / 2);
+
+    const mask = new Uint8Array(w * h);
+
+    for (let y = 0; y < h; y++) {
+        for (let x = 0; x < w; x++) {
+            const i = (y * w + x) * 4;
+
+            const r = data[i];
+            const g = data[i + 1];
+            const b = data[i + 2];
+
+            const lum = 0.299 * r + 0.587 * g + 0.114 * b;
+
+            if (lum >= minLum && lum <= maxLum) {
+                mask[y * w + x] = 1;
+            }
+        }
+    }
+
+    const regions = psFindConnectedRegions(mask, w, h);
+
+    regions.forEach(region => {
+        const rw = region.maxX - region.minX + 1;
+        const rh = region.maxY - region.minY + 1;
+
+        if (rw < 18 || rh < 8 || region.count < minArea) return;
+
+        const sx = region.minX;
+        const sy = region.minY;
+        const sw = 1;
+        const sh = rh;
+
+        const stretched = psCreateSaturatedStretchStrip(
+            sourceCanvas,
+            sx,
+            sy,
+            sw,
+            sh,
+            rw,
+            stripSaturation
+        );
+
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = "high";
+        ctx.globalAlpha = 1;
+
+        ctx.drawImage(
+            stretched,
+            region.minX,
+            region.minY
+        );
+    });
+
+    const palette = psExtractPixelStretchPalette(outCanvas);
+
+    const lighterColor = getRgbLuma(palette.light) >= getRgbLuma(palette.dark)
+        ? palette.light
+        : palette.dark;
+
+    const darkerColor = getRgbLuma(palette.light) < getRgbLuma(palette.dark)
+        ? palette.light
+        : palette.dark;
+
+    currentEffectPalette = {
+        top: colorToCss(lighterColor),
+        bottom: colorToCss(darkerColor),
+        raw: palette,
+        processed: {
+            light: lighterColor,
+            dark: darkerColor
+        }
+    };
+
+    return outCanvas;
+}
+
+function psFindConnectedRegions(mask, w, h) {
+    const visited = new Uint8Array(w * h);
+    const regions = [];
+
+    const queueX = [];
+    const queueY = [];
+
+    for (let y = 0; y < h; y++) {
+        for (let x = 0; x < w; x++) {
+            const start = y * w + x;
+
+            if (!mask[start] || visited[start]) continue;
+
+            let minX = x;
+            let maxX = x;
+            let minY = y;
+            let maxY = y;
+            let count = 0;
+
+            queueX.length = 0;
+            queueY.length = 0;
+
+            queueX.push(x);
+            queueY.push(y);
+            visited[start] = 1;
+
+            while (queueX.length) {
+                const cx = queueX.pop();
+                const cy = queueY.pop();
+
+                count++;
+
+                if (cx < minX) minX = cx;
+                if (cx > maxX) maxX = cx;
+                if (cy < minY) minY = cy;
+                if (cy > maxY) maxY = cy;
+
+                const neighbors = [
+                    [cx + 1, cy],
+                    [cx - 1, cy],
+                    [cx, cy + 1],
+                    [cx, cy - 1]
+                ];
+
+                for (const [nx, ny] of neighbors) {
+                    if (nx < 0 || nx >= w || ny < 0 || ny >= h) continue;
+
+                    const ni = ny * w + nx;
+
+                    if (mask[ni] && !visited[ni]) {
+                        visited[ni] = 1;
+                        queueX.push(nx);
+                        queueY.push(ny);
+                    }
+                }
+            }
+
+            regions.push({
+                minX,
+                maxX,
+                minY,
+                maxY,
+                count
+            });
+        }
+    }
+
+    return regions;
+}
+
+function psCreateSaturatedStretchStrip(sourceCanvas, sx, sy, sw, sh, targetW, saturation) {
+    const temp = document.createElement("canvas");
+    temp.width = targetW;
+    temp.height = sh;
+
+    const tctx = temp.getContext("2d", { willReadFrequently: true });
+
+    tctx.imageSmoothingEnabled = true;
+    tctx.imageSmoothingQuality = "high";
+
+    tctx.drawImage(
+        sourceCanvas,
+        sx,
+        sy,
+        sw,
+        sh,
+        0,
+        0,
+        targetW,
+        sh
+    );
+
+    if (Math.abs(saturation - 1) > 0.01) {
+        const imgData = tctx.getImageData(0, 0, targetW, sh);
+        const data = imgData.data;
+
+        for (let i = 0; i < data.length; i += 4) {
+            const adjusted = psAdjustPixelSaturation(
+                data[i],
+                data[i + 1],
+                data[i + 2],
+                saturation
+            );
+
+            data[i] = clamp255(adjusted.r);
+            data[i + 1] = clamp255(adjusted.g);
+            data[i + 2] = clamp255(adjusted.b);
+        }
+
+        tctx.putImageData(imgData, 0, 0);
+    }
+
+    return temp;
+}
+
+function psCreateSaturatedContrastCanvas(sourceCanvas, saturation, contrast) {
+    const w = sourceCanvas.width;
+    const h = sourceCanvas.height;
+
+    const c = document.createElement("canvas");
+    c.width = w;
+    c.height = h;
+
+    const ctx = c.getContext("2d", { willReadFrequently: true });
+    ctx.drawImage(sourceCanvas, 0, 0);
+
+    const imgData = ctx.getImageData(0, 0, w, h);
+    const data = imgData.data;
+
+    for (let i = 0; i < data.length; i += 4) {
+        let r = data[i];
+        let g = data[i + 1];
+        let b = data[i + 2];
+
+        const adjusted = psAdjustPixelSaturation(r, g, b, saturation);
+
+        r = (adjusted.r - 128) * contrast + 128;
+        g = (adjusted.g - 128) * contrast + 128;
+        b = (adjusted.b - 128) * contrast + 128;
+
+        data[i] = clamp255(r);
+        data[i + 1] = clamp255(g);
+        data[i + 2] = clamp255(b);
+    }
+
+    ctx.putImageData(imgData, 0, 0);
+
+    return c;
+}
+
+function psAdjustPixelSaturation(r, g, b, amount) {
+    const gray = 0.299 * r + 0.587 * g + 0.114 * b;
+
+    return {
+        r: gray + (r - gray) * amount,
+        g: gray + (g - gray) * amount,
+        b: gray + (b - gray) * amount
+    };
+}
+
+function psExtractPixelStretchPalette(sourceCanvas) {
+    const w = sourceCanvas.width;
+    const h = sourceCanvas.height;
+
+    const ctx = sourceCanvas.getContext("2d", { willReadFrequently: true });
+    const data = ctx.getImageData(0, 0, w, h).data;
+
+    const samples = [];
+    const step = Math.max(4, Math.floor(Math.sqrt((w * h) / 7000)));
+
+    for (let y = 0; y < h; y += step) {
+        for (let x = 0; x < w; x += step) {
+            const i = (y * w + x) * 4;
+
+            const r = data[i];
+            const g = data[i + 1];
+            const b = data[i + 2];
+
+            const luma = 0.299 * r + 0.587 * g + 0.114 * b;
+
+            if (luma < 8 || luma > 248) continue;
+
+            samples.push({ r, g, b, luma });
+        }
+    }
+
+    if (samples.length < 8) {
+        return {
+            light: { r: 220, g: 220, b: 200 },
+            dark: { r: 40, g: 40, b: 45 }
+        };
+    }
+
+    samples.sort((a, b) => a.luma - b.luma);
+
+    const darkPool = samples.slice(0, Math.max(1, Math.floor(samples.length * 0.25)));
+    const lightPool = samples.slice(Math.floor(samples.length * 0.75));
+
+    return {
+        dark: psAverageColor(darkPool),
+        light: psAverageColor(lightPool)
+    };
+}
+
+function psAverageColor(arr) {
+    let r = 0;
+    let g = 0;
+    let b = 0;
+
+    arr.forEach(c => {
+        r += c.r;
+        g += c.g;
+        b += c.b;
+    });
+
+    const n = Math.max(1, arr.length);
+
+    return {
+        r: r / n,
+        g: g / n,
+        b: b / n
+    };
+}
+
+function extractGradientMapTwoColorPalette(sourceCanvas) {
+    const w = sourceCanvas.width;
+    const h = sourceCanvas.height;
+    const ctx = sourceCanvas.getContext("2d", { willReadFrequently: true });
+    const imgData = ctx.getImageData(0, 0, w, h).data;
+
+    const samples = [];
+    const step = Math.max(4, Math.floor(Math.sqrt((w * h) / 6000)));
+
+    for (let y = 0; y < h; y += step) {
+        for (let x = 0; x < w; x += step) {
+            const i = (y * w + x) * 4;
+
+            const r = imgData[i];
+            const g = imgData[i + 1];
+            const b = imgData[i + 2];
+
+            const hsl = rgbToHsl(r, g, b);
+
+            // 保留比较明亮且有色彩倾向的颜色
+            if (hsl.l > 0.38 && hsl.s > 0.16) {
+                samples.push({
+                    r,
+                    g,
+                    b,
+                    h: hsl.h,
+                    s: hsl.s,
+                    l: hsl.l
+                });
+            }
+        }
+    }
+
+    // 图片太灰时兜底
+    if (samples.length < 20) {
+        return {
+            dark: hslToRgb(0.52, 0.75, 0.68),
+            light: hslToRgb(0.08, 0.82, 0.72)
+        };
+    }
+
+    const bins = new Array(12).fill(0).map(() => []);
+
+    samples.forEach(c => {
+        const index = Math.floor(c.h * 12) % 12;
+        bins[index].push(c);
+    });
+
+    const groups = bins
+        .map((arr, index) => {
+            if (!arr.length) return null;
+
+            return {
+                index,
+                count: arr.length,
+                color: averageGradientMapBrightColor(arr)
+            };
+        })
+        .filter(Boolean)
+        .sort((a, b) => b.count - a.count);
+
+    const startIndex = currentEffectPaletteOffset % groups.length;
+const first = groups[startIndex];
+
+    let candidates = groups.filter(g => {
+        const hueDiff = getGradientMapHueDistance(first.color.h, g.color.h);
+        return hueDiff > 0.18;
+    });
+
+    if (!candidates.length) {
+        candidates = groups.filter(g => g.index !== first.index);
+    }
+
+    const second =
+    candidates[currentEffectPaletteOffset % Math.max(1, candidates.length)] ||
+    groups[(startIndex + 1) % groups.length] ||
+    groups[0];
+
+    let c1 = forceGradientMapBrightSaturated(first.color);
+    let c2 = forceGradientMapBrightSaturated(second.color);
+
+    const h1 = rgbToHsl(c1.r, c1.g, c1.b).h;
+    const h2 = rgbToHsl(c2.r, c2.g, c2.b).h;
+
+    if (getGradientMapHueDistance(h1, h2) < 0.18) {
+        c2 = hslToRgb((h1 + 0.35) % 1, 0.78, 0.72);
+    }
+
+    return {
+        dark: c1,
+        light: c2
+    };
+}
+
+function averageGradientMapBrightColor(arr) {
+    let r = 0;
+    let g = 0;
+    let b = 0;
+    let totalWeight = 0;
+
+    arr.forEach(c => {
+        const weight = 0.4 + c.l + c.s;
+
+        r += c.r * weight;
+        g += c.g * weight;
+        b += c.b * weight;
+
+        totalWeight += weight;
+    });
+
+    const color = {
+        r: r / totalWeight,
+        g: g / totalWeight,
+        b: b / totalWeight
+    };
+
+    const hsl = rgbToHsl(color.r, color.g, color.b);
+
+    return {
+        r: color.r,
+        g: color.g,
+        b: color.b,
+        h: hsl.h,
+        s: hsl.s,
+        l: hsl.l
+    };
+}
+
+function forceGradientMapBrightSaturated(color) {
+    const hsl = rgbToHsl(color.r, color.g, color.b);
+
+    const s = Math.max(0.62, Math.min(0.9, hsl.s * 1.45));
+    const l = Math.max(0.64, Math.min(0.82, hsl.l * 1.12));
+
+    return hslToRgb(hsl.h, s, l);
+}
+
+function adjustGradientMapSaturation(color, amount = 1) {
+    const hsl = rgbToHsl(color.r, color.g, color.b);
+
+    const s = Math.max(0, Math.min(1, hsl.s * amount));
+
+    return hslToRgb(hsl.h, s, hsl.l);
+}
+
+function getGradientMapHueDistance(h1, h2) {
+    const d = Math.abs(h1 - h2);
+    return Math.min(d, 1 - d);
+}
+
+function getGradientMapLuminance255(r, g, b) {
+    return 0.299 * r + 0.587 * g + 0.114 * b;
 }
 
 function pickDailyMask(baseW) {
@@ -3616,8 +5762,7 @@ function applyDailyObjectHorizontalMask(ctx, imageRect, imageRatio) {
         const isMobile = window.innerWidth <= 768;
 
 const finalDataUrl = canvas.toDataURL('image/png');
-finalImage.src = finalDataUrl;
-modalImage.src = finalDataUrl;
+updatePreviewCanvasFromFinalCanvas();
     };
 }
 
@@ -3872,10 +6017,10 @@ function getAdaptiveMorisawaTextColor(palette, baseCanvas, rect) {
     }
 
     return {
-        color: rgbObjToCss(rgb),
-        rgb,
-        luminance: lum
-    };
+    color: `rgb(${clamp255(rgb.r)}, ${clamp255(rgb.g)}, ${clamp255(rgb.b)})`,
+    rgb,
+    luminance: lum
+};
 }
 
 function drawFilledMorisawaWord(ctx, text, x, y, fontSize, scaleX, color, alpha = 1) {
@@ -4209,12 +6354,11 @@ async function rerenderPosterWithTypeLayer(userText) {
     ctx.drawImage(currentBaseCanvas, 0, 0);
     await drawGeneratedTypeLayer(ctx, currentImageRegion, currentPaletteData, currentCategory);
     if (currentTemplateCanvas) ctx.drawImage(currentTemplateCanvas, 0, 0);
-    drawDynamicText(ctx, currentLayoutType, canvas.width, canvas.height, userText, currentFragmentNumber, currentAiPoem, currentCategory);
+    //drawDynamicText(ctx, currentLayoutType, canvas.width, canvas.height, userText, currentFragmentNumber, currentAiPoem, currentCategory);
     const isMobile = window.innerWidth <= 768;
 
 const finalDataUrl = canvas.toDataURL('image/png');
-finalImage.src = finalDataUrl;
-modalImage.src = finalDataUrl;
+updatePreviewCanvasFromFinalCanvas();
 }
 
 async function rerenderLightTimePosterLive() {
@@ -4318,8 +6462,7 @@ async function rerenderLightTimePosterLive() {
     const isMobile = window.innerWidth <= 768;
 
 const finalDataUrl = canvas.toDataURL('image/png');
-finalImage.src = finalDataUrl;
-modalImage.src = finalDataUrl;
+updatePreviewCanvasFromFinalCanvas();
 }
 
 async function rerenderDailyObjectPosterLive() {
@@ -4375,8 +6518,7 @@ ctx.drawImage(liveCanvas, 0, 0);
     const isMobile = window.innerWidth <= 768;
 
 const finalDataUrl = canvas.toDataURL('image/png');
-finalImage.src = finalDataUrl;
-modalImage.src = finalDataUrl;
+updatePreviewCanvasFromFinalCanvas();
 }
 
 async function rerenderInActionPosterLive() {
@@ -4446,8 +6588,7 @@ async function rerenderInActionPosterLive() {
     const isMobile = window.innerWidth <= 768;
 
 const finalDataUrl = canvas.toDataURL('image/png');
-finalImage.src = finalDataUrl;
-modalImage.src = finalDataUrl;
+updatePreviewCanvasFromFinalCanvas();
 }
 
 
@@ -5084,13 +7225,15 @@ function darkenCanvasAlphaOnly(targetCtx, width, height, alpha = 0.12) {
         const userText = getUserTextValue();
 
         const generationParams = {
-            sliderA: typeSliderA?.value ?? null,
-            sliderB: typeSliderB?.value ?? null,
-            sliderC: typeSliderC?.value ?? null,
-            layoutType: currentLayoutType,
-            category: currentCategory,
-            imageRatio: currentUploadedImageRatio
-        };
+    sliderA: typeSliderA?.value ?? null,
+    sliderB: typeSliderB?.value ?? null,
+    sliderC: typeSliderC?.value ?? null,
+    layoutType: currentLayoutType,
+    category: currentCategory,
+    effectType: currentEffectType,
+    cropOffset: currentCropOffset,
+    imageRatio: currentUploadedImageRatio
+};
 
         const { error: insertError } = await supabaseClient
             .from("submissions")
@@ -5105,8 +7248,8 @@ function darkenCanvasAlphaOnly(targetCtx, width, height, alpha = 0.12) {
                     generated_image_url: generatedImageUrl,
 
                     location: location,
-                    daily_tag: (CATEGORY_META[selectedCategory] || {}).posterTag || selectedCategory,
-                    category: currentCategory || selectedCategory,
+                    daily_tag: "",
+category: currentEffectType,
                     user_text: userText,
 
                     photo_date: JSON.stringify(currentPhotoDateParts),
@@ -6697,6 +8840,77 @@ const bottomH = Math.max(
     };
 }
 
+function getNewUnifiedVerticalLayout(ctx, userText, imageRatio) {
+    const baseW = NEW_POSTER_W;
+    const topBlockH = NEW_TOP_H;
+
+    let imageRatioTarget;
+
+    if (imageRatio > 1) {
+    imageRatioTarget = 4 / 3;     // 横图
+} else if (imageRatio < 0.9) {
+    imageRatioTarget = 3 / 4;     // 竖图
+} else {
+    imageRatioTarget = 1 / 1;     // 方图
+}
+
+    const imageH = Math.round(baseW / imageRatioTarget);
+
+    const textHeight = estimateDotTextBlockHeight(
+    userText || "",
+    baseW,
+    115
+);
+
+    const bottomH = Math.max(
+    NEW_BOTTOM_MIN_H,
+    Math.ceil(textHeight + 80 + 120)
+);
+
+    const baseH = topBlockH + imageH + bottomH;
+
+    return {
+        baseW,
+        baseH,
+        topBlockH,
+        imageH,
+        bottomH,
+
+        decorRect: {
+            x: 0,
+            y: 0,
+            w: baseW,
+            h: topBlockH
+        },
+
+        imageRect: {
+            x: 0,
+            y: topBlockH,
+            w: baseW,
+            h: imageH
+        },
+
+        poemRect: {
+            x: 0,
+            y: topBlockH + imageH,
+            w: baseW,
+            h: bottomH
+        }
+    };
+}
+
+function estimateDotTextBlockHeight(text, maxW, fontSize) {
+    const clean = (text || "").trim();
+    if (!clean) return fontSize * 1.1;
+
+    const charW = fontSize * 0.78;
+    const lineH = fontSize * 1.05;
+    const charsPerLine = Math.max(4, Math.floor(maxW / charW));
+
+    const lines = wrapChineseTextAvoidPunctuation(clean, charsPerLine);
+    return lines.length * lineH;
+}
+
 function wrapPoemTextReturnLines(ctx, text, x, y, maxWidth, lineHeight) {
     const chars = String(text || "").split("");
     const lines = [];
@@ -6869,6 +9083,1529 @@ function avoidLineStartPunctuation(lines) {
     }
 
     return lines;
+}
+
+function drawNewUnifiedCalendarTextLayer(ctx, layout, userText, fragmentNumber) {
+    if (!layout) return;
+
+    drawNewTopHeader(ctx, layout.decorRect);
+    drawRandomPathMonthCalendar(ctx, layout.imageRect);
+    drawNewBottomUserText(ctx, layout.poemRect, userText, fragmentNumber);
+}
+
+function drawNewTopHeader(ctx, rect) {
+    const parts = currentPhotoDateParts;
+
+    const dateObj = new Date(
+        Number(parts.year),
+        Number(parts.month) - 1,
+        Number(parts.day)
+    );
+
+    const mmdd =
+        String(parts.month).padStart(2, "0") +
+        String(parts.day).padStart(2, "0");
+
+    const weekdayNames = [
+        "Sunday", "Monday", "Tuesday", "Wednesday",
+        "Thursday", "Friday", "Saturday"
+    ];
+
+    const lunarInfo = getLunarCalendarInfo(parts);
+    const fixedLunar = getFixedLunarHeaderInfo(parts);
+
+    ctx.save();
+
+    // 左侧日期
+    const topLuma = sampleCanvasRegionLuminance(ctx.canvas, rect);
+
+// 明亮背景用差值；黑暗背景用正常白色
+ctx.globalCompositeOperation = topLuma > 135 ? "difference" : "source-over";
+ctx.fillStyle = "#ffffff";
+    ctx.textAlign = "left";
+    ctx.textBaseline = "alphabetic";
+    ctx.font = '300 60px "ABC Favorit Expanded", sans-serif';
+
+    const leftX = rect.x + 18;
+    const firstLineY = rect.y + 118;
+
+    ctx.fillText(mmdd, leftX, firstLineY);
+    ctx.fillText(weekdayNames[dateObj.getDay()], leftX, firstLineY + 50);
+
+    // 右侧农历
+    ctx.textAlign = "right";
+    ctx.textBaseline = "alphabetic";
+    ctx.font = '500 22px "PingFang TC", "PingFang SC", "Noto Sans TC", sans-serif';
+
+    const rightX = rect.x + rect.w - 18;
+
+// 右侧文字组的“最底部基线”固定在这里调
+// 数字越大，整体越往下；数字越小，整体越往上
+const rightBottomY = rect.y + 164;
+
+const lunarLines = [
+    fixedLunar.line1,
+    fixedLunar.weekday
+];
+
+if (fixedLunar.festival) {
+    lunarLines.push("");                 // 空一行
+    lunarLines.push(fixedLunar.festival);
+}
+
+const lunarLineH = 24;
+
+// 关键：根据总行数反推第一行 y，实现向下对齐
+const firstY = rightBottomY - (lunarLines.length - 1) * lunarLineH;
+
+lunarLines.forEach((line, index) => {
+    if (!line) return;
+    ctx.fillText(line, rightX, firstY + index * lunarLineH);
+});
+
+    // 顶部两个镂空圆点
+    drawTopPunchHoles(ctx, rect);
+
+    ctx.restore();
+}
+
+function getFixedLunarHeaderInfo(parts) {
+    const dateObj = new Date(
+        Number(parts.year),
+        Number(parts.month) - 1,
+        Number(parts.day)
+    );
+
+    let line1 = "";
+    let festival = "";
+
+    try {
+        const lunar = Lunar.fromDate(dateObj);
+
+        const gzYear = lunar.getYearInGanZhi();
+        const zodiac = lunar.getYearShengXiao();
+
+        const monthText = lunar.getMonthInChinese();
+        const dayText = lunar.getDayInChinese();
+
+        line1 = `${gzYear}年${zodiac}。${monthText}月${dayText}`;
+
+        let festivals = [];
+let solarTerm = "";
+
+if (lunar.getFestivals) {
+    festivals = festivals.concat(lunar.getFestivals() || []);
+}
+
+if (lunar.getOtherFestivals) {
+    festivals = festivals.concat(lunar.getOtherFestivals() || []);
+}
+
+if (lunar.getSolar && lunar.getSolar().getFestivals) {
+    festivals = festivals.concat(lunar.getSolar().getFestivals() || []);
+}
+
+if (lunar.getJieQi) {
+    solarTerm = lunar.getJieQi() || "";
+}
+
+festival = festivals[0] || solarTerm || "";
+    } catch (err) {
+        console.warn("农历读取失败：", err);
+        line1 = "";
+        festival = "";
+    }
+
+    return {
+        line1,
+        weekday: getChineseWeekday(dateObj),
+        festival
+    };
+}
+
+function drawTopPunchHoles(ctx, rect) {  //日历顶部镂空圆点
+    const d = 30;
+    const gap = 340;
+    const r = d / 2;
+
+    const centerX = rect.x + rect.w / 2;
+    const y = rect.y + 25 + r;
+
+    const x1 = centerX - gap / 2 - r;
+    const x2 = centerX + gap / 2 + r;
+
+    ctx.save();
+    ctx.globalCompositeOperation = "destination-out";
+    ctx.beginPath();
+    ctx.arc(x1, y, r, 0, Math.PI * 2);
+    ctx.arc(x2, y, r, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+}
+
+function getChineseWeekday(dateObj) {
+    const arr = ["星期日", "星期一", "星期二", "星期三", "星期四", "星期五", "星期六"];
+    return arr[dateObj.getDay()];
+}
+
+function pickCalendarPathStyle() {
+    const styles = [
+        "space_helix",
+        "tilted_orbit",
+        "border_wrap",
+        "multi_loop"
+    ];
+
+    return styles[Math.floor(Math.random() * styles.length)];
+}
+
+function drawRandomPathMonthCalendar(ctx, imageRect) {
+    ctx.save();
+
+const calendarMode = getCalendarCompositeModeByImageArea(ctx, imageRect);
+ctx.globalCompositeOperation = calendarMode;
+
+CALENDAR_PATH_CONFIG.color = "#ffffff";
+ctx.strokeStyle = "#ffffff";
+ctx.fillStyle = "#ffffff";
+    const parts = currentPhotoDateParts;
+
+    const year = Number(parts.year);
+    const month = Number(parts.month);
+    const today = Number(parts.day);
+
+    const daysInMonth = new Date(year, month, 0).getDate();
+
+    if (!currentCalendarPathStyle) {
+        currentCalendarPathStyle = pickCalendarPathStyle();
+    }
+    console.log("当前月历样式：", currentCalendarPathStyle);
+
+    const points = buildCalendarDatePoints(
+    currentCalendarPathStyle,
+    daysInMonth,
+    imageRect,
+    currentCalendarPathSeed
+);
+
+    const holidayDays = getMonthHolidayDays(year, month);
+
+
+    ctx.strokeStyle = CALENDAR_PATH_CONFIG.color;
+    ctx.lineWidth = CALENDAR_PATH_CONFIG.lineWidth;
+    ctx.fillStyle = CALENDAR_PATH_CONFIG.color;
+    ctx.font = `700 ${CALENDAR_PATH_CONFIG.fontSize}px "ABC Favorit Expanded", sans-serif`;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+
+    let dateTextPoints = points;
+
+if (currentCalendarPathStyle !== "border_wrap") {
+    const linePoints = getCalendarLinePointsForStyle(
+        currentCalendarPathStyle,
+        points
+    );
+
+    drawCalendarPathLine(ctx, linePoints);
+
+    // 空间螺旋：数字相对线条做法线偏移，避免线穿过数字
+    if (currentCalendarPathStyle === "space_helix") {
+        dateTextPoints = offsetCalendarTextPointsFromLine(
+            points,
+            linePoints,
+            24
+        );
+    }
+}
+
+drawCalendarMonthLabel(ctx, imageRect, points, currentCalendarPathStyle, month);
+drawCalendarMonthLabel(ctx, imageRect, points, currentCalendarPathStyle, month);
+drawCalendarDateNumbers(ctx, dateTextPoints, today, holidayDays);
+
+    ctx.restore();
+}
+
+function offsetCalendarTextPointsFromLine(textPoints, linePoints, offset = 14) {
+    if (!textPoints || !linePoints || linePoints.length < 2) return textPoints;
+
+    return textPoints.map((p, i) => {
+        const t = i / Math.max(1, textPoints.length - 1);
+        const lineIndex = Math.round(t * (linePoints.length - 1));
+
+        const prev = linePoints[Math.max(0, lineIndex - 1)];
+        const next = linePoints[Math.min(linePoints.length - 1, lineIndex + 1)];
+
+        const dx = next.x - prev.x;
+        const dy = next.y - prev.y;
+        const len = Math.sqrt(dx * dx + dy * dy) || 1;
+
+        const nx = -dy / len;
+        const ny = dx / len;
+
+        return {
+            ...p,
+            x: p.x + nx * offset,
+            y: p.y + ny * offset
+        };
+    });
+}
+
+function drawCalendarMonthLabel(ctx, rect, points, style, month) {
+    const englishMonths = [
+        "", "January", "February", "March", "April", "May", "June",
+        "July", "August", "September", "October", "November", "December"
+    ];
+
+    const en = englishMonths[month] || "";
+    const zh = `${month}月`;
+
+    ctx.save();
+
+    ctx.fillStyle = CALENDAR_PATH_CONFIG.color;
+    ctx.strokeStyle = CALENDAR_PATH_CONFIG.color;
+    ctx.lineWidth = 0.8;
+
+    if (style === "border_wrap") {
+        drawBorderWrapMonthLabel(ctx, rect, points, en, zh);
+    } else if (style === "tilted_orbit") {
+        drawOrbitMonthLabel(ctx, rect, en, zh);
+    } else {
+        drawSpiralMonthLabel(ctx, rect, points, en, zh);
+    }
+
+    ctx.restore();
+}
+
+function drawBorderWrapMonthLabel(ctx, rect, points, en, zh) {
+    const labelX = rect.x + 24;
+    const labelY = rect.y + 72;
+
+    // 两个交叠椭圆
+    ctx.save();
+    ctx.translate(labelX + 82, labelY - 18);
+    ctx.rotate(-0.22);
+
+    ctx.beginPath();
+    ctx.ellipse(0, 0, 100, 32, -0.12, 0, Math.PI * 2);
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.ellipse(8, 8, 112, 36, 0.18, 0, Math.PI * 2);
+    ctx.stroke();
+
+    ctx.restore();
+
+    ctx.textAlign = "left";
+    ctx.textBaseline = "alphabetic";
+
+    ctx.font = '700 44px "ABC Favorit Expanded", sans-serif';
+    ctx.fillText(en, labelX, labelY);
+
+    ctx.font = '700 30px "PingFang TC", "PingFang SC", sans-serif';
+    ctx.fillText(zh, labelX, labelY + 42);
+}
+
+function drawOrbitMonthLabel(ctx, rect, en, zh) {
+    const x = rect.x + rect.w * 0.5;
+    const y = rect.y + rect.h * 0.48;
+
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+
+    ctx.font = '700 46px "ABC Favorit Expanded", sans-serif';
+    ctx.fillText(en, x, y - 10);
+
+    ctx.font = '700 28px "PingFang TC", "PingFang SC", sans-serif';
+    ctx.fillText(zh, x, y + 32);
+}
+
+function drawSpiralMonthLabel(ctx, rect, points, en, zh) {
+    if (!points || !points.length) return;
+
+    const last = points[points.length - 1];
+
+    const gap = 15;
+    const enFontSize = 46;
+    const zhFontSize = 28;
+
+    ctx.textBaseline = "alphabetic";
+
+    // 如果最后一天靠右，月份放它左侧，右对齐，右边缘与最后一天左侧保持15px
+    if (last.x > rect.x + rect.w * 0.5) {
+        const labelRightX = last.x - gap;
+        const labelBaseY = last.y;
+
+        ctx.textAlign = "right";
+
+        ctx.font = `700 ${enFontSize}px "ABC Favorit Expanded", sans-serif`;
+        ctx.fillText(en, labelRightX, labelBaseY);
+
+        ctx.font = `700 ${zhFontSize}px "PingFang TC", "PingFang SC", sans-serif`;
+        ctx.fillText(zh, labelRightX, labelBaseY + 38);
+    } else {
+        // 如果最后一天靠左，月份放它右侧，左对齐，左边缘与最后一天右侧保持15px
+        const labelLeftX = last.x + gap;
+        const labelBaseY = last.y;
+
+        ctx.textAlign = "left";
+
+        ctx.font = `700 ${enFontSize}px "ABC Favorit Expanded", sans-serif`;
+        ctx.fillText(en, labelLeftX, labelBaseY);
+
+        ctx.font = `700 ${zhFontSize}px "PingFang TC", "PingFang SC", sans-serif`;
+        ctx.fillText(zh, labelLeftX, labelBaseY + 38);
+    }
+}
+
+function fitCalendarPointsToImageRect(points, rect, padding = 34) {
+    if (!points || !points.length) return points;
+
+    let minX = Infinity;
+    let maxX = -Infinity;
+    let minY = Infinity;
+    let maxY = -Infinity;
+
+    points.forEach(p => {
+        minX = Math.min(minX, p.x);
+        maxX = Math.max(maxX, p.x);
+        minY = Math.min(minY, p.y);
+        maxY = Math.max(maxY, p.y);
+    });
+
+    const boxW = maxX - minX;
+    const boxH = maxY - minY;
+
+    const limitW = rect.w - padding * 2;
+    const limitH = rect.h - padding * 2;
+
+    const ratio = rect.w / rect.h;
+
+    // 竖图放大；方图略放；横图不放
+    const idealScale = ratio < 0.8 ? 1.35 : ratio < 1.15 ? 1.15 : 1;
+
+    const scale = Math.min(
+        idealScale,
+        limitW / Math.max(1, boxW),
+        limitH / Math.max(1, boxH)
+    );
+
+    const cx = (minX + maxX) / 2;
+    const cy = (minY + maxY) / 2;
+
+    const targetCx = rect.x + rect.w / 2;
+    const targetCy = rect.y + rect.h / 2;
+
+    return points.map(p => ({
+        ...p,
+        x: targetCx + (p.x - cx) * scale,
+        y: targetCy + (p.y - cy) * scale
+    }));
+}
+
+function buildCalendarDatePoints(style, count, rect, seed = 0.5) {
+    const minGap = CALENDAR_PATH_CONFIG.minGap;
+
+    let rawPath = buildCalendarRawPath(style, rect, seed);
+
+    for (let i = 0; i < 6; i++) {
+        const len = getPathLength(rawPath);
+        const required = count * minGap;
+
+        if (len >= required) break;
+
+        seed = randSeed(seed, i + 100);
+        rawPath = buildCalendarRawPath(style, rect, seed);
+    }
+
+    let sampled;
+
+    if (style === "space_helix") {
+        sampled = samplePerspectiveAlongPath(
+            rawPath,
+            count,
+            CALENDAR_PATH_CONFIG.perspectiveSpacingPower
+        );
+    } else {
+        sampled = sampleEvenlyAlongPath(rawPath, count);
+    }
+
+    sampled = enforceMinimumGapAlongOrder(
+        sampled,
+        style === "border_wrap" ? 30 : 38
+    );
+
+    // 关键：最后统一根据图像区域放大 / 收缩
+    sampled = fitCalendarPointsToImageRect(
+        sampled,
+        rect,
+        34
+    );
+
+    return sampled.map(p => clampPointToRect(p, rect, 26));
+}
+
+function enforceMinimumGapAlongOrder(points, minGap = 42) {
+    if (!points || points.length < 2) return points;
+
+    const result = points.map(p => ({ ...p }));
+
+    for (let i = 1; i < result.length; i++) {
+        const prev = result[i - 1];
+        const cur = result[i];
+
+        const dx = cur.x - prev.x;
+        const dy = cur.y - prev.y;
+        const dist = Math.hypot(dx, dy);
+
+        if (dist > 0 && dist < minGap) {
+            const push = minGap - dist;
+            cur.x += (dx / dist) * push;
+            cur.y += (dy / dist) * push;
+        }
+    }
+
+    return result;
+}
+
+function buildCalendarRawPath(style, rect, seed = 0.5) {
+    if (style === "space_helix") {
+        return buildSpaceHelixRawPath(rect, seed);
+    }
+
+    if (style === "tilted_orbit") {
+        return buildTiltedOrbitRawPath(rect, seed);
+    }
+
+    if (style === "border_wrap") {
+        return buildBorderWrapRawPath(rect, seed);
+    }
+
+    if (style === "multi_loop") {
+        return buildMultiLoopRawPath(rect, seed);
+    }
+
+    return buildFlatSpiralRawPath(rect, seed);
+}
+
+function buildFlatSpiralRawPath(rect, seed = 0.5) {
+    const raw = [];
+    const n = CALENDAR_PATH_CONFIG.rawPointCount;
+
+    const cx = rect.x + rect.w * (0.46 + randSeed(seed, 1) * 0.18);
+    const cy = rect.y + rect.h * (0.45 + randSeed(seed, 2) * 0.18);
+
+    const w = rect.w * (0.72 + randSeed(seed, 3) * 0.18);
+    const h = rect.h * (0.50 + randSeed(seed, 4) * 0.16);
+
+    const rotate = degToRad(-28 + randSeed(seed, 5) * 56);
+    const turns = 2.2 + randSeed(seed, 6) * 1.25;
+    const startAngle = Math.PI * (0.4 + randSeed(seed, 7) * 1.8);
+    const endAngle = startAngle + Math.PI * 2 * turns;
+
+    for (let i = 0; i < n; i++) {
+        const t = n === 1 ? 0 : i / (n - 1);
+        const angle = startAngle + (endAngle - startAngle) * t;
+
+        const radiusX = w * (0.08 + 0.42 * t);
+        const radiusY = h * (0.06 + 0.38 * t);
+
+        const wobble = Math.sin(t * Math.PI * 5.5 + seed * 10) * 0.11;
+
+        let x = Math.cos(angle) * radiusX * (1 + wobble);
+        let y = Math.sin(angle) * radiusY * (1 - wobble * 0.4);
+
+        const p = rotatePoint(x, y, rotate);
+
+        raw.push({
+            x: cx + p.x,
+            y: cy + p.y,
+            depth: t
+        });
+    }
+
+    return raw;
+}
+
+function buildSpaceHelixRawPath(rect, seed = 0.5) {
+    const raw = [];
+    const n = CALENDAR_PATH_CONFIG.rawPointCount;
+
+    const safe = getCalendarSafeRect(rect, 58);
+
+    const cx = safe.x + safe.w * (0.48 + randSeed(seed, 1) * 0.08);
+    const cy = safe.y + safe.h * (0.50 + randSeed(seed, 2) * 0.08);
+
+    const rotate = degToRad(-22 + randSeed(seed, 3) * 44);
+
+    // 半径由 safeRect 决定，保证不会超出
+    const radiusX = safe.w * 0.26;
+    const radiusY = safe.h * 0.16;
+
+    // 垂直推进也限制在 safeRect 内
+    const verticalStep = safe.h * 0.52;
+
+    // 圈数进一步减少
+    const turns = 1.35 + randSeed(seed, 7) * 0.35;
+
+    const angleOffset = randSeed(seed, 8) * Math.PI * 2;
+
+    for (let i = 0; i < n; i++) {
+        const t = n === 1 ? 0 : i / (n - 1);
+        const angle = Math.PI * 2 * turns * t + angleOffset;
+
+        // 轻微透视，不再造成远处严重拥挤
+        const perspective = 1.8;
+        const scale = perspective / (perspective + (1 - t) * 0.55);
+
+        let x = Math.cos(angle) * radiusX * scale;
+        let y = Math.sin(angle) * radiusY * scale + (t - 0.5) * verticalStep;
+
+        const p = rotatePoint(x, y, rotate);
+
+        const point = clampPointToRect(
+            {
+                x: cx + p.x,
+                y: cy + p.y,
+                depth: t
+            },
+            safe,
+            4
+        );
+
+        raw.push(point);
+    }
+
+    return raw;
+}
+
+function buildTiltedOrbitRawPath(rect, seed = 0.5) {
+    const raw = [];
+    const n = CALENDAR_PATH_CONFIG.rawPointCount;
+
+    const safe = getCalendarSafeRect(rect, 38);
+
+    const cx = safe.x + safe.w * 0.5;
+    const cy = safe.y + safe.h * 0.5;
+
+    // 椭圆扁率范围：横向明显大于纵向
+    const rx = safe.w * (0.42 + randSeed(seed, 1) * 0.10);
+const ry = safe.h * (0.18 + randSeed(seed, 2) * 0.08);
+
+    // 倾斜角度范围
+    const rotate = degToRad(-34 + randSeed(seed, 3) * 68);
+
+    // 留明显缺口，避免 01 和月底重叠
+    const startAngle = degToRad(-132 + randSeed(seed, 4) * 38);
+    const span = degToRad(286);
+
+    for (let i = 0; i < n; i++) {
+        const t = n === 1 ? 0 : i / (n - 1);
+        const angle = startAngle + span * t;
+
+        const lineX = Math.cos(angle) * rx;
+        const lineY = Math.sin(angle) * ry;
+
+        const p = rotatePoint(lineX, lineY, rotate);
+
+        raw.push(
+            clampPointToRect(
+                {
+                    x: cx + p.x,
+                    y: cy + p.y,
+                    depth: t
+                },
+                safe,
+                4
+            )
+        );
+    }
+
+    return raw;
+}
+
+function buildBorderWrapRawPath(rect, seed = 0.5) {
+    const raw = [];
+    const n = CALENDAR_PATH_CONFIG.rawPointCount;
+
+    const pad = 34;
+    const left = rect.x + pad;
+    const right = rect.x + rect.w - pad;
+    const top = rect.y + pad;
+    const bottom = rect.y + rect.h - pad;
+    // 给月份文字预留一个左上角安全区，避免日期和 July / 7月 重叠
+const labelSafeW = 230;
+const labelSafeH = 150;
+
+
+const shorten = 0.64;
+
+const safeTopStartX = rect.x + labelSafeW;
+const safeLeftStartY = rect.y + labelSafeH;
+
+const midX = rect.x + rect.w / 2;
+const midY = rect.y + rect.h / 2;
+
+const bottomShortL = midX - rect.w * shorten / 2;
+const bottomShortR = midX + rect.w * shorten / 2;
+const rightShortT = midY - rect.h * shorten / 2;
+const rightShortB = midY + rect.h * shorten / 2;
+const leftShortB = midY + rect.h * shorten / 2;
+
+const variants = [
+    // 从月份区右侧开始 → 右边 → 下边
+    [
+        { x: safeTopStartX, y: top },
+        { x: right, y: top },
+        { x: right, y: rightShortB },
+        { x: bottomShortR, y: bottom },
+        { x: bottomShortL, y: bottom }
+    ],
+
+    // 右边 → 下边 → 左边下半段
+    [
+        { x: right, y: top },
+        { x: right, y: bottom },
+        { x: bottomShortL, y: bottom },
+        { x: left, y: leftShortB }
+    ],
+
+    // 下边 → 左边下半段 → 顶部从月份右侧开始
+    [
+        { x: bottomShortR, y: bottom },
+        { x: bottomShortL, y: bottom },
+        { x: left, y: safeLeftStartY },
+        { x: safeTopStartX, y: top }
+    ]
+];
+
+    const path = variants[Math.floor(randSeed(seed, 9) * variants.length)];
+
+    const segments = [];
+    let totalLen = 0;
+
+    for (let i = 0; i < path.length - 1; i++) {
+        const a = path[i];
+        const b = path[i + 1];
+        const len = Math.hypot(b.x - a.x, b.y - a.y);
+        segments.push({ a, b, len });
+        totalLen += len;
+    }
+
+    for (let i = 0; i < n; i++) {
+        const d = totalLen * (i / Math.max(1, n - 1));
+        const p = getPointAlongPolyline(segments, d);
+
+        raw.push({
+            x: p.x,
+            y: p.y,
+            depth: i / Math.max(1, n - 1)
+        });
+    }
+
+    return raw;
+}
+
+function buildMultiLoopRawPath(rect, seed = 0.5) {
+    const raw = [];
+    const n = CALENDAR_PATH_CONFIG.rawPointCount;
+
+    const safe = getCalendarSafeRect(rect, 58);
+
+    const cx = safe.x + safe.w * (0.48 + randSeed(seed, 1) * 0.10);
+    const cy = safe.y + safe.h * (0.48 + randSeed(seed, 2) * 0.10);
+
+    const rotate = degToRad(-22 + randSeed(seed, 3) * 44);
+
+    const maxRx = safe.w * 0.38;
+    const maxRy = safe.h * 0.32;
+
+    for (let i = 0; i < n; i++) {
+        const t = n === 1 ? 0 : i / (n - 1);
+
+        const angle = Math.PI * 2 * (0.8 + t * 2.15) + seed * 6;
+
+        const rx =
+            maxRx * (0.26 + 0.74 * t) *
+            (1 + Math.sin(t * Math.PI * 4.0) * 0.18);
+
+        const ry =
+            maxRy * (0.24 + 0.76 * t) *
+            (1 + Math.cos(t * Math.PI * 3.4) * 0.16);
+
+        let x = Math.cos(angle) * rx + Math.sin(t * Math.PI * 2.2) * safe.w * 0.045;
+        let y = Math.sin(angle) * ry + Math.cos(t * Math.PI * 2.0) * safe.h * 0.045;
+
+        const p = rotatePoint(x, y, rotate);
+
+        const point = clampPointToRect(
+            {
+                x: cx + p.x,
+                y: cy + p.y,
+                depth: t
+            },
+            safe,
+            4
+        );
+
+        raw.push(point);
+    }
+
+    return raw;
+}
+
+function sampleEvenlyAlongPath(rawPoints, count) {
+    if (!rawPoints || rawPoints.length === 0) return [];
+    if (rawPoints.length === 1 || count <= 1) return [rawPoints[0]];
+
+    const cumulative = buildPathCumulativeLength(rawPoints);
+    const total = cumulative[cumulative.length - 1];
+
+    const result = [];
+
+    for (let i = 0; i < count; i++) {
+        const target = total * (i / Math.max(1, count - 1));
+        result.push(getPointAtPathLength(rawPoints, cumulative, target));
+    }
+
+    return result;
+}
+
+function samplePerspectiveAlongPath(rawPoints, count, power = 1.55) {
+    if (!rawPoints || rawPoints.length === 0) return [];
+    if (rawPoints.length === 1 || count <= 1) return [rawPoints[0]];
+
+    const cumulative = buildPathCumulativeLength(rawPoints);
+    const total = cumulative[cumulative.length - 1];
+
+    const result = [];
+
+    for (let i = 0; i < count; i++) {
+        const u = i / Math.max(1, count - 1);
+
+        // 关键：u^power
+        // power > 1 时，前段更密，后段更疏
+        // 对应空间螺旋里的“远处更密，近处更疏”
+        const target = total * Math.pow(u, power);
+
+        result.push(getPointAtPathLength(rawPoints, cumulative, target));
+    }
+
+    return result;
+}
+
+function buildPathCumulativeLength(points) {
+    const cumulative = [0];
+    let total = 0;
+
+    for (let i = 1; i < points.length; i++) {
+        total += Math.hypot(
+            points[i].x - points[i - 1].x,
+            points[i].y - points[i - 1].y
+        );
+        cumulative.push(total);
+    }
+
+    return cumulative;
+}
+
+function getPointAtPathLength(points, cumulative, target) {
+    const total = cumulative[cumulative.length - 1];
+    const t = Math.max(0, Math.min(total, target));
+
+    for (let i = 1; i < cumulative.length; i++) {
+        if (cumulative[i] >= t) {
+            const prevLen = cumulative[i - 1];
+            const nextLen = cumulative[i];
+            const segT = (t - prevLen) / Math.max(0.0001, nextLen - prevLen);
+
+            const a = points[i - 1];
+            const b = points[i];
+
+            return {
+                x: a.x + (b.x - a.x) * segT,
+                y: a.y + (b.y - a.y) * segT,
+                depth: a.depth + ((b.depth || 0) - (a.depth || 0)) * segT
+            };
+        }
+    }
+
+    return points[points.length - 1];
+}
+
+function getPathLength(points) {
+    if (!points || points.length < 2) return 0;
+
+    let len = 0;
+
+    for (let i = 1; i < points.length; i++) {
+        len += Math.hypot(
+            points[i].x - points[i - 1].x,
+            points[i].y - points[i - 1].y
+        );
+    }
+
+    return len;
+}
+
+function buildCalendarPathPoints(style, count, rect, seed = 0.5) {
+    if (style === "space_helix") {
+        return buildSpaceHelixRawPath(count, rect, seed);
+    }
+
+    if (style === "tilted_orbit") {
+        return buildTiltedOrbitCalendarPoints(count, rect, seed);
+    }
+
+    if (style === "border_wrap") {
+        return buildBorderWrapCalendarPoints(count, rect, seed);
+    }
+
+    if (style === "multi_loop") {
+        return buildMultiLoopCalendarPoints(count, rect, seed);
+    }
+
+    return buildFlatSpiralCalendarPoints(count, rect, seed);
+}
+
+function buildFlatSpiralCalendarPoints(count, rect, seed = 0.5) {
+    const points = [];
+
+    const cx = rect.x + rect.w * (0.46 + randSeed(seed, 1) * 0.18);
+    const cy = rect.y + rect.h * (0.45 + randSeed(seed, 2) * 0.18);
+
+    const w = rect.w * (0.72 + randSeed(seed, 3) * 0.18);
+    const h = rect.h * (0.50 + randSeed(seed, 4) * 0.16);
+
+    const rotate = degToRad(-28 + randSeed(seed, 5) * 56);
+    const turns = 2.2 + randSeed(seed, 6) * 1.25;
+    const startAngle = Math.PI * (0.4 + randSeed(seed, 7) * 1.8);
+    const endAngle = startAngle + Math.PI * 2 * turns;
+
+    for (let i = 0; i < count; i++) {
+        const t = count === 1 ? 0 : i / (count - 1);
+        const angle = startAngle + (endAngle - startAngle) * t;
+
+        const radiusX = w * (0.08 + 0.42 * t);
+        const radiusY = h * (0.06 + 0.38 * t);
+
+        const wobble = Math.sin(t * Math.PI * 5.5 + seed * 10) * 0.11;
+
+        let x = Math.cos(angle) * radiusX * (1 + wobble);
+        let y = Math.sin(angle) * radiusY * (1 - wobble * 0.4);
+
+        const p = rotatePoint(x, y, rotate);
+
+        points.push({
+            x: cx + p.x,
+            y: cy + p.y
+        });
+    }
+
+    return points;
+}
+
+function buildSpaceHelixCalendarPoints(count, rect, seed = 0.5) {
+    const points = [];
+
+    const cx = rect.x + rect.w * (0.50 + randSeed(seed, 1) * 0.14);
+    const cy = rect.y + rect.h * (0.42 + randSeed(seed, 2) * 0.18);
+
+    const rotate = degToRad(-35 + randSeed(seed, 3) * 70);
+    const radiusX = rect.w * (0.26 + randSeed(seed, 4) * 0.10);
+const radiusY = rect.h * (0.18 + randSeed(seed, 5) * 0.08);
+
+const verticalStep = rect.h * (0.58 + randSeed(seed, 6) * 0.16);
+
+// 只绕 2 到 2.7 圈，避免拥挤
+const turns = 2.0 + randSeed(seed, 7) * 0.7;
+
+    for (let i = 0; i < count; i++) {
+        const t = count === 1 ? 0 : i / (count - 1);
+        const angle = Math.PI * 2 * turns * t + randSeed(seed, 8) * Math.PI * 2;
+
+        const z = t;
+        const perspective = 1.6;
+        const scale = perspective / (perspective + z * 0.95);
+
+        let x = Math.cos(angle) * radiusX * scale;
+        let y = Math.sin(angle) * radiusY * scale + (t - 0.5) * verticalStep;
+
+        const p = rotatePoint(x, y, rotate);
+
+        points.push({
+            x: cx + p.x,
+            y: cy + p.y
+        });
+    }
+
+    return points;
+}
+
+function buildTiltedOrbitCalendarPoints(count, rect, seed = 0.5) {
+    const points = [];
+
+    const cx = rect.x + rect.w * 0.52;
+    const cy = rect.y + rect.h * 0.48;
+
+    const rx = rect.w * (0.36 + randSeed(seed, 1) * 0.12);
+    const ry = rect.h * (0.20 + randSeed(seed, 2) * 0.10);
+
+    const rotate = degToRad(-32 + randSeed(seed, 3) * 64);
+    const startAngle = degToRad(-120 + randSeed(seed, 4) * 80);
+    const span = Math.PI * 2 * (0.92 + randSeed(seed, 5) * 0.22);
+
+    for (let i = 0; i < count; i++) {
+        const t = count === 1 ? 0 : i / (count - 1);
+        const angle = startAngle + span * t;
+
+        let x = Math.cos(angle) * rx;
+        let y = Math.sin(angle) * ry;
+
+        if (i > count * 0.40 && i < count * 0.62) {
+            x *= 0.62;
+            y *= 0.62;
+        }
+
+        const p = rotatePoint(x, y, rotate);
+
+        points.push({
+            x: cx + p.x,
+            y: cy + p.y
+        });
+    }
+
+    return points;
+}
+
+function buildBorderWrapCalendarPoints(count, rect, seed = 0.5) {
+    const points = [];
+
+    const pad = 34;
+    const left = rect.x + pad;
+    const right = rect.x + rect.w - pad;
+    const top = rect.y + pad;
+    const bottom = rect.y + rect.h - pad;
+
+    const path = [
+        { x: right, y: top },
+        { x: right, y: bottom },
+        { x: left, y: bottom },
+        { x: left, y: top + rect.h * 0.28 }
+    ];
+
+    const segments = [];
+    let totalLen = 0;
+
+    for (let i = 0; i < path.length - 1; i++) {
+        const a = path[i];
+        const b = path[i + 1];
+        const len = Math.hypot(b.x - a.x, b.y - a.y);
+        segments.push({ a, b, len });
+        totalLen += len;
+    }
+
+    const offset = randSeed(seed, 1) * totalLen * 0.18;
+
+    for (let i = 0; i < count; i++) {
+        const target = offset + totalLen * (i / Math.max(1, count - 1));
+        const pos = getPointAlongPolyline(segments, target % totalLen);
+
+        points.push(pos);
+    }
+
+    return points;
+}
+
+function buildMultiLoopCalendarPoints(count, rect, seed = 0.5) {
+    const points = [];
+
+    const cx = rect.x + rect.w * (0.48 + randSeed(seed, 1) * 0.12);
+    const cy = rect.y + rect.h * (0.48 + randSeed(seed, 2) * 0.16);
+
+    const rotate = degToRad(-25 + randSeed(seed, 3) * 50);
+
+    for (let i = 0; i < count; i++) {
+        const t = count === 1 ? 0 : i / (count - 1);
+
+        const angle = Math.PI * 2 * (1.4 + t * 2.8) + seed * 6;
+        const rx =
+            rect.w * (0.10 + 0.34 * t) *
+            (1 + Math.sin(t * Math.PI * 5.0) * 0.24);
+
+        const ry =
+            rect.h * (0.08 + 0.30 * t) *
+            (1 + Math.cos(t * Math.PI * 4.0) * 0.22);
+
+        let x = Math.cos(angle) * rx + Math.sin(t * Math.PI * 3) * rect.w * 0.09;
+        let y = Math.sin(angle) * ry + Math.cos(t * Math.PI * 2.6) * rect.h * 0.08;
+
+        const p = rotatePoint(x, y, rotate);
+
+        points.push({
+            x: cx + p.x,
+            y: cy + p.y
+        });
+    }
+
+    return points;
+}
+
+function drawCalendarPathLine(ctx, points) {
+    if (!points || points.length < 2) return;
+
+    const smoothPoints = smoothCalendarPathPoints(points, 2);
+
+    ctx.save();
+    ctx.beginPath();
+
+    ctx.moveTo(smoothPoints[0].x, smoothPoints[0].y);
+
+    for (let i = 0; i < smoothPoints.length - 1; i++) {
+        const p0 = smoothPoints[Math.max(0, i - 1)];
+        const p1 = smoothPoints[i];
+        const p2 = smoothPoints[i + 1];
+        const p3 = smoothPoints[Math.min(smoothPoints.length - 1, i + 2)];
+
+        const cp1x = p1.x + (p2.x - p0.x) / 6;
+        const cp1y = p1.y + (p2.y - p0.y) / 6;
+        const cp2x = p2.x - (p3.x - p1.x) / 6;
+        const cp2y = p2.y - (p3.y - p1.y) / 6;
+
+        ctx.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, p2.x, p2.y);
+    }
+
+    ctx.stroke();
+    ctx.restore();
+}
+
+function smoothCalendarPathPoints(points, passes = 2) {
+    let result = points.map(p => ({ ...p }));
+
+    for (let pass = 0; pass < passes; pass++) {
+        result = result.map((p, i, arr) => {
+            if (i === 0 || i === arr.length - 1) return p;
+
+            const prev = arr[i - 1];
+            const next = arr[i + 1];
+
+            return {
+                ...p,
+                x: p.x * 0.5 + (prev.x + next.x) * 0.25,
+                y: p.y * 0.5 + (prev.y + next.y) * 0.25
+            };
+        });
+    }
+
+    return result;
+}
+
+function getCalendarLinePointsForStyle(style, points) {
+    if (style !== "tilted_orbit") return points;
+
+    // 椭圆线条相对日期文字轻微下移/右移
+    return points.map(p => ({
+        ...p,
+        x: p.x + 0,
+        y: p.y + 60
+    }));
+}
+
+function drawCalendarDateNumbers(ctx, points, today, holidayDays) {
+    const parts = currentPhotoDateParts;
+    const year = Number(parts.year);
+    const month = Number(parts.month);
+
+    points.forEach((p, i) => {
+        const day = i + 1;
+        const label = String(day).padStart(2, "0");
+
+        const dateObj = new Date(year, month - 1, day);
+        const weekday = dateObj.getDay();
+        const isWeekend = weekday === 0 || weekday === 6;
+        const isHoliday = holidayDays.includes(day);
+
+        // 周六周日 / 法定节假日：白色描边圆环，不填充
+        if (isWeekend || isHoliday) {
+            ctx.save();
+            ctx.strokeStyle = "#ffffff";
+            ctx.lineWidth = 2.2;
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, CALENDAR_PATH_CONFIG.holidayCircleR, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.restore();
+        }
+
+        // 当天：实心白圆
+        if (day === today) {
+    ctx.save();
+
+    // 圆形继承外层月历的白色 / 差值模式
+    ctx.fillStyle = CALENDAR_PATH_CONFIG.color || "#ffffff";
+
+    ctx.beginPath();
+    ctx.arc(
+        p.x,
+        p.y,
+        CALENDAR_PATH_CONFIG.todayCircleR,
+        0,
+        Math.PI * 2
+    );
+    ctx.fill();
+
+    // 关键：把数字从圆里挖空，露出底图
+    ctx.globalCompositeOperation = "destination-out";
+    ctx.fillStyle = "#000000";
+    ctx.font = '700 16px "ABC Favorit Expanded", sans-serif';
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(label, p.x, p.y + 1);
+
+    ctx.restore();
+
+    return;
+
+        } else {
+            ctx.fillStyle = CALENDAR_PATH_CONFIG.color;
+            ctx.fillText(label, p.x, p.y + 1);
+        }
+    });
+}
+
+function degToRad(deg) {
+    return deg * Math.PI / 180;
+}
+
+function rotatePoint(x, y, angle) {
+    const cos = Math.cos(angle);
+    const sin = Math.sin(angle);
+
+    return {
+        x: x * cos - y * sin,
+        y: x * sin + y * cos
+    };
+}
+
+function randSeed(seed, salt = 0) {
+    const x = Math.sin(seed * 9999 + salt * 78.233) * 43758.5453;
+    return x - Math.floor(x);
+}
+
+function getCalendarSafeRect(rect, padding = 42) {
+    return {
+        x: rect.x + padding,
+        y: rect.y + padding,
+        w: rect.w - padding * 2,
+        h: rect.h - padding * 2
+    };
+}
+
+function clampPointToRect(p, rect, padding = 0) {
+    return {
+        ...p,
+        x: Math.max(rect.x + padding, Math.min(rect.x + rect.w - padding, p.x)),
+        y: Math.max(rect.y + padding, Math.min(rect.y + rect.h - padding, p.y))
+    };
+}
+
+function getPointAlongPolyline(segments, distance) {
+    let d = distance;
+
+    for (const seg of segments) {
+        if (d <= seg.len) {
+            const t = d / seg.len;
+            return {
+                x: seg.a.x + (seg.b.x - seg.a.x) * t,
+                y: seg.a.y + (seg.b.y - seg.a.y) * t
+            };
+        }
+
+        d -= seg.len;
+    }
+
+    const last = segments[segments.length - 1];
+    return { x: last.b.x, y: last.b.y };
+}
+
+function drawSpiralMonthCalendar(ctx, imageRect) {
+    const parts = currentPhotoDateParts;
+
+    const year = Number(parts.year);
+    const month = Number(parts.month);
+    const today = Number(parts.day);
+
+    const daysInMonth = new Date(year, month, 0).getDate();
+
+    const calendarW = imageRect.w * 0.84;
+    const calendarH = imageRect.h * 0.68;
+
+    const cx = imageRect.x + imageRect.w * 0.52;
+    const cy = imageRect.y + imageRect.h * 0.52;
+
+    const points = buildSpiralCalendarPoints(
+        daysInMonth,
+        cx,
+        cy,
+        calendarW,
+        calendarH
+    );
+
+    ctx.save();
+
+    ctx.strokeStyle = "rgba(255,255,255,0.82)";
+    ctx.lineWidth = 0.6;
+    ctx.fillStyle = "#ffffff";
+    ctx.font = '700 16px "ABC Favorit Expanded", sans-serif';
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+
+    // 螺旋线
+    drawSmoothSpiralLine(ctx, points);
+
+    const holidayDays = getMonthHolidayDays(year, month);
+
+    points.forEach((p, i) => {
+        const day = i + 1;
+        const label = String(day).padStart(2, "0");
+
+        if (holidayDays.includes(day)) {
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, 18, 0, Math.PI * 2);
+            ctx.stroke();
+        }
+
+        if (day === today) {
+            ctx.save();
+            ctx.fillStyle = "#ffffff";
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, 24, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.fillStyle = "#000000";
+            ctx.fillText(label, p.x, p.y + 1);
+            ctx.restore();
+        } else {
+            ctx.fillStyle = "#ffffff";
+            ctx.fillText(label, p.x, p.y + 1);
+        }
+    });
+
+    ctx.restore();
+}
+
+function drawSmoothSpiralLine(ctx, points) {
+    if (!points || points.length < 2) return;
+
+    ctx.beginPath();
+    ctx.moveTo(points[0].x, points[0].y);
+
+    for (let i = 1; i < points.length - 1; i++) {
+        const current = points[i];
+        const next = points[i + 1];
+
+        const midX = (current.x + next.x) / 2;
+        const midY = (current.y + next.y) / 2;
+
+        ctx.quadraticCurveTo(current.x, current.y, midX, midY);
+    }
+
+    const last = points[points.length - 1];
+    ctx.lineTo(last.x, last.y);
+    ctx.stroke();
+}
+
+function buildSpiralCalendarPoints(count, cx, cy, w, h) {
+    const points = [];
+
+    const turns = 2.65;
+    const startAngle = Math.PI * 0.85;
+    const endAngle = startAngle + Math.PI * 2 * turns;
+
+    for (let i = 0; i < count; i++) {
+        const t = count === 1 ? 0 : i / (count - 1);
+        const angle = startAngle + (endAngle - startAngle) * t;
+
+        const radiusX = w * (0.08 + 0.42 * t);
+        const radiusY = h * (0.06 + 0.34 * t);
+
+        const wobble = Math.sin(t * Math.PI * 5.2) * 0.13;
+
+        points.push({
+            x: cx + Math.cos(angle) * radiusX * (1 + wobble),
+            y: cy + Math.sin(angle) * radiusY * (1 - wobble * 0.4)
+        });
+    }
+
+    return points;
+}
+
+function getMonthHolidayDays(year, month) {
+    // 先放几个常见阳历节日，后面可以继续补农历节日
+    const map = {
+        "1-1": true,
+        "5-1": true,
+        "10-1": true,
+        "12-25": true
+    };
+
+    const arr = [];
+    const days = new Date(year, month, 0).getDate();
+
+    for (let d = 1; d <= days; d++) {
+        if (map[`${month}-${d}`]) arr.push(d);
+    }
+
+    return arr;
+}
+
+function drawNewBottomUserText(ctx, rect, userText, fragmentNumber) {
+    const locationText =
+    document.getElementById("locationInput")?.value.trim() || "";
+
+    const safeLocation = locationText.slice(0, 20);
+    const safeText = String(userText || "").trim().slice(0, 50);
+
+    ctx.save();
+
+    const textX = rect.x + 0;
+    const textY = rect.y + 6;
+
+    // 用户文字字号：沿用圆环效果
+    const dotFontSize = 115;
+
+const dotTextH = drawDotMatrixTextBlock(
+    ctx,
+    safeText || "常为琐事而庆祝，今日「历历在幕」",
+    textX,
+    textY,
+    rect.w,
+    dotFontSize
+);
+
+const metaY = textY + dotTextH + 80;
+
+    ctx.fillStyle = "#ffffff";
+    ctx.textAlign = "left";
+    ctx.textBaseline = "alphabetic";
+
+    ctx.font = '500 20px "ABC Favorit Expanded", sans-serif';
+    ctx.fillText("Loc.", rect.x + 18, metaY + 15);  // Loc. 距离底部色块左边
+
+    ctx.font = '500 20px "PingFang TC", "PingFang SC", "Noto Sans TC", sans-serif';
+    ctx.fillText(safeLocation || "Unknown", rect.x + 86, metaY + 15);  // 地点文字距离底部色块左边
+
+    ctx.font = '500 28px "ABC Favorit Expanded", sans-serif';
+
+    const no = String(fragmentNumber || 0).padStart(5, "0");
+    ctx.fillText(`NO.${no}`, rect.x + 18, metaY + 12 + 35);  // rect：编号距离底部色块左边 
+    // metaY：编号相对 Loc. 往下的位置
+
+    ctx.restore();
+}
+
+function wrapChineseTextAvoidPunctuation(text, charsPerLine) {
+    const chars = Array.from((text || "").trim());
+    const lines = [];
+    const forbiddenStart = "，。！？、；：）】》』」’”.,!?;:)]}";
+    const forbiddenEnd = "（【《『「‘“([{";
+
+    let line = "";
+
+    for (let i = 0; i < chars.length; i++) {
+        const ch = chars[i];
+
+        if (line.length >= charsPerLine) {
+            const next = ch;
+
+            if (forbiddenStart.includes(next)) {
+                line += next;
+                continue;
+            }
+
+            if (forbiddenEnd.includes(line[line.length - 1])) {
+                const last = line.slice(-1);
+                line = line.slice(0, -1);
+                lines.push(line);
+                line = last + next;
+                continue;
+            }
+
+            lines.push(line);
+            line = next;
+        } else {
+            line += ch;
+        }
+    }
+
+    if (line) lines.push(line);
+    return lines;
+}
+
+function drawDotMatrixTextBlock(ctx, text, x, y, maxW, fontSize = 110) {
+    const clean = (text || "").trim();
+    if (!clean) return 0;
+
+    const charW = fontSize * 0.78;
+    const lineH = fontSize * 1.05;
+    const charsPerLine = Math.max(4, Math.floor(maxW / charW));
+
+    const lines = wrapChineseTextAvoidPunctuation(clean, charsPerLine);
+
+    ctx.save();
+    ctx.fillStyle = "#ffffff";
+
+    lines.forEach((lineText, lineIndex) => {
+        const chars = Array.from(lineText);
+
+        chars.forEach((ch, colIndex) => {
+            drawDotMatrixChar(
+                ctx,
+                ch,
+                x + colIndex * charW,
+                y + lineIndex * lineH,
+                fontSize
+            );
+        });
+    });
+
+    ctx.restore();
+
+    return lines.length * lineH;
+}
+
+function drawDotMatrixChar(ctx, ch, x, y, size) {
+    const off = document.createElement("canvas");
+    off.width = size;
+    off.height = size;
+
+    const octx = off.getContext("2d", { willReadFrequently: true });
+    octx.fillStyle = "#000";
+    octx.font = `700 ${size * 0.9}px "PingFang TC", "PingFang SC", sans-serif`;
+    octx.textAlign = "center";
+    octx.textBaseline = "middle";
+    octx.fillText(ch, size / 2, size / 2);
+
+    const img = octx.getImageData(0, 0, size, size);
+    const data = img.data;
+
+    const step = Math.max(5, Math.round(size / 15));  
+    const r = Math.max(4, step * 0.36);  // 圆环密度，越小越密
+
+    ctx.save();
+    ctx.strokeStyle = "#ffffff";
+    ctx.lineWidth = Math.max(4, r * 0.5);  // 圆环线条粗细
+
+    for (let yy = 0; yy < size; yy += step) {
+        for (let xx = 0; xx < size; xx += step) {
+            const i = (yy * size + xx) * 4 + 3;
+            if (data[i] > 20) {
+                ctx.beginPath();
+                ctx.arc(x + xx, y + yy, r, 0, Math.PI * 2);
+                ctx.stroke();
+            }
+        }
+    }
+
+    ctx.restore();
 }
 
         function drawDynamicText(ctx, layoutType, baseW, baseH, userText, indexNumber, aiPoem, category){
@@ -8952,6 +12689,43 @@ async function preloadCanvasAssets() {
     console.log("preloadCanvasAssets：完成");
 }
 
+function rebuildCleanLayoutCanvasWithEffectPalette() {
+    if (!currentPosterRects || !currentNewLayout) return null;
+
+    const c = document.createElement("canvas");
+    c.width = finalCanvas.width;
+    c.height = finalCanvas.height;
+
+    const ctx = c.getContext("2d");
+
+    ctx.save();
+    ctx.scale(currentRenderScale, currentRenderScale);
+
+    const topColor =
+        currentEffectPalette?.top ||
+        "#d8d8d8";
+
+    const bottomColor =
+        currentEffectPalette?.bottom ||
+        "#999999";
+
+    const top = currentPosterRects.top;
+    const image = currentPosterRects.image;
+    const bottom = currentPosterRects.bottom;
+
+    ctx.fillStyle = topColor;
+    ctx.fillRect(top.x, top.y, top.w, top.h);
+
+    ctx.clearRect(image.x, image.y, image.w, image.h);
+
+    ctx.fillStyle = bottomColor;
+    ctx.fillRect(bottom.x, bottom.y, bottom.w, bottom.h);
+
+    ctx.restore();
+
+    return c;
+}
+
 function drawExpandedLogoMask(ctx, img, x, y, w, h, expandPx = 0) {
     if (!isImageReady(img)) return;
 
@@ -9960,6 +13734,12 @@ const stretchLen = (fineMinLen + Math.random() * (fineMaxLen - fineMinLen)) * ma
 
             ctx.restore();
         }
+
+        
+
+
+
+
         
 
         generateBtn.addEventListener('click', async function() {
@@ -9967,6 +13747,8 @@ const stretchLen = (fineMinLen + Math.random() * (fineMaxLen - fineMinLen)) * ma
             console.time("整次生成耗时");
     if (!uploadedImage) return;
 
+    currentCropOffset = { x: 0.5, y: 0.5 };
+currentCropZoom = 1;
 
     loadingMsg.style.display = 'block';
     generateBtn.disabled = true;
@@ -10028,53 +13810,13 @@ const indexNumber = currentFragmentNumber;
 
                 const imageRatio = workW / workH;
                 currentUploadedImageRatio = imageRatio;
-                let layoutType;
-
-if (selectedCategory === 'light_time') {
-    // 光与时刻：竖图走竖构图，所有横图走 horizontal
-    if (imageRatio <= 1) {
-        layoutType = 'vertical';
-    } else {
-        layoutType = 'horizontal';
-    }
-
-} else if (
-    selectedCategory === 'daily_object' ||
-    selectedCategory === 'in_action'
-) {
-    // 日常之物 / 行为之中：竖图走竖构图，所有横图走新的 horizontal
-    if (imageRatio <= 1) {
-        layoutType = 'vertical';
-    } else {
-        layoutType = 'horizontal';
-    }
-
-} else {
-    // 旧分类兜底：保留 horizontal2
-    if (imageRatio <= 1) {
-        layoutType = 'vertical';
-    } else if (imageRatio >= 1.55) {
-        layoutType = 'horizontal';
-    } else {
-        layoutType = 'horizontal2';
-    }
-}
+                let layoutType = "vertical";
 
                 let baseW, baseH;
 let verticalLayout = null;
 
-// 提前生成 AI 诗，因为竖版高度要靠它来算
-console.log("STEP 6：开始 AI 写诗");
-
-const poemStart = performance.now();
-
-currentAiPoem = await generateChinesePoem(userText);
-
-console.log(
-    "STEP 6 完成，用时：",
-    performance.now() - poemStart,
-    currentAiPoem
-);
+// 新逻辑：不再 AI 写诗，底部直接使用用户填写的拍摄感想
+currentAiPoem = userText || "这一刻被留在日常之中";
 
 // 先统一得到当前处理分类
 const processedCategory = selectedCategory === "light_time" ? "light_time_moment" : selectedCategory;
@@ -10087,12 +13829,33 @@ if (layoutType === 'vertical') {
         ? 'light_time_moment'
         : processedCategory;
 
-verticalLayout = getVerticalDynamicLayout(
+verticalLayout = getNewUnifiedVerticalLayout(
     ctx,
-    currentAiPoem,
-    layoutCategory,
+    userText,
     imageRatio
 );
+
+currentNewLayout = verticalLayout;
+
+// 新增：横图在竖版海报中也使用 4:3 图像区域
+if (imageRatio > 1 && verticalLayout && verticalLayout.imageRect) {
+    const targetRatio = 4 / 3;
+    const newImageH = Math.round(verticalLayout.baseW / targetRatio);
+
+    verticalLayout.imageH = newImageH;
+    verticalLayout.imageRect.h = newImageH;
+
+    verticalLayout.poemRect.y = verticalLayout.imageRect.y + newImageH;
+
+    const poemMinH = Math.max(260, verticalLayout.bottomH || 260);
+    verticalLayout.bottomH = poemMinH;
+    verticalLayout.poemRect.h = poemMinH;
+
+    verticalLayout.baseH =
+        verticalLayout.topBlockH +
+        verticalLayout.imageH +
+        verticalLayout.bottomH;
+}
 
     baseW = verticalLayout.baseW;
     baseH = verticalLayout.baseH;
@@ -10130,14 +13893,29 @@ if (!Number.isFinite(baseW) || !Number.isFinite(baseH) || baseW <= 0 || baseH <=
     throw new Error(`画布尺寸错误：baseW=${baseW}, baseH=${baseH}, layoutType=${layoutType}, imageRatio=${imageRatio}, processedCategory=${processedCategory}`);
 }
 
-canvas.width = baseW;
-canvas.height = baseH;
+currentRenderScale = getSafeRenderScale(baseW, baseH);
+
+canvas.width = Math.round(baseW * currentRenderScale);
+canvas.height = Math.round(baseH * currentRenderScale);
+
+canvas.style.width = "360px";
+canvas.style.maxWidth = "calc(100vw - 48px)";
+canvas.style.height = "auto";
+canvas.style.maxHeight = "68vh";
+
+ctx.save();
+ctx.scale(currentRenderScale, currentRenderScale);
+
 ctx.clearRect(0, 0, baseW, baseH);
 
 if (processedCategory === 'in_action') {
     typeSliderA.value = 0;
     typeSliderB.value = 0;
     typeSliderC.value = 50;
+}
+
+if (effectStyleSelect) {
+    effectStyleSelect.value = currentEffectType;
 }
 
 updateTypeControlLabels();
@@ -10278,8 +14056,66 @@ updateTypeControlLabels();
         h: blackRect.h
     };
 
+    currentPosterRects = {
+    top: blueRect,
+    image: imageRegion,
+    bottom: redRect,
+    baseW,
+    baseH
+};
 
-                ctx.fillStyle = palette.dominant;
+    const paletteSourceCanvas = createCroppedImageRegionCanvas(
+    uploadedImage,
+    imageRegion,
+    currentCropOffset,
+    currentCropZoom
+);
+
+
+if (currentEffectType === "gradient_map") {
+    const gmPalette = extractGradientMapTwoColorPalette(paletteSourceCanvas);
+    currentEffectPalette = {
+    top: `rgb(${clamp255(gmPalette.light.r)}, ${clamp255(gmPalette.light.g)}, ${clamp255(gmPalette.light.b)})`,
+    bottom: `rgb(${clamp255(gmPalette.dark.r)}, ${clamp255(gmPalette.dark.g)}, ${clamp255(gmPalette.dark.b)})`,
+    raw: gmPalette
+};
+}
+
+if (currentEffectType === "line_contour") {
+    const lcPalette = lcExtractDominantDarkLightPalette(paletteSourceCanvas);
+
+    const colorA = lcPalette.light;
+    const colorB = lcPalette.dark;
+
+    const lighterColor = getRgbLuma(colorA) >= getRgbLuma(colorB)
+        ? colorA
+        : colorB;
+
+    const darkerColor = getRgbLuma(colorA) < getRgbLuma(colorB)
+        ? colorA
+        : colorB;
+
+    currentEffectPalette = {
+        top: colorToCss(lighterColor),
+        bottom: colorToCss(darkerColor),
+        raw: lcPalette,
+        processed: {
+            light: lighterColor,
+            dark: darkerColor
+        }
+    };
+}
+
+
+                const topColor =
+    currentEffectPalette?.top ||
+    palette.dominant;
+
+const bottomColor =
+    currentEffectPalette?.bottom ||
+    palette.secondary;
+
+ctx.fillStyle = topColor;
 ctx.fillRect(blueRect.x, blueRect.y, blueRect.w, blueRect.h);
 
 if (processedCategory !== 'daily_object') {
@@ -10289,7 +14125,7 @@ if (processedCategory !== 'daily_object') {
     ctx.clearRect(blackRect.x, blackRect.y, blackRect.w, blackRect.h);
 }
 
-ctx.fillStyle = palette.secondary;
+ctx.fillStyle = bottomColor;
 ctx.fillRect(redRect.x, redRect.y, redRect.w, redRect.h);
 
 // 保存一张没有照片、没有条带、没有文字的干净结构底图
@@ -10324,81 +14160,12 @@ drawLightTimeHorizontalOverflowStrips(ctx, photoLayer, imageRegion, baseW, baseH
     //drawLightTimeContourLayer(ctx, photoLayer, imageRegion);
 
 } else {
-    if (processedCategory === 'daily_object') {
-    processDailyObjectImage(ctx, workingCanvas, imageRegion);
-
-    if (layoutType === 'horizontal') {
-        applyDailyObjectHorizontalMask(ctx, imageRegion, imageRatio);
-    }
-
-    } else if (processedCategory === 'in_action') {
-    const blurValue = Number(typeSliderB.value) / 100;
-
-    // 最大只到 10px，初始 sliderB=0 时就是完全不模糊
-    const imageBlurPx = blurValue * 5;
-
-    const tempCanvas = document.createElement('canvas');
-tempCanvas.width = imageRegion.w;
-tempCanvas.height = imageRegion.h;
-
-const tctx = tempCanvas.getContext('2d');
-
-// 在离屏 canvas 里先画图
-drawImageCoverToRect(
-    tctx,
-    uploadedImage,
-    {
-        x: 0,
-        y: 0,
-        w: imageRegion.w,
-        h: imageRegion.h
-    }
-);
-
-// 再模糊
-if (imageBlurPx > 0.01) {
-    tctx.filter = `blur(${imageBlurPx}px)`;
-
-    const copyCanvas = document.createElement('canvas');
-    copyCanvas.width = tempCanvas.width;
-    copyCanvas.height = tempCanvas.height;
-
-    const copyCtx = copyCanvas.getContext('2d');
-    copyCtx.drawImage(tempCanvas, 0, 0);
-
-    tctx.clearRect(0, 0, tempCanvas.width, tempCanvas.height);
-    tctx.drawImage(copyCanvas, 0, 0);
-
-    tctx.filter = 'none';
-}
-
-// 最后贴回主 canvas
-ctx.drawImage(
-    tempCanvas,
-    imageRegion.x,
-    imageRegion.y
-);
-
-    } else {
-        console.log("STEP 7：开始 processImage");
-
-await processImage(
-    ctx,
-    workingCanvas,
-    imageRegion,
-    processedCategory,
-    palette
-);
-
-console.log("STEP 7 完成");
-    }
-
+    await renderSelectedEffectIntoPoster(ctx, uploadedImage, imageRegion);
 }
 
 
 
 // 先保存“纯底图”，不要把动态文字烤进去
-currentBaseCanvas = cloneCanvas(canvas);
 
 if (
     layoutType === 'horizontal' &&
@@ -10407,7 +14174,12 @@ if (
     currentFragmentBoxPosition = Math.random() < 0.5 ? 'top' : 'bottom';
 }
 
-drawDynamicText(ctx, layoutType, baseW, baseH, userText, indexNumber, currentAiPoem, processedCategory);
+drawNewUnifiedCalendarTextLayer(
+    ctx,
+    currentNewLayout,
+    userText,
+    indexNumber
+);
 
 if (
     layoutType === 'horizontal' &&
@@ -10432,13 +14204,14 @@ function drawTemplateLayer(ctx, templateImg, layoutType, baseW, baseH, verticalL
     return;
 }
 
+ctx.restore();
+
 templateImg.onload = async function() {
     console.log("STEP 8：templateImg.onload 触发");
 
-    const finalDataUrl = canvas.toDataURL("image/png");
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
 
-    finalImage.src = finalDataUrl;
-    modalImage.src = finalDataUrl;
+    updatePreviewCanvasFromFinalCanvas();
 
     setTimeout(() => {
 
@@ -10469,6 +14242,7 @@ templateImg.onload = async function() {
     currentPaletteData = palette;
     currentLayoutType = layoutType;
     currentImageRegion = imageRegion;
+    bindCropDragControl();
     currentWorkingCanvas = workingCanvas;
     currentCategory = processedCategory;
     currentCleanLayoutCanvas = cleanLayoutCanvas;
@@ -10477,20 +14251,58 @@ templateImg.onload = async function() {
     typeControls.classList.remove('collapsed');
 typeControlsToggle.textContent = '收起';
 
+if (currentEffectType === "gradient_map") {
+    typeSliderA.value = 52; // threshold ≈ 128
+    typeSliderB.value = 39; // contrast ≈ 1.35
+    typeSliderC.value = 39; // saturation ≈ 1.5
+}
+
+if (currentEffectType === "line_contour") {
+    typeSliderA.value = 40; // 线条密度
+    typeSliderB.value = 70; // 线条深浅
+    typeSliderC.value = 0;  // 线条粗细
+}
+
+if (currentEffectType === "pattern_fill") {
+    typeSliderALabel.textContent = "区域范围 Area Range";
+    typeSliderBLabel.textContent = "图案密度 Pattern Density";
+    typeSliderCLabel.textContent = "填充对象 Fill Target";
+    return;
+}
+
+if (currentEffectType === "pixel_stretch") {
+    typeSliderA.value = 55; // 拉伸亮度区域
+    typeSliderB.value = 28; // 最小区域
+    typeSliderC.value = 100; // 色彩强度
+}
+
 updateTypeControlLabels();
 
 
     
 
-    saveImageBtn.onclick = function(){
-        const link = document.createElement("a");
-        link.href = finalImage.src;
-        link.download = `Fragment-${currentFragmentNumber}.png`;
-        link.click();
-    };
+    saveImageBtn.onclick = function () {
 
-    canvas.style.display = 'none';
-    finalImage.style.display = 'block';
+    const canvas = document.getElementById("finalCanvas");
+
+    canvas.toBlob(function(blob) {
+
+        const url = URL.createObjectURL(blob);
+
+        const link = document.createElement("a");
+
+        link.href = url;
+        link.download = `Fragment-${currentFragmentNumber}.png`;
+
+        link.click();
+
+        URL.revokeObjectURL(url);
+
+    }, "image/png");
+
+};
+
+    updatePreviewCanvasFromFinalCanvas();
 
     document.getElementById('inputPage').style.display = 'none';
     document.getElementById('resultArea').style.display = 'block';
@@ -10547,17 +14359,36 @@ templateImg.onerror = function() {
 
 });
         
-        finalImage.addEventListener("click", function() {
-            if (!finalImage.src) return;
-            imageModal.classList.add("active");
-        });
+        finalCanvas.addEventListener("click", function() {
+    finalCanvas.toBlob(blob => {
+        if (!blob) return;
 
-        imageModal.addEventListener("click", function() {
-            imageModal.classList.remove("active");
-        });
-reloadBtn.addEventListener("click", function() {
-    location.reload();
+        const url = URL.createObjectURL(blob);
+        modalImage.src = url;
+        imageModal.classList.add("active");
+    }, "image/png");
 });
+
+// 点击遮罩关闭预览
+imageModal.addEventListener("click", function(e) {
+
+    // 点击黑色背景 或 图片本身 都关闭
+    if (e.target === imageModal || e.target === modalImage) {
+
+        imageModal.classList.remove("active");
+
+        // 释放 blob
+        if (
+            modalImage.src &&
+            modalImage.src.startsWith("blob:")
+        ) {
+            URL.revokeObjectURL(modalImage.src);
+        }
+
+        modalImage.src = "";
+    }
+});
+
 
 setClassificationMode("auto");
 updateDetectedCategoryUI(selectedCategory, { manual: false });
