@@ -708,6 +708,15 @@ body {
     transform: rotate(225deg);
 }
 
+.image-adjust-hint{
+    margin: 0 0 14px;
+    font-size: 12px;
+    line-height: 1.5;
+    color: rgba(0,0,0,0.45);
+    letter-spacing: 0.02em;
+    text-align: center;
+}
+
 .type-controls-hint {
     text-align: center;
     font-size: 12px;
@@ -1012,6 +1021,10 @@ body {
         <div id="templateOverlay" class="template-overlay"></div>
     </div>
 
+    <p class="image-adjust-hint">
+可拖动、缩放中间图片区域，调整画面位置
+</p>
+
 
     <!-- 新增：文字生成控制区 -->
     <div id="typeControls" class="type-controls floating-type-controls" style="display:none;">
@@ -1024,21 +1037,18 @@ body {
     <div class="type-control-row">
     <label for="calendarStyleSelect">月历排版 Calendar Style</label>
     <select id="calendarStyleSelect">
-        <option value="space_helix">空间螺旋</option>
-        <option value="tilted_orbit">倾斜椭圆</option>
-        <option value="border_wrap">方形绕排</option>
-        <option value="multi_loop">多段回环</option>
+        <option value="space_helix">Drift</option>
+        <option value="tilted_orbit">Orbit</option>
+        <option value="border_wrap">Frame</option>
+        <option value="multi_loop">Loop</option>
     </select>
 </div>
 
+
 <div class="type-control-row">
-    <label for="effectStyleSelect">图像处理效果 Effect Style</label>
-    <select id="effectStyleSelect">
-        <option value="gradient_map">渐变映射 Gradient Map</option>
-        <option value="line_contour">线性等高线 Line Contour</option>
-        <option value="pattern_fill">图案填充 Pattern Fill</option>
-        <option value="pixel_stretch">像素拉伸 Pixel Stretch</option>
-    </select>
+    <button id="rerollCalendarBtn" type="button" class="action-btn" style="width:100%;">
+        重新随机月历造型
+    </button>
 </div>
 
 
@@ -1047,13 +1057,6 @@ body {
         重新取色
     </button>
 </div>
-
-<div class="type-control-row">
-    <button id="rerollCalendarBtn" type="button" class="action-btn" style="width:100%;">
-        重新随机月历造型
-    </button>
-</div>
-
 
 
         <div class="type-control-row">
@@ -1282,6 +1285,7 @@ let currentCropOffset = { x: 0.5, y: 0.5 };
 // x/y 范围 0-1，用来控制裁切中心点，0.5 是居中
 
 currentCalendarPathStyle = pickCalendarPathStyle();
+
 currentCalendarPathSeed = Math.random();
 
 
@@ -1511,6 +1515,12 @@ const typeSliderB = document.getElementById('typeSliderB');
 const typeSliderC = document.getElementById('typeSliderC');
 
 const calendarStyleSelect = document.getElementById("calendarStyleSelect");
+currentCalendarPathStyle = pickCalendarPathStyle();
+
+if (calendarStyleSelect) {
+    calendarStyleSelect.value = currentCalendarPathStyle;
+}
+
 const rerollCalendarBtn = document.getElementById("rerollCalendarBtn");
 const effectStyleSelect = document.getElementById("effectStyleSelect");
 
@@ -1862,7 +1872,18 @@ try {
 
     // 新逻辑：不再分类，只判断使用哪一种图形处理风格
     const analysisCanvas = await createMobileSafeImageCanvas(uploadedImage, 900);
-    currentEffectType = pickEffectTypeByImageAnalysis(analysisCanvas);
+    const effectPool = [
+    "gradient_map",
+    "line_contour",
+    "pixel_stretch",
+    "pattern_fill"
+];
+
+currentEffectType =
+    effectPool[Math.floor(Math.random() * effectPool.length)];
+
+console.log("随机图像效果：", currentEffectType);
+    console.log("自动图像效果判定结果：", currentEffectType);
 
     if (effectStyleSelect) {
     effectStyleSelect.value = currentEffectType;
@@ -3298,29 +3319,129 @@ function createCroppedImageRegionCanvas(img, rect, crop = currentCropOffset, zoo
 }
 
 function pickEffectTypeByImageAnalysis(sourceCanvas) {
-    const info = analyzeImageForEffectType(sourceCanvas);
+    const info = analyzeSimpleImageCharacter(sourceCanvas);
 
-    console.log("图像处理风格判定：", info);
+    console.log("图像效果判定：", info);
 
-    // 有大面积相似色块 + 主体背景有一定区分度 → pattern_fill
-    if (
-        info.largeSimilarBlockRatio >= 0.18 &&
-        info.foregroundBackgroundContrast >= 0.10 &&
-        info.edgeScore < 42
-    ) {
+    if (info.saturation > 0.38 && info.colorRichness > 0.42) {
+        return "pixel_stretch";
+    }
+
+    if (info.flatness > 0.26 && info.edgeContrast > 0.08) {
         return "pattern_fill";
     }
 
-    // 图像复杂，不适合抠图 → 其他三种等概率随机
-    const fallbackEffects = [
-        "gradient_map",
-        "line_contour",
-        "pixel_stretch"
-    ];
+    const pool = ["gradient_map", "line_contour"];
+    return pool[Math.floor(Math.random() * pool.length)];
+}
 
-    return fallbackEffects[
-        Math.floor(Math.random() * fallbackEffects.length)
-    ];
+function analyzeImageForPatternSuitability(sourceCanvas) {
+    const small = document.createElement("canvas");
+    const maxSide = 180;
+
+    const scale = Math.min(
+        1,
+        maxSide / Math.max(sourceCanvas.width, sourceCanvas.height)
+    );
+
+    small.width = Math.max(50, Math.round(sourceCanvas.width * scale));
+    small.height = Math.max(50, Math.round(sourceCanvas.height * scale));
+
+    const ctx = small.getContext("2d", { willReadFrequently: true });
+    ctx.drawImage(sourceCanvas, 0, 0, small.width, small.height);
+
+    const img = ctx.getImageData(0, 0, small.width, small.height);
+    const data = img.data;
+    const w = small.width;
+    const h = small.height;
+
+    const allBuckets = new Map();
+    const edgeBuckets = new Map();
+
+    let textureSum = 0;
+    let textureCount = 0;
+
+    let centerLum = 0;
+    let edgeLum = 0;
+    let centerCount = 0;
+    let edgeCount = 0;
+
+    for (let y = 1; y < h - 1; y++) {
+        for (let x = 1; x < w - 1; x++) {
+            const i = (y * w + x) * 4;
+
+            const r = data[i];
+            const g = data[i + 1];
+            const b = data[i + 2];
+
+            const lum = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+
+            const rq = Math.round(r / 34);
+            const gq = Math.round(g / 34);
+            const bq = Math.round(b / 34);
+            const key = `${rq}-${gq}-${bq}`;
+
+            allBuckets.set(key, (allBuckets.get(key) || 0) + 1);
+
+            const nx = x / w;
+            const ny = y / h;
+
+            const inCenter =
+                nx > 0.25 && nx < 0.75 &&
+                ny > 0.22 && ny < 0.78;
+
+            const inEdge =
+                nx < 0.18 || nx > 0.82 ||
+                ny < 0.18 || ny > 0.82;
+
+            if (inCenter) {
+                centerLum += lum;
+                centerCount++;
+            }
+
+            if (inEdge) {
+                edgeLum += lum;
+                edgeCount++;
+                edgeBuckets.set(key, (edgeBuckets.get(key) || 0) + 1);
+            }
+
+            const right = (y * w + (x + 1)) * 4;
+            const down = ((y + 1) * w + x) * 4;
+
+            const lumRight =
+                (0.299 * data[right] + 0.587 * data[right + 1] + 0.114 * data[right + 2]) / 255;
+
+            const lumDown =
+                (0.299 * data[down] + 0.587 * data[down + 1] + 0.114 * data[down + 2]) / 255;
+
+            textureSum += Math.abs(lum - lumRight) + Math.abs(lum - lumDown);
+            textureCount += 2;
+        }
+    }
+
+    const total = Math.max(1, w * h);
+    const edgeTotal = Math.max(1, edgeCount);
+
+    const flatBackgroundRatio =
+        Math.max(...allBuckets.values()) / total;
+
+    const edgeFlatRatio =
+        edgeBuckets.size
+            ? Math.max(...edgeBuckets.values()) / edgeTotal
+            : 0;
+
+    const centerAvg = centerLum / Math.max(1, centerCount);
+    const edgeAvg = edgeLum / Math.max(1, edgeCount);
+
+    const centerEdgeContrast = Math.abs(centerAvg - edgeAvg);
+    const textureScore = textureSum / Math.max(1, textureCount);
+
+    return {
+        flatBackgroundRatio,
+        edgeFlatRatio,
+        centerEdgeContrast,
+        textureScore
+    };
 }
 
 function analyzeImageForEffectType(sourceCanvas) {
@@ -4021,12 +4142,204 @@ function renderPatternFillCanvas(sourceCanvas) {
     const img = outCtx.getImageData(0, 0, w, h);
     const data = img.data;
 
-    pfApplySolidFill(data, targetMask, w, h, palette.fill, 1);
-    pfApplyDotPattern(data, targetMask, w, h, palette.pattern, density);
+    const clusterMapBig = pfUpscaleClusterMap(
+    cluster.map,
+    analysis.canvas.width,
+    analysis.canvas.height,
+    w,
+    h
+);
+
+pfDrawSegmentedPatternFill(
+    data,
+    clusterMapBig,
+    targetMask,
+    cluster.centers,
+    w,
+    h,
+    density,
+    palette.fill,
+    palette.pattern
+);
 
     outCtx.putImageData(img, 0, 0);
 
     return outCanvas;
+}
+
+function pfDrawSegmentedPatternFill(
+    data,
+    clusterMap,
+    targetMask,
+    clusters,
+    w,
+    h,
+    density,
+    fillColor,
+    patternColor
+) {
+    const cell = Math.max(5, Math.round(24 - density * 18));
+
+    for (let ci = 0; ci < clusters.length; ci++) {
+        const regionMask = new Uint8Array(w * h);
+
+        for (let p = 0; p < clusterMap.length; p++) {
+            if (!targetMask[p]) continue;
+
+            if (clusterMap[p] === ci) {
+                regionMask[p] = 1;
+            }
+        }
+
+        let cleaned = removeSmallMaskComponents(regionMask, w, h, 600);
+        cleaned = pfDilateMask(cleaned, w, h, 3);
+cleaned = pfErodeMask(cleaned, w, h, 1);
+
+        const patternType = pfPickPatternTypeByIndex(ci);
+
+        pfApplyRegionBaseFill(data, cleaned, fillColor);
+        pfApplyPatternToRegion(
+            data,
+            cleaned,
+            w,
+            h,
+            cell,
+            patternType,
+            patternColor
+        );
+    }
+}
+
+function removeSmallMaskComponents(mask, w, h, minPixels = 80) {
+    const visited = new Uint8Array(w * h);
+    const result = new Uint8Array(w * h);
+    const queue = [];
+
+    for (let y = 0; y < h; y++) {
+        for (let x = 0; x < w; x++) {
+            const start = y * w + x;
+
+            if (!mask[start] || visited[start]) continue;
+
+            queue.length = 0;
+            const pixels = [];
+
+            queue.push(start);
+            visited[start] = 1;
+
+            while (queue.length) {
+                const p = queue.pop();
+                pixels.push(p);
+
+                const px = p % w;
+                const py = Math.floor(p / w);
+
+                const neighbors = [
+                    p - 1,
+                    p + 1,
+                    p - w,
+                    p + w
+                ];
+
+                for (const np of neighbors) {
+                    if (np < 0 || np >= w * h) continue;
+
+                    const nx = np % w;
+                    const ny = Math.floor(np / w);
+
+                    if (Math.abs(nx - px) + Math.abs(ny - py) !== 1) continue;
+
+                    if (mask[np] && !visited[np]) {
+                        visited[np] = 1;
+                        queue.push(np);
+                    }
+                }
+            }
+
+            if (pixels.length >= minPixels) {
+                pixels.forEach(p => {
+                    result[p] = 1;
+                });
+            }
+        }
+    }
+
+    return result;
+}
+
+function pfApplyRegionBaseFill(data, mask, fillColor) {
+    for (let p = 0; p < mask.length; p++) {
+        if (!mask[p]) continue;
+
+        const i = p * 4;
+        data[i] = clamp255(fillColor.r);
+        data[i + 1] = clamp255(fillColor.g);
+        data[i + 2] = clamp255(fillColor.b);
+        data[i + 3] = 255;
+    }
+}
+
+function pfApplyPatternToRegion(data, mask, w, h, cell, type, color) {
+    for (let y = 0; y < h; y++) {
+        for (let x = 0; x < w; x++) {
+            const p = y * w + x;
+            if (!mask[p]) continue;
+
+            const localX = x % cell;
+            const localY = y % cell;
+
+            let hit = false;
+
+            if (type === "dot") {
+                const cx = cell / 2;
+                const cy = cell / 2;
+                const r = cell * 0.18;
+                const dx = localX - cx;
+                const dy = localY - cy;
+                hit = dx * dx + dy * dy < r * r;
+            }
+
+            if (type === "line") {
+                hit = localY < Math.max(1, cell * 0.14);
+            }
+
+            if (type === "diag") {
+                hit = Math.abs(localX - localY) < Math.max(1, cell * 0.12);
+            }
+
+            if (type === "tri") {
+                hit = localX + localY < cell * 0.72;
+            }
+
+            if (!hit) continue;
+
+            const i = p * 4;
+            data[i] = clamp255(color.r);
+            data[i + 1] = clamp255(color.g);
+            data[i + 2] = clamp255(color.b);
+            data[i + 3] = 255;
+        }
+    }
+}
+
+function pfPickPatternTypeByIndex(index) {
+    const types = ["dot", "line", "diag", "tri"];
+    return types[index % types.length];
+}
+
+function pfUpscaleClusterMap(clusterMapSmall, sw, sh, w, h) {
+    const result = new Uint8Array(w * h);
+
+    for (let y = 0; y < h; y++) {
+        const sy = Math.min(sh - 1, Math.floor(y / h * sh));
+
+        for (let x = 0; x < w; x++) {
+            const sx = Math.min(sw - 1, Math.floor(x / w * sw));
+            result[y * w + x] = clusterMapSmall[sy * sw + sx];
+        }
+    }
+
+    return result;
 }
 
 function pfExtractPatternPalette(sourceCanvas) {
@@ -9330,14 +9643,7 @@ if (currentCalendarPathStyle !== "border_wrap") {
 
     drawCalendarPathLine(ctx, linePoints);
 
-    // 空间螺旋：数字相对线条做法线偏移，避免线穿过数字
-    if (currentCalendarPathStyle === "space_helix") {
-        dateTextPoints = offsetCalendarTextPointsFromLine(
-            points,
-            linePoints,
-            24
-        );
-    }
+    
 }
 
 drawCalendarMonthLabel(ctx, imageRect, points, currentCalendarPathStyle, month);
@@ -9503,7 +9809,15 @@ function fitCalendarPointsToImageRect(points, rect, padding = 34) {
     const ratio = rect.w / rect.h;
 
     // 竖图放大；方图略放；横图不放
-    const idealScale = ratio < 0.8 ? 1.35 : ratio < 1.15 ? 1.15 : 1;
+    let idealScale = 1;
+
+if (ratio < 0.8) {
+    idealScale = 1.35;      // 竖图
+} else if (ratio < 1.15) {
+    idealScale = 1.15;      // 方图
+} else {
+    idealScale = 1.28;      // 横图也放大
+}
 
     const scale = Math.min(
         idealScale,
@@ -9557,11 +9871,14 @@ function buildCalendarDatePoints(style, count, rect, seed = 0.5) {
     );
 
     // 关键：最后统一根据图像区域放大 / 收缩
-    sampled = fitCalendarPointsToImageRect(
-        sampled,
-        rect,
-        34
-    );
+    const ratio = rect.w / rect.h;
+const calendarPadding = ratio > 1.15 ? 20 : 34;
+
+sampled = fitCalendarPointsToImageRect(
+    sampled,
+    rect,
+    calendarPadding
+);
 
     return sampled.map(p => clampPointToRect(p, rect, 26));
 }
@@ -9652,7 +9969,7 @@ function buildSpaceHelixRawPath(rect, seed = 0.5) {
     const raw = [];
     const n = CALENDAR_PATH_CONFIG.rawPointCount;
 
-    const safe = getCalendarSafeRect(rect, 58);
+    const safe = getCalendarSafeRect(rect, 42);
 
     const cx = safe.x + safe.w * (0.48 + randSeed(seed, 1) * 0.08);
     const cy = safe.y + safe.h * (0.50 + randSeed(seed, 2) * 0.08);
@@ -9667,7 +9984,7 @@ function buildSpaceHelixRawPath(rect, seed = 0.5) {
     const verticalStep = safe.h * 0.52;
 
     // 圈数进一步减少
-    const turns = 1.35 + randSeed(seed, 7) * 0.35;
+    const turns = 1.45
 
     const angleOffset = randSeed(seed, 8) * Math.PI * 2;
 
@@ -9831,15 +10148,15 @@ function buildMultiLoopRawPath(rect, seed = 0.5) {
     const raw = [];
     const n = CALENDAR_PATH_CONFIG.rawPointCount;
 
-    const safe = getCalendarSafeRect(rect, 58);
+    const safe = getCalendarSafeRect(rect, 42);
 
     const cx = safe.x + safe.w * (0.48 + randSeed(seed, 1) * 0.10);
     const cy = safe.y + safe.h * (0.48 + randSeed(seed, 2) * 0.10);
 
     const rotate = degToRad(-22 + randSeed(seed, 3) * 44);
 
-    const maxRx = safe.w * 0.38;
-    const maxRy = safe.h * 0.32;
+    const maxRx = safe.w * 0.46;
+    const maxRy = safe.h * 0.38;
 
     for (let i = 0; i < n; i++) {
         const t = n === 1 ? 0 : i / (n - 1);
@@ -10175,11 +10492,19 @@ function buildMultiLoopCalendarPoints(count, rect, seed = 0.5) {
 function drawCalendarPathLine(ctx, points) {
     if (!points || points.length < 2) return;
 
+    // 空间螺旋、多段回环：用更顺的中点二次曲线，避免原贝塞尔局部扭曲
+    if (
+        currentCalendarPathStyle === "space_helix" ||
+        currentCalendarPathStyle === "multi_loop"
+    ) {
+        drawSmoothPolylinePath(ctx, points);
+        return;
+    }
+
     const smoothPoints = smoothCalendarPathPoints(points, 2);
 
     ctx.save();
     ctx.beginPath();
-
     ctx.moveTo(smoothPoints[0].x, smoothPoints[0].y);
 
     for (let i = 0; i < smoothPoints.length - 1; i++) {
@@ -10195,6 +10520,32 @@ function drawCalendarPathLine(ctx, points) {
 
         ctx.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, p2.x, p2.y);
     }
+
+    ctx.stroke();
+    ctx.restore();
+}
+
+function drawSmoothPolylinePath(ctx, points) {
+    if (!points || points.length < 2) return;
+
+    const pts = smoothCalendarPathPoints(points, 5);
+
+    ctx.save();
+    ctx.beginPath();
+    ctx.moveTo(pts[0].x, pts[0].y);
+
+    for (let i = 1; i < pts.length - 2; i++) {
+        const current = pts[i];
+        const next = pts[i + 1];
+
+        const midX = (current.x + next.x) / 2;
+        const midY = (current.y + next.y) / 2;
+
+        ctx.quadraticCurveTo(current.x, current.y, midX, midY);
+    }
+
+    const last = pts[pts.length - 1];
+    ctx.lineTo(last.x, last.y);
 
     ctx.stroke();
     ctx.restore();
@@ -14237,6 +14588,24 @@ templateImg.onload = async function() {
     ctx.setTransform(1, 0, 0, 1, 0, 0);
 
     updatePreviewCanvasFromFinalCanvas();
+    // 显示生成结果区
+const inputPage = document.getElementById("inputPage");
+const resultArea = document.getElementById("resultArea");
+const typeControls = document.getElementById("typeControls");
+
+if (inputPage) inputPage.style.display = "none";
+
+if (resultArea) {
+    resultArea.style.display = "block";
+    resultArea.scrollIntoView({
+        behavior: "smooth",
+        block: "start"
+    });
+}
+
+if (typeControls) {
+    typeControls.style.display = "block";
+}
 
     setTimeout(() => {
 
