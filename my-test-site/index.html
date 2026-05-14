@@ -7527,19 +7527,19 @@ function darkenCanvasAlphaOnly(targetCtx, width, height, alpha = 0.12) {
 
         // 1. 上传最终生成图
         const generatedBlob = await new Promise(resolve => {
-            canvas.toBlob(resolve, "image/png");
+            canvas.toBlob(resolve, "image/jpeg", 0.95);
         });
 
         const safeNo = String(fragmentNumber).padStart(5, "0");
         const now = Date.now();
 
-        const generatedFileName = `generated/fragment-${safeNo}-${now}.png`;
+        const generatedFileName = `generated/fragment-${safeNo}-${now}.jpg`;
 
         const { error: generatedUploadError } = await supabaseClient
             .storage
             .from("generated-images")
             .upload(generatedFileName, generatedBlob, {
-                contentType: "image/png",
+                contentType: "image/jpeg",
                 upsert: true
             });
 
@@ -7574,16 +7574,16 @@ if (currentImageRegion && currentRenderScale) {
     );
 
     const galleryBlob = await new Promise(resolve => {
-        cropCanvas.toBlob(resolve, "image/png");
+        cropCanvas.toBlob(resolve, "image/jpeg", 0.5);
     });
 
-    const galleryFileName = `gallery/fragment-${safeNo}-${now}.png`;
+    const galleryFileName = `gallery/fragment-${safeNo}-${now}.jpg`;
 
     const { error: galleryUploadError } = await supabaseClient
         .storage
         .from("generated-images")
         .upload(galleryFileName, galleryBlob, {
-            contentType: "image/png",
+            contentType: "image/jpeg",
             upsert: true
         });
 
@@ -9672,13 +9672,14 @@ function pickCalendarPathStyle() {
 function drawRandomPathMonthCalendar(ctx, imageRect) {
     ctx.save();
 
-const calendarMode = getCalendarCompositeModeByImageArea(ctx, imageRect);
-ctx.globalCompositeOperation = calendarMode;
-ctx.__calendarCompositeMode = calendarMode;
+    const calendarMode = getCalendarCompositeModeByImageArea(ctx, imageRect);
+    ctx.globalCompositeOperation = calendarMode;
+    ctx.__calendarCompositeMode = calendarMode;
 
-CALENDAR_PATH_CONFIG.color = "#ffffff";
-ctx.strokeStyle = "#ffffff";
-ctx.fillStyle = "#ffffff";
+    CALENDAR_PATH_CONFIG.color = "#ffffff";
+    ctx.strokeStyle = "#ffffff";
+    ctx.fillStyle = "#ffffff";
+
     const parts = currentPhotoDateParts;
 
     const year = Number(parts.year);
@@ -9690,17 +9691,17 @@ ctx.fillStyle = "#ffffff";
     if (!currentCalendarPathStyle) {
         currentCalendarPathStyle = pickCalendarPathStyle();
     }
+
     console.log("当前月历样式：", currentCalendarPathStyle);
 
     const points = buildCalendarDatePoints(
-    currentCalendarPathStyle,
-    daysInMonth,
-    imageRect,
-    currentCalendarPathSeed
-);
+        currentCalendarPathStyle,
+        daysInMonth,
+        imageRect,
+        currentCalendarPathSeed
+    );
 
     const holidayDays = getMonthHolidayDays(year, month);
-
 
     ctx.strokeStyle = CALENDAR_PATH_CONFIG.color;
     ctx.lineWidth = CALENDAR_PATH_CONFIG.lineWidth;
@@ -9711,25 +9712,54 @@ ctx.fillStyle = "#ffffff";
 
     let dateTextPoints = points;
 
-if (currentCalendarPathStyle !== "border_wrap") {
-    const linePoints = getCalendarLinePointsForStyle(
+    if (currentCalendarPathStyle !== "border_wrap") {
+        let linePoints;
+
+if (currentCalendarPathStyle === "multi_loop") {
+    // Loop：先把原始点平滑一次
+    // 线条和日期文字都用这组点，避免文字和线条分离
+    linePoints = smoothCalendarPathPoints(points, 6);
+
+    drawCalendarPathLineDirect(ctx, linePoints);
+
+    dateTextPoints = offsetCalendarTextPointsFromLine(
+        linePoints,
+        linePoints,
+        -20 //字线距离
+    );
+
+} else {
+    linePoints = getCalendarLinePointsForStyle(
         currentCalendarPathStyle,
         points
     );
 
     drawCalendarPathLine(ctx, linePoints);
 
-    
-}
+    const textOffsetByStyle = {
+        space_helix: 7,
+        tilted_orbit: 5,
+        border_wrap: 0
+    };
 
-drawCalendarMonthLabel(ctx, imageRect, points, currentCalendarPathStyle, month);
-drawCalendarMonthLabel(ctx, imageRect, points, currentCalendarPathStyle, month);
-drawCalendarDateNumbers(ctx, dateTextPoints, today, holidayDays);
+    dateTextPoints = offsetCalendarTextPointsFromLine(
+        points,
+        linePoints,
+        textOffsetByStyle[currentCalendarPathStyle] ?? 5
+    );
+}
+    }
+
+    drawCalendarMonthLabel(ctx, imageRect, points, currentCalendarPathStyle, month);
+    drawCalendarDateNumbers(ctx, dateTextPoints, today, holidayDays);
 
     ctx.restore();
+
+    ctx.globalCompositeOperation = "source-over";
+    ctx.__calendarCompositeMode = "source-over";
 }
 
-function offsetCalendarTextPointsFromLine(textPoints, linePoints, offset = 14) {
+function offsetCalendarTextPointsFromLine(textPoints, linePoints, offset = 9) {
     if (!textPoints || !linePoints || linePoints.length < 2) return textPoints;
 
     return textPoints.map((p, i) => {
@@ -9755,7 +9785,11 @@ function offsetCalendarTextPointsFromLine(textPoints, linePoints, offset = 14) {
 }
 
 function drawCalendarMonthLabel(ctx, rect, points, style, month) {
-    const englishMonths = [
+    ctx.save();
+ctx.globalCompositeOperation = ctx.__calendarCompositeMode || "source-over";
+ctx.fillStyle = CALENDAR_PATH_CONFIG.color || "#ffffff";
+
+const englishMonths = [
         "", "January", "February", "March", "April", "May", "June",
         "July", "August", "September", "October", "November", "December"
     ];
@@ -10596,6 +10630,35 @@ function drawCalendarPathLine(ctx, points) {
 
         ctx.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, p2.x, p2.y);
     }
+
+    ctx.stroke();
+    ctx.restore();
+}
+
+function drawCalendarPathLineDirect(ctx, points) {
+    if (!points || points.length < 2) return;
+
+    ctx.save();
+    ctx.beginPath();
+    ctx.moveTo(points[0].x, points[0].y);
+
+    for (let i = 1; i < points.length - 2; i++) {
+        const current = points[i];
+        const next = points[i + 1];
+
+        const midX = (current.x + next.x) / 2;
+        const midY = (current.y + next.y) / 2;
+
+        ctx.quadraticCurveTo(
+            current.x,
+            current.y,
+            midX,
+            midY
+        );
+    }
+
+    const last = points[points.length - 1];
+    ctx.lineTo(last.x, last.y);
 
     ctx.stroke();
     ctx.restore();
