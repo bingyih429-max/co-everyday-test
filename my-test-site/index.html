@@ -472,6 +472,7 @@ body {
         }
 
         #finalCanvas,
+#previewCanvas,
 #finalImage {
     display: block;
     width: auto;
@@ -479,6 +480,15 @@ body {
     max-height: 68vh;
     height: auto;
     object-fit: contain;
+    margin: 0 auto;
+}
+
+#previewCanvas {
+    display: block;
+    width: min(360px, calc(100vw - 48px));
+    height: auto;
+    max-width: none;
+    max-height: none;
     margin: 0 auto;
 }
 
@@ -1624,45 +1634,56 @@ function updatePreviewCanvasFromFinalCanvas() {
     const sourceCanvas = document.getElementById("finalCanvas");
     const viewCanvas = document.getElementById("previewCanvas");
     const finalImg = document.getElementById("finalImage");
+    const wrapper = document.getElementById("posterWrapper");
 
-    if (!sourceCanvas || !viewCanvas || !currentNewLayout) return;
+    if (!sourceCanvas || !viewCanvas) return;
 
-    const viewW = currentNewLayout.baseW;
-    const viewH = currentNewLayout.baseH;
+    const viewW = currentNewLayout?.baseW || Math.round(sourceCanvas.width / currentRenderScale);
+    const viewH = currentNewLayout?.baseH || Math.round(sourceCanvas.height / currentRenderScale);
+
+    if (!viewW || !viewH) {
+        console.warn("预览尺寸无效", { viewW, viewH, sourceW: sourceCanvas.width, sourceH: sourceCanvas.height });
+        return;
+    }
 
     viewCanvas.width = viewW;
     viewCanvas.height = viewH;
 
     const vctx = viewCanvas.getContext("2d");
+    vctx.setTransform(1, 0, 0, 1, 0, 0);
     vctx.clearRect(0, 0, viewW, viewH);
     vctx.imageSmoothingEnabled = true;
     vctx.imageSmoothingQuality = "high";
 
     vctx.drawImage(
         sourceCanvas,
-        0,
-        0,
-        sourceCanvas.width,
-        sourceCanvas.height,
-        0,
-        0,
-        viewW,
-        viewH
+        0, 0, sourceCanvas.width, sourceCanvas.height,
+        0, 0, viewW, viewH
     );
 
-    // 显示低清预览层
-    viewCanvas.style.display = "block";
-    viewCanvas.style.width = "360px";
-    viewCanvas.style.maxWidth = "calc(100vw - 48px)";
-    viewCanvas.style.height = "auto";
-    viewCanvas.style.maxHeight = "68vh";
+    if (wrapper) {
+        wrapper.style.display = "block";
+        wrapper.style.width = "fit-content";
+        wrapper.style.height = "auto";
+    }
 
-    // 隐藏高清层和旧图片层
+    viewCanvas.style.display = "block";
+    viewCanvas.style.width = "min(360px, calc(100vw - 48px))";
+    viewCanvas.style.height = "auto";
+    viewCanvas.style.maxWidth = "none";
+    viewCanvas.style.maxHeight = "none";
+
     sourceCanvas.style.display = "none";
+
     if (finalImg) {
         finalImg.style.display = "none";
         finalImg.removeAttribute("src");
     }
+
+    console.log("预览已更新", {
+        viewSize: [viewCanvas.width, viewCanvas.height],
+        css: [viewCanvas.style.width, viewCanvas.style.height]
+    });
 }
 
 
@@ -9264,6 +9285,7 @@ function drawRandomPathMonthCalendar(ctx, imageRect) {
 
 const calendarMode = getCalendarCompositeModeByImageArea(ctx, imageRect);
 ctx.globalCompositeOperation = calendarMode;
+ctx.__calendarCompositeMode = calendarMode;
 
 CALENDAR_PATH_CONFIG.color = "#ffffff";
 ctx.strokeStyle = "#ffffff";
@@ -10239,30 +10261,33 @@ function drawCalendarDateNumbers(ctx, points, today, holidayDays) {
         if (day === today) {
     ctx.save();
 
-    // 圆形继承外层月历的白色 / 差值模式
     ctx.fillStyle = CALENDAR_PATH_CONFIG.color || "#ffffff";
-
     ctx.beginPath();
-    ctx.arc(
-        p.x,
-        p.y,
-        CALENDAR_PATH_CONFIG.todayCircleR,
-        0,
-        Math.PI * 2
-    );
+    ctx.arc(p.x, p.y, CALENDAR_PATH_CONFIG.todayCircleR, 0, Math.PI * 2);
     ctx.fill();
 
-    // 关键：把数字从圆里挖空，露出底图
-    ctx.globalCompositeOperation = "destination-out";
-    ctx.fillStyle = "#000000";
-    ctx.font = '700 16px "ABC Favorit Expanded", sans-serif';
+    ctx.globalCompositeOperation = "source-over";
+
+    const calendarMode = ctx.__calendarCompositeMode || "source-over";
+
+    const todayTextColor =
+        calendarMode === "difference"
+            ? (currentEffectPalette?.top || "#ffffff")
+            : colorToCss(
+                currentEffectPalette?.processed?.dark ||
+                currentEffectPalette?.raw?.dark ||
+                { r: 40, g: 40, b: 40 }
+            );
+
+    ctx.fillStyle = todayTextColor;
+    ctx.font = `700 ${CALENDAR_PATH_CONFIG.fontSize}px "ABC Favorit Expanded", sans-serif`;
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     ctx.fillText(label, p.x, p.y + 1);
 
     ctx.restore();
-
     return;
+
 
         } else {
             ctx.fillStyle = CALENDAR_PATH_CONFIG.color;
