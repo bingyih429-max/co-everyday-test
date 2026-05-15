@@ -997,23 +997,32 @@ body.is-result-page .type-control-row label {
 }
 
 @media (max-width: 640px) {
+    body.is-result-page {
+        overflow-y: auto !important;
+    }
+
     body.is-result-page .poster-container {
         position: sticky;
         top: 0;
         z-index: 20;
+        margin: 0 auto 12px;
+        padding: 12px 0;
         background: rgba(255,255,255,0.96);
-        padding: 10px 0 12px;
+        display: flex;
+        justify-content: center;
     }
 
     body.is-result-page #previewCanvas {
         width: auto !important;
-        max-width: calc(100vw - 28px) !important;
-        max-height: 68dvh !important;
+        max-width: calc(100vw - 32px) !important;
+        max-height: 62dvh !important;
         height: auto !important;
+        transform: none !important;
+    }
 
-        transform: scale(var(--mobile-preview-scale, 1));
-        transform-origin: top center;
-        transition: transform 0.05s linear;
+    body.is-result-page .type-controls {
+        position: static !important;
+        transform: none !important;
     }
 }
        
@@ -14934,7 +14943,6 @@ updateTypeControlLabels();
     updatePreviewCanvasFromFinalCanvas();
 
 document.body.classList.add("is-result-page");
-updateMobilePreviewScale();
 
 if (inputPage) {
     inputPage.style.display = "none";
@@ -15089,20 +15097,6 @@ function setupMobilePreviewShrink() {
 
 setupMobilePreviewShrink();
 
-function updateMobilePreviewScale() {
-    if (window.innerWidth > 640) return;
-    if (!document.body.classList.contains("is-result-page")) return;
-
-    const maxScroll = 260;
-    const progress = Math.min(1, Math.max(0, window.scrollY / maxScroll));
-
-    const scale = 1 - progress * 0.38;
-
-    document.documentElement.style.setProperty(
-        "--mobile-preview-scale",
-        scale.toFixed(3)
-    );
-}
 
 window.addEventListener("scroll", updateMobilePreviewScale, { passive: true });
 window.addEventListener("resize", updateMobilePreviewScale);
