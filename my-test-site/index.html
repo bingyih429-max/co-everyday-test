@@ -609,326 +609,393 @@ body {
             border-color: #000;
         }
 
-        .type-controls {
-    position: fixed;
-    left: 50%;
-    bottom: 28px;
-    transform: translateX(-50%);
-
-    width: min(86vw, 620px);
-    max-height: 58vh;
-    overflow-y: auto;
-
-    z-index: 9998;
-
-    margin: 0;
-    padding: 48px 22px 22px;
-    box-sizing: border-box;
-
-    background: rgba(255,255,255,0.58);
-    backdrop-filter: blur(18px);
-    -webkit-backdrop-filter: blur(18px);
-
-    border-radius: 22px;
-    box-shadow: 0 16px 48px rgba(0,0,0,0.22);
-    border: 1px solid rgba(255,255,255,0.7);
-
-    text-align: left;
-}
-
-.type-controls-title {
-    font-size: 14px;
-    font-weight: 700;
-    margin-bottom: 14px;
-    color: #111;
-}
-
-.type-control-row {
-    margin-bottom: 12px;
-}
-
-.type-control-row label {
-    display: block;
-    font-size: 13px;
-    margin-bottom: 6px;
-    color: #333;
-}
-
-.type-control-row input[type="text"],
-.type-control-row select {
-    width: 100%;
-    box-sizing: border-box;
-    padding: 10px 12px;
-    border: 1px solid #ddd;
-    border-radius: 8px;
-    font-size: 14px;
-    background: #fff;
-}
-
-.type-control-row input[type="range"] {
-    width: 100%;
-}
-
-.type-controls-toggle {
-    position: absolute;
-    left: 50%;
-    top: 20px;
-    transform: translateX(-50%);
-    width: 48px;
-    height: 28px;
-    border: none;
-    background: transparent;
-    color: transparent;
-    cursor: pointer;
-}
-
-.type-controls-toggle::before {
-    content: '';
-    display: block;
-    width: 22px;
-    height: 22px;
-    margin: 0 auto;
-    border-left: 5px solid rgba(0,0,0,0.4);
-    border-top: 5px solid rgba(0,0,0,0.4);
-    transform: rotate(45deg);
-}
-
-.type-controls.collapsed {
-    height: 52px;
-    padding: 8px 22px;
-    overflow: hidden;
-}
-
-.type-controls.collapsed .type-controls-title,
-.type-controls.collapsed .type-control-row {
-    display: none;
-}
-
-.type-controls.collapsed .type-controls-toggle::before {
-    transform: rotate(225deg);
-}
-
-.image-adjust-hint{
-    margin: 0 0 14px;
-    font-size: 12px;
-    line-height: 1.5;
-    color: rgba(0,0,0,0.45);
-    letter-spacing: 0.02em;
-    text-align: center;
-}
-
-.type-controls-hint {
-    text-align: center;
-    font-size: 12px;
-    color: rgba(0,0,0,0.45);
-
-    margin-top: 2px;    /* ← 更贴近箭头 */
-    margin-bottom: 18px;/* ← 和下面内容拉开 */
-}
-
-.type-controls.collapsed .type-controls-toggle {
-    top: 14px;   /* 收起时稍微往上收一点 */
-}
-
-.type-controls.collapsed .type-controls-hint {
-    margin-top: 6px;
-    margin-bottom: 6px;
-}
-
-        @media (max-width: 640px) {
-            body {
-
-    margin: 0;
-
-    padding: 0;
-
-    background: #f5f5f5;
-
-    display: flex;
-
-    justify-content: center;
-
-    overflow-x: hidden;
-
-    min-height: 100dvh;
-}
-
-            .container {
-
-    width: 100%;
-    max-width: 520px;
-
-    min-height: 100dvh;
-
-    margin: 0 auto;
-
-    border-radius: 0;
-
-    box-shadow: none;
-
-    padding: 18px 24px 120px;
-
-    box-sizing: border-box;
-
-    overflow-x: hidden;
-
-    position: relative;
-
-    background: #fff;
-}
-
-            header {
-                margin-bottom: 22px;
-            }
-
-            h1 {
-                font-size: 24px;
-            }
-
-            .subtitle {
-                font-size: 12px;
-                letter-spacing: 1.2px;
-            }
-
-            .upload-area {
-                padding: 28px 16px;
-            }
-
-            .category-group {
-                grid-template-columns: 1fr;
-            }
-
-            .action-row {
-    position: static;
-    background: transparent;
-    padding: 16px 0 0;
-    margin-top: 18px;
-}
-
-            .action-btn {
-                width: 100%;
-                min-width: 0;
-            }
-
-            .type-controls {
-                padding: 14px 12px;
-                width: calc(100vw - 64px);
-        max-width: 420px;
-        bottom: 72px;
-            }
-
-        }
-
-        *,
-*::before,
-*::after {
-    box-sizing: border-box;
-}
-
-html,
-body {
-    width: 100%;
-    max-width: 100%;
-    margin: 0;
-    padding: 0;
-    overflow-x: hidden !important;
-}
-
-body {
-    position: relative;
-    touch-action: auto;
-}
-
-.classification-mode-row,
-.category-group {
-    width: 100%;
-    max-width: 100%;
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-}
-
-.mode-btn,
-.cat-btn,
-.action-btn {
-    min-width: 0;
-    max-width: 100%;
-}
-
-@media (max-width: 640px) {
-    html,
+        /* =========================
+   电脑端：上传页
+   ========================= */
+@media (min-width: 641px) {
     body {
-        width: 100%;
-        max-width: 100%;
         margin: 0;
-        padding: 0;
-        overflow-x: hidden !important;
-    }
-
-    body {
-        background: #fff;
-        touch-action: auto;
+        padding: 32px 20px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        background: #f5f5f5;
+        overflow-x: hidden;
+        overflow-y: auto;
     }
 
     .container {
-        width: 100% !important;
-        max-width: 520px !important;
-        min-height: 100dvh;
-        margin: 0 auto !important;
-        padding: 18px 24px 120px !important;
-        border-radius: 0;
-        box-shadow: none;
-        box-sizing: border-box;
-        overflow-x: hidden;
+        width: 100%;
+        max-width: 600px;
+        min-height: auto;
+        padding: 30px;
         background: #fff;
+        border-radius: 12px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.05);
+    }
+}
+
+/* =========================
+   电脑端：生成页
+   ========================= */
+@media (min-width: 641px) {
+    body.is-result-page {
+        padding: 0;
+        height: 100vh;
+        overflow: hidden;
+        background: #f5f5f5;
     }
 
-    #finalCanvas,
-    #finalImage {
-        max-width: calc(100vw - 48px) !important;
+    body.is-result-page .container {
+        width: 100vw;
+        max-width: none;
+        height: 100vh;
+        padding: 18px 40px 22px;
+        background: transparent;
+        box-shadow: none;
+        border-radius: 0;
+        overflow: hidden;
+    }
+
+    body.is-result-page header {
+        height: 96px;
+        margin: 0;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        overflow: visible;
+    }
+
+    body.is-result-page .main-title-logo {
+        width: 120px;
+        margin: 0 0 8px;
+    }
+
+    body.is-result-page .subtitle {
+        margin: 0;
+        font-size: 12px;
+    }
+
+    body.is-result-page #resultArea.result-layout-ready {
+        width: 100%;
+        height: calc(100vh - 136px);
+        margin: 0;
+        padding: 0;
+
+        display: grid !important;
+        grid-template-columns: 460px 420px;
+        column-gap: 72px;
+        justify-content: center;
+        align-items: center;
+
+        overflow: hidden;
+        text-align: left;
+    }
+
+    body.is-result-page #resultArea > label {
+        display: none;
+    }
+
+    body.is-result-page .poster-container {
+        width: 460px;
+        margin: 0;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        box-shadow: 0 18px 48px rgba(0,0,0,0.14);
+    }
+
+    body.is-result-page #previewCanvas {
+        width: auto !important;
+        max-width: 460px !important;
+        max-height: calc(100vh - 168px) !important;
         height: auto !important;
     }
 
-    .type-controls {
-        left: 50% !important;
-        width: calc(100vw - 48px) !important;
-        max-width: calc(100vw - 48px) !important;
-        transform: translateX(-50%) !important;
+    body.is-result-page .right-panel {
+        width: 420px;
+        max-height: calc(100vh - 168px);
+        background: #fff;
+        border-radius: 22px;
+        box-shadow: 0 22px 52px rgba(0,0,0,0.12);
+        overflow: hidden;
+    }
+
+    body.is-result-page .type-controls {
+        position: static !important;
+        left: auto !important;
+        bottom: auto !important;
+        transform: none !important;
+
+        width: 100% !important;
+        max-width: none !important;
+        max-height: none !important;
+
+        margin: 0;
+        padding: 24px 28px 12px;
+        background: transparent;
+        border: none;
+        border-radius: 0;
+        box-shadow: none;
+        overflow: visible;
+        box-sizing: border-box;
+    }
+
+    body.is-result-page .type-controls-toggle,
+    body.is-result-page .type-controls-hint {
+        display: none !important;
+    }
+
+    body.is-result-page .action-row {
+        width: 100%;
+        margin: 0;
+        padding: 12px 28px 26px;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        background: transparent;
+        box-sizing: border-box;
+    }
+
+    body.is-result-page .action-btn {
+        width: 100%;
+        height: 54px;
+        min-width: 0;
+        border-radius: 12px;
+    }
+
+    body.is-result-page .image-adjust-hint {
+        position: fixed;
+        left: 50%;
+        bottom: 12px;
+        transform: translateX(-50%);
+        width: 460px;
+        margin: 0;
+        text-align: center;
+        font-size: 12px;
+        color: rgba(0,0,0,0.42);
     }
 }
 
-/* 分类按钮：默认未选中 */
-.ritual-card {
-    background: #fff !important;
-    color: #111 !important;
-    border: 1.2px solid rgba(0,0,0,0.38) !important;
+/* =========================
+   调整面板内部统一宽度
+   ========================= */
+
+body.is-result-page .type-control-row {
+    width: 100%;
 }
 
-/* 未选中标题 */
-.ritual-card .ritual-card-title {
-    color: #111 !important;
+body.is-result-page .type-control-row select {
+    width: 100% !important;
+    min-width: 100%;
+    height: 54px;
+
+    padding: 0 18px;
+
+    border-radius: 12px;
+    border: 1px solid rgba(0,0,0,0.16);
+
+    background: #fff;
+
+    font-size: 16px;
+    font-weight: 500;
+
+    box-sizing: border-box;
+
+    appearance: none;
+    -webkit-appearance: none;
+
+    background-image:
+        linear-gradient(45deg, transparent 50%, #111 50%),
+        linear-gradient(135deg, #111 50%, transparent 50%);
+    background-position:
+        calc(100% - 22px) calc(50% - 2px),
+        calc(100% - 16px) calc(50% - 2px);
+    background-size: 6px 6px;
+    background-repeat: no-repeat;
 }
 
-/* 未选中说明 */
-.ritual-card .ritual-card-desc {
-    color: rgba(0,0,0,0.48) !important;
+/* 滑杆区域撑满 */
+body.is-result-page .type-control-row input[type="range"] {
+    width: 100% !important;
+    display: block;
+    margin: 0;
 }
 
-/* 当前选中 */
-.ritual-card.active {
-    background: #000 !important;
-    color: #fff !important;
-    border-color: #000 !important;
+/* 滑杆轨道 */
+body.is-result-page .type-control-row input[type="range"]::-webkit-slider-runnable-track {
+    height: 6px;
+    border-radius: 999px;
 }
 
-/* 当前选中标题 */
-.ritual-card.active .ritual-card-title {
-    color: #fff !important;
+/* 滑杆按钮 */
+body.is-result-page .type-control-row input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    margin-top: -9px;
+    cursor: pointer;
 }
 
-/* 当前选中说明 */
-.ritual-card.active .ritual-card-desc {
-    color: rgba(255,255,255,0.68) !important;
+/* label 和滑杆间距统一 */
+body.is-result-page .type-control-row label {
+    display: block;
+    margin-bottom: 12px;
 }
 
+/* =========================
+   手机端：预览固定在上方，控制区下滑出现
+   ========================= */
+@media (max-width: 640px) {
+    body.is-result-page {
+        overflow-y: auto !important;
+        background: #fff;
+    }
+
+    body.is-result-page .container {
+        padding: 14px 16px 40px !important;
+        min-height: 100dvh;
+        overflow: visible !important;
+    }
+
+    body.is-result-page #resultArea.result-layout-ready {
+        display: flex !important;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 14px;
+        margin-top: 10px;
+        overflow: visible !important;
+    }
+
+    body.is-result-page .poster-container {
+        position: sticky;
+        top: 0;
+        z-index: 20;
+
+        margin: 0 auto 10px;
+        padding: 10px 0 12px;
+
+        width: 100%;
+        max-width: 100%;
+        display: flex;
+        justify-content: center;
+
+        background: rgba(255,255,255,0.96);
+        box-shadow: 0 8px 24px rgba(0,0,0,0.08);
+    }
+
+    body.is-result-page #previewCanvas {
+        width: auto !important;
+        max-width: calc(100vw - 48px) !important;
+        max-height: 56dvh !important;
+        height: auto !important;
+        transition: max-height 0.28s ease, max-width 0.28s ease;
+    }
+
+    /* 滑到控制面板时，顶部预览自动缩小 */
+    body.is-result-page.mobile-controls-active #previewCanvas {
+        max-height: 34dvh !important;
+        max-width: calc(100vw - 88px) !important;
+    }
+
+    body.is-result-page .image-adjust-hint {
+        position: static !important;
+        transform: none !important;
+        width: 100%;
+        margin: 0 0 8px;
+        text-align: center;
+        font-size: 12px;
+        color: rgba(0,0,0,0.42);
+    }
+
+    body.is-result-page .right-panel {
+        width: 100% !important;
+        max-width: none !important;
+        margin: 0;
+        padding: 0;
+        background: transparent;
+        box-shadow: none;
+        border-radius: 0;
+        overflow: visible;
+    }
+
+    body.is-result-page .type-controls {
+        position: static !important;
+        left: auto !important;
+        bottom: auto !important;
+        transform: none !important;
+
+        width: 100% !important;
+        max-width: none !important;
+        max-height: none !important;
+
+        margin: 0;
+        padding: 20px 18px;
+        box-sizing: border-box;
+
+        background: #fff;
+        border: 1px solid rgba(0,0,0,0.08);
+        border-radius: 20px;
+        box-shadow: 0 10px 28px rgba(0,0,0,0.08);
+
+        overflow: visible !important;
+    }
+
+    body.is-result-page .type-controls-toggle,
+    body.is-result-page .type-controls-hint {
+        display: none !important;
+    }
+
+    body.is-result-page .action-row {
+        margin-top: 14px;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+    }
+}
+
+.mobile-crop-mode-btn {
+    display: none;
+}
+
+@media (max-width: 640px) {
+    body.is-result-page .mobile-crop-mode-btn {
+        display: block;
+        width: 100%;
+        height: 46px;
+        margin: 0 0 12px;
+        border-radius: 999px;
+        border: 1px solid rgba(0,0,0,0.16);
+        background: #fff;
+        color: #111;
+        font-size: 14px;
+        font-weight: 700;
+    }
+
+    body.is-result-page.mobile-crop-editing {
+        overflow: hidden !important;
+        touch-action: none;
+    }
+
+    body.is-result-page.mobile-crop-editing .mobile-crop-mode-btn {
+        background: #000;
+        color: #fff;
+        border-color: #000;
+    }
+
+    body.is-result-page:not(.mobile-crop-editing) #previewCanvas {
+        touch-action: pan-y !important;
+        cursor: default !important;
+    }
+
+    body.is-result-page.mobile-crop-editing #previewCanvas {
+        touch-action: none !important;
+        cursor: grab !important;
+    }
+}
+       
     </style>
 </head>
 <body>
@@ -1022,42 +1089,42 @@ body {
     </div>
 
     <p class="image-adjust-hint">
-可拖动、缩放中间图片区域，调整画面位置
+点击进入调整模式，可拖动、缩放中间图片区域
 </p>
 
 
     <!-- 新增：文字生成控制区 -->
+    <div id="rightPanel" class="right-panel">
+
     <div id="typeControls" class="type-controls floating-type-controls" style="display:none;">
-    <button id="typeControlsToggle" class="type-controls-toggle"></button>
-<div id="typeControlsHint" class="type-controls-hint">
-    点击此处收起面板
-</div>
-    <div class="type-controls-title">图像个性化调整</div>
-    
-    <div class="type-control-row">
-    <label for="calendarStyleSelect">月历排版 Calendar Style</label>
-    <select id="calendarStyleSelect">
-        <option value="space_helix">Drift</option>
-        <option value="tilted_orbit">Orbit</option>
-        <option value="border_wrap">Frame</option>
-        <option value="multi_loop">Loop</option>
-    </select>
-</div>
+        <button id="typeControlsToggle" class="type-controls-toggle"></button>
+        <div id="typeControlsHint" class="type-controls-hint">
+            点击此处收起面板
+        </div>
 
+        <div class="type-controls-title">图像个性化调整</div>
 
-<div class="type-control-row">
-    <button id="rerollCalendarBtn" type="button" class="action-btn" style="width:100%;">
-        重新随机月历造型
-    </button>
-</div>
+        <div class="type-control-row">
+            <label for="calendarStyleSelect">月历排版 Calendar Style</label>
+            <select id="calendarStyleSelect">
+                <option value="space_helix">Drift</option>
+                <option value="tilted_orbit">Orbit</option>
+                <option value="border_wrap">Frame</option>
+                <option value="multi_loop">Loop</option>
+            </select>
+        </div>
 
+        <div class="type-control-row">
+            <button id="rerollCalendarBtn" type="button" class="action-btn" style="width:100%;">
+                重新随机月历造型
+            </button>
+        </div>
 
-<div class="type-control-row">
-    <button id="rerollEffectPaletteBtn" type="button" class="action-btn" style="width:100%;">
-        重新取色
-    </button>
-</div>
-
+        <div class="type-control-row">
+            <button id="rerollEffectPaletteBtn" type="button" class="action-btn" style="width:100%;">
+                重新取色
+            </button>
+        </div>
 
         <div class="type-control-row">
             <label for="typeSliderA" id="typeSliderALabel">参数 A</label>
@@ -1080,7 +1147,9 @@ body {
         <button id="saveImageBtn" class="action-btn">保存图片</button>
         <button id="reloadBtn" class="action-btn">重新制作</button>
     </div>
+
 </div>
+
     </div>
 
     <div id="imageModal" class="image-modal">
@@ -1429,65 +1498,36 @@ function hideGenerateWaiting() {
         const modalImage = document.getElementById('modalImage');
         const saveImageBtn = document.getElementById('saveImageBtn');
         const reloadBtn = document.getElementById('reloadBtn');
-        reloadBtn.onclick = function () {
 
-    console.log("点击重新制作");
+reloadBtn.onclick = function () {
 
-    // ========= 清空状态 =========
-    uploadedImage = null;
-    currentOriginalFile = null;
-    currentFragmentNumber = null;
-    currentImageRegion = null;
-    currentEffectPalette = null;
-    currentPosterRects = null;
+    document.body.classList.remove("mobile-controls-active");
 
-    currentCropOffset = { x: 0.5, y: 0.5 };
-    currentCropZoom = 1;
+    isMobileCropEditing = false;
+    document.body.classList.remove("mobile-crop-editing");
 
-    // ========= 清空上传 =========
-    fileInput.value = "";
+    const mobileCropModeBtn = document.getElementById("mobileCropModeBtn");
 
-    imagePreview.removeAttribute("src");
-    imagePreview.style.display = "none";
-
-    if (uploadPlaceholder) {
-        uploadPlaceholder.style.display = "flex";
+    if (mobileCropModeBtn) {
+        mobileCropModeBtn.textContent = "调整图片位置";
     }
 
-    // ========= 清空文字 =========
-    document.getElementById("locationInput").value = "";
-    document.getElementById("userText").value = "";
+    document.body.classList.remove("is-result-page");
 
     // ========= 隐藏结果 =========
-    document.getElementById("resultArea").style.display = "none";
+    const resultArea = document.getElementById("resultArea");
+
+    resultArea.style.display = "none";
+    resultArea.classList.remove("result-layout-ready");
+
     document.getElementById("typeControls").style.display = "none";
 
     // ========= 显示上传页 =========
     document.getElementById("inputPage").style.display = "block";
 
-    // ========= 清空画布 =========
-    previewCanvas.style.display = "none";
-    finalCanvas.style.display = "none";
-
-    const pctx = previewCanvas.getContext("2d");
-    pctx.clearRect(0, 0, previewCanvas.width, previewCanvas.height);
-
-    const fctx = finalCanvas.getContext("2d");
-    fctx.clearRect(0, 0, finalCanvas.width, finalCanvas.height);
-
-    // ========= 清空旧图 =========
-    if (finalImage) {
-        finalImage.style.display = "none";
-        finalImage.removeAttribute("src");
-    }
-
-    // ========= 禁止直接生成 =========
-    generateBtn.disabled = true;
-
-    // ========= 回顶部 =========
     window.scrollTo({
         top: 0,
-        behavior: "smooth"
+        behavior: "instant"
     });
 };
         
@@ -1678,7 +1718,9 @@ function updatePreviewCanvasFromFinalCanvas() {
     }
 
     viewCanvas.style.display = "block";
-    viewCanvas.style.width = "min(360px, calc(100vw - 48px))";
+    viewCanvas.style.width = "";
+viewCanvas.style.maxWidth = "";
+viewCanvas.style.maxHeight = "";
     viewCanvas.style.height = "auto";
     viewCanvas.style.maxWidth = "none";
     viewCanvas.style.maxHeight = "none";
@@ -1702,9 +1744,13 @@ function bindCropDragControl() {
     if (!imgEl) return;
 
     imgEl.style.cursor = "grab";
-    imgEl.style.touchAction = "none";
+    imgEl.style.touchAction = window.innerWidth <= 640 ? "pan-y" : "none";
 
     imgEl.onwheel = function(e) {
+    if (window.innerWidth <= 640 && !isMobileCropEditing) {
+        return;
+    }
+
     e.preventDefault();
 
     const delta = e.deltaY > 0 ? -0.08 : 0.08;
@@ -1717,7 +1763,11 @@ function bindCropDragControl() {
 };
 
     imgEl.onpointerdown = function(e) {
-        if (!currentImageRegion) return;
+    if (!currentImageRegion) return;
+
+    if (window.innerWidth <= 640 && !isMobileCropEditing) {
+        return;
+    }
 
         isDraggingCrop = true;
         lastDragPoint = { x: e.clientX, y: e.clientY };
@@ -1761,6 +1811,26 @@ function bindCropDragControl() {
 
     imgEl.onpointercancel = imgEl.onpointerup;
 }
+
+let isMobileCropEditing = false;
+
+function setupMobileCropMode() {
+    const btn = document.getElementById("mobileCropModeBtn");
+    const canvas = document.getElementById("previewCanvas");
+    if (!btn || !canvas) return;
+
+    btn.addEventListener("click", function () {
+        isMobileCropEditing = !isMobileCropEditing;
+
+        document.body.classList.toggle("mobile-crop-editing", isMobileCropEditing);
+
+        btn.textContent = isMobileCropEditing
+            ? "完成图片调整"
+            : "调整图片位置";
+    });
+}
+
+setupMobileCropMode();
 
 const typeSliderALabel = document.getElementById('typeSliderALabel');
 const typeSliderBLabel = document.getElementById('typeSliderBLabel');
@@ -14729,14 +14799,18 @@ templateImg.onload = async function() {
     updatePreviewCanvasFromFinalCanvas();
     // 显示生成结果区
 const inputPage = document.getElementById("inputPage");
-const resultArea = document.getElementById("resultArea");
 const typeControls = document.getElementById("typeControls");
 
 if (inputPage) inputPage.style.display = "none";
 
-if (resultArea) {
-    resultArea.style.display = "block";
-    resultArea.scrollIntoView({
+if (document.getElementById("resultArea")) {
+
+    document.getElementById("resultArea").style.display = "";
+
+    document.getElementById("resultArea")
+        .classList.add("result-layout-ready");
+
+    document.getElementById("resultArea").scrollIntoView({
         behavior: "smooth",
         block: "start"
     });
@@ -14837,8 +14911,22 @@ updateTypeControlLabels();
 
     updatePreviewCanvasFromFinalCanvas();
 
-    document.getElementById('inputPage').style.display = 'none';
-    document.getElementById('resultArea').style.display = 'block';
+document.body.classList.add("is-result-page");
+
+if (inputPage) {
+    inputPage.style.display = "none";
+}
+
+if (resultArea) {
+    resultArea.style.display = "grid";
+    resultArea.classList.add("result-layout-ready");
+}
+
+if (typeControls) {
+    typeControls.style.display = "block";
+}
+
+
     loadingMsg.style.display = 'none';
     window.scrollTo(0, 0);
     console.timeEnd("整次生成耗时");
@@ -14955,6 +15043,28 @@ window.addEventListener('load', () => {
     }, 80);
 
 });
+
+function setupMobilePreviewShrink() {
+    const typeControls = document.getElementById("typeControls");
+    if (!typeControls) return;
+
+    const observer = new IntersectionObserver((entries) => {
+        const entry = entries[0];
+
+        if (window.innerWidth <= 640 && document.body.classList.contains("is-result-page")) {
+            document.body.classList.toggle(
+                "mobile-controls-active",
+                entry.isIntersecting
+            );
+        }
+    }, {
+        threshold: 0.15
+    });
+
+    observer.observe(typeControls);
+}
+
+setupMobilePreviewShrink();
 
     </script>
 </body>
