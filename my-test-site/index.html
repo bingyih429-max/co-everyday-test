@@ -14907,7 +14907,8 @@ if (currentEffectType === "pattern_fill") {
     typeSliderALabel.textContent = "区域范围 Area Range";
     typeSliderBLabel.textContent = "图案密度 Pattern Density";
     typeSliderCLabel.textContent = "填充对象 Fill Target";
-    return;
+} else {
+    updateTypeControlLabels();
 }
 
 if (currentEffectType === "pixel_stretch") {
@@ -14916,7 +14917,6 @@ if (currentEffectType === "pixel_stretch") {
     typeSliderC.value = 100; // 色彩强度
 }
 
-updateTypeControlLabels();
 
 
     
