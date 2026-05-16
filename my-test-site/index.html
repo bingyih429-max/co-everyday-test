@@ -4203,14 +4203,44 @@ function renderPatternFillCanvas(sourceCanvas) {
     outCanvas.height = h;
 
     const outCtx = outCanvas.getContext("2d", { willReadFrequently: true });
-    outCtx.drawImage(sourceCanvas, 0, 0);
 
     const areaRange = Number(typeSliderA.value) / 100;   // 区域范围
     const density = Number(typeSliderB.value) / 100;     // 图案密度
-    const targetMix = Number(typeSliderC.value) / 100;   // 填充对象：背景 ↔ 主体
+    const saturation = Number(typeSliderC.value) / 100;  // 饱和度
 
+    const analysis = pfCreateFullImageAnalysisData(sourceCanvas, 240);
+    const k = Math.round(4 + areaRange * 5); // 4–9 个区域
+
+    const clustered = pfCreateKMeansClusterMap(analysis, k);
+
+    const clusterMapBig = pfUpscaleClusterMap(
+        clustered.clusterMap,
+        analysis.w,
+        analysis.h,
+        w,
+        h
+    );
+
+    outCtx.clearRect(0, 0, w, h);
+    outCtx.drawImage(sourceCanvas, 0, 0, w, h);
+
+    const img = outCtx.getImageData(0, 0, w, h);
+    const data = img.data;
+
+    pfDrawFullImageSegmentedPatternFill(
+        data,
+        clusterMapBig,
+        clustered.clusters,
+        w,
+        h,
+        density,
+        saturation
+    );
+
+    outCtx.putImageData(img, 0, 0);
+
+    // 用分区色板更新上下色块
     const palette = pfExtractPatternPalette(sourceCanvas);
-
     const lighterColor = getRgbLuma(palette.fill) >= getRgbLuma(palette.pattern)
         ? palette.fill
         : palette.pattern;
@@ -4229,45 +4259,299 @@ function renderPatternFillCanvas(sourceCanvas) {
         }
     };
 
-    const analysis = pfCreateAnalysisCanvas(sourceCanvas, 220);
-    const cluster = pfCreateSimpleColorCluster(analysis.canvas, 4 + Math.round(areaRange * 3));
-    const subjectMaskSmall = pfCreateCenterSubjectMask(cluster, analysis.canvas.width, analysis.canvas.height);
-    const subjectMask = pfUpscaleMask(
-        subjectMaskSmall,
-        analysis.canvas.width,
-        analysis.canvas.height,
-        w,
-        h
-    );
+    return outCanvas;
+}
 
-    const targetMask = pfBuildTargetMask(subjectMask, w, h, targetMix);
+function pfCreateFullImageAnalysisData(sourceCanvas, targetSize = 240) {
+    const sw = sourceCanvas.width;
+    const sh = sourceCanvas.height;
 
-    const img = outCtx.getImageData(0, 0, w, h);
+    const scale = targetSize / Math.max(sw, sh);
+    const w = Math.max(40, Math.round(sw * scale));
+    const h = Math.max(40, Math.round(sh * scale));
+
+    const c = document.createElement("canvas");
+    c.width = w;
+    c.height = h;
+
+    const cctx = c.getContext("2d", { willReadFrequently: true });
+    cctx.imageSmoothingEnabled = true;
+    cctx.imageSmoothingQuality = "high";
+    cctx.drawImage(sourceCanvas, 0, 0, w, h);
+
+    const img = cctx.getImageData(0, 0, w, h);
     const data = img.data;
 
-    const clusterMapBig = pfUpscaleClusterMap(
-    cluster.map,
-    analysis.canvas.width,
-    analysis.canvas.height,
-    w,
-    h
-);
+    const pixels = [];
 
-pfDrawSegmentedPatternFill(
+    for (let y = 0; y < h; y++) {
+        for (let x = 0; x < w; x++) {
+            const i = (y * w + x) * 4;
+            const r = data[i];
+            const g = data[i + 1];
+            const b = data[i + 2];
+
+            const hsl = rgbToHsl(r, g, b);
+            const lum = getLuminance01(r, g, b);
+
+            pixels.push({
+                x, y, r, g, b,
+                h: hsl.h,
+                s: hsl.s,
+                l: hsl.l,
+                lum
+            });
+        }
+    }
+
+    return { canvas: c, ctx: cctx, data, pixels, w, h };
+}
+
+function pfCreateKMeansClusterMap(analysis, k = 6) {
+    const { pixels, w, h } = analysis;
+    const centers = [];
+
+    const usablePixels = pixels.filter(p => {
+        return p.l > 0.04 && p.l < 0.96;
+    });
+
+    if (usablePixels.length < k) {
+        k = Math.max(2, usablePixels.length);
+    }
+
+    for (let i = 0; i < k; i++) {
+        const index = Math.floor((i / k) * usablePixels.length);
+        const p = usablePixels[index] || pixels[Math.floor(Math.random() * pixels.length)];
+
+        centers.push({
+            r: p.r,
+            g: p.g,
+            b: p.b,
+            h: p.h,
+            s: p.s,
+            l: p.l,
+            count: 0
+        });
+    }
+
+    const clusterMap = new Uint8Array(w * h);
+
+    for (let iter = 0; iter < 7; iter++) {
+        const sums = centers.map(() => ({
+            r: 0, g: 0, b: 0,
+            h: 0, s: 0, l: 0,
+            count: 0
+        }));
+
+        for (let i = 0; i < pixels.length; i++) {
+            const p = pixels[i];
+
+            let bestIndex = 0;
+            let bestDist = Infinity;
+
+            for (let c = 0; c < centers.length; c++) {
+                const d = pfClusterDistance(p, centers[c]);
+
+                if (d < bestDist) {
+                    bestDist = d;
+                    bestIndex = c;
+                }
+            }
+
+            clusterMap[i] = bestIndex;
+
+            const sum = sums[bestIndex];
+            sum.r += p.r;
+            sum.g += p.g;
+            sum.b += p.b;
+            sum.h += p.h;
+            sum.s += p.s;
+            sum.l += p.l;
+            sum.count++;
+        }
+
+        for (let c = 0; c < centers.length; c++) {
+            const sum = sums[c];
+            if (sum.count <= 0) continue;
+
+            centers[c] = {
+                r: sum.r / sum.count,
+                g: sum.g / sum.count,
+                b: sum.b / sum.count,
+                h: sum.h / sum.count,
+                s: sum.s / sum.count,
+                l: sum.l / sum.count,
+                count: sum.count
+            };
+        }
+    }
+
+    return {
+        clusterMap,
+        clusters: centers
+    };
+}
+
+function pfClusterDistance(p, c) {
+    const dr = (p.r - c.r) / 255;
+    const dg = (p.g - c.g) / 255;
+    const db = (p.b - c.b) / 255;
+
+    const lumDiff = Math.abs(p.l - c.l);
+    const satDiff = Math.abs(p.s - c.s);
+    const hueDiff = hueDistance(p.h, c.h);
+
+    return (
+        Math.sqrt(dr * dr + dg * dg + db * db) * 0.55 +
+        lumDiff * 0.22 +
+        satDiff * 0.12 +
+        hueDiff * 0.18
+    );
+}
+
+function pfDrawFullImageSegmentedPatternFill(
     data,
-    clusterMapBig,
-    targetMask,
-    cluster.centers,
+    clusterMap,
+    clusters,
     w,
     h,
     density,
-    palette.fill,
-    palette.pattern
-);
+    saturation
+) {
+    const cell = Math.max(5, Math.round(26 - density * 20));
 
-    outCtx.putImageData(img, 0, 0);
+    for (let ci = 0; ci < clusters.length; ci++) {
+        let regionMask = new Uint8Array(w * h);
 
-    return outCanvas;
+        for (let p = 0; p < clusterMap.length; p++) {
+            if (clusterMap[p] === ci) {
+                regionMask[p] = 1;
+            }
+        }
+
+        // 整张图分区，不再判断主体/背景
+        regionMask = pfDilateMask(regionMask, w, h, 1);
+
+        const cluster = clusters[ci];
+
+        let fillColor = pfNormalizeFillColor({
+            r: cluster.r,
+            g: cluster.g,
+            b: cluster.b
+        });
+
+        fillColor = pfAdjustColorSaturation(fillColor, saturation);
+
+        const patternColor = pfMixColor(
+            fillColor,
+            { r: 255, g: 255, b: 255 },
+            0.72
+        );
+
+        const patternType = pfPickPatternTypeByCluster(cluster, ci);
+
+        pfApplyRegionBaseFillSoft(data, regionMask, fillColor, 0.92);
+
+        pfApplyPatternToRegionSoft(
+            data,
+            regionMask,
+            w,
+            h,
+            cell,
+            patternType,
+            patternColor,
+            1
+        );
+    }
+}
+
+function pfAdjustColorSaturation(color, amount) {
+    const hsl = rgbToHsl(color.r, color.g, color.b);
+
+    return hslToRgb(
+        hsl.h,
+        Math.max(0, Math.min(1, hsl.s * amount)),
+        hsl.l
+    );
+}
+
+function pfPickPatternTypeByCluster(cluster, index) {
+    if (cluster.l > 0.68) return "dot";
+    if (cluster.l < 0.32) return "line";
+    if (cluster.s > 0.42) return "diag";
+    return "tri";
+}
+
+function pfApplyRegionBaseFillSoft(data, mask, fillColor, strength = 1) {
+    for (let p = 0; p < mask.length; p++) {
+        if (!mask[p]) continue;
+
+        const i = p * 4;
+
+        data[i] = clamp255(data[i] * (1 - strength) + fillColor.r * strength);
+        data[i + 1] = clamp255(data[i + 1] * (1 - strength) + fillColor.g * strength);
+        data[i + 2] = clamp255(data[i + 2] * (1 - strength) + fillColor.b * strength);
+        data[i + 3] = 255;
+    }
+}
+
+function pfApplyPatternToRegionSoft(data, mask, w, h, cell, type, color, strength = 1) {
+    const alpha = 0.78 * strength;
+
+    for (let y = 0; y < h; y++) {
+        for (let x = 0; x < w; x++) {
+            const p = y * w + x;
+            if (!mask[p]) continue;
+
+            const localX = x % cell;
+            const localY = y % cell;
+
+            let hit = false;
+
+            if (type === "dot") {
+                const cx = cell / 2;
+                const cy = cell / 2;
+                const r = cell * 0.18;
+                const dx = localX - cx;
+                const dy = localY - cy;
+                hit = dx * dx + dy * dy < r * r;
+            }
+
+            if (type === "line") {
+                hit = localY < Math.max(1, cell * 0.14);
+            }
+
+            if (type === "diag") {
+                hit = Math.abs(localX - localY) < Math.max(1, cell * 0.12);
+            }
+
+            if (type === "tri") {
+                hit = localX + localY < cell * 0.72;
+            }
+
+            if (!hit) continue;
+
+            const i = p * 4;
+
+            data[i] = clamp255(data[i] * (1 - alpha) + color.r * alpha);
+            data[i + 1] = clamp255(data[i + 1] * (1 - alpha) + color.g * alpha);
+            data[i + 2] = clamp255(data[i + 2] * (1 - alpha) + color.b * alpha);
+            data[i + 3] = 255;
+        }
+    }
+}
+
+function getLuminance01(r, g, b) {
+    return (
+        0.299 * r +
+        0.587 * g +
+        0.114 * b
+    ) / 255;
+}
+
+function hueDistance(h1, h2) {
+    let d = Math.abs(h1 - h2);
+    return Math.min(d, 1 - d);
 }
 
 function pfDrawSegmentedPatternFill(
@@ -14906,7 +15190,7 @@ if (currentEffectType === "line_contour") {
 if (currentEffectType === "pattern_fill") {
     typeSliderALabel.textContent = "区域范围 Area Range";
     typeSliderBLabel.textContent = "图案密度 Pattern Density";
-    typeSliderCLabel.textContent = "填充对象 Fill Target";
+    typeSliderCLabel.textContent = "饱和度 Saturation";
 } else {
     updateTypeControlLabels();
 }
